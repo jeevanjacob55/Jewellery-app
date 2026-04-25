@@ -2,6 +2,43 @@
 
 Use this file as the day-to-day execution order. Unlike the other documents, this is written as one continuous sequence from the first task to the last release task.
 
+## Status Update
+
+Confirmed complete in the repo on 2026-04-25:
+
+- [x] Repo cleanup: monorepo structure is correct and `backend/`, `frontend-mobile/`, and `web-admin/` are the active implementation surfaces.
+- [x] Environment setup: backend virtual environment exists, backend requirements are installed, mobile and web-admin npm packages are installed, and local `.env` plus `.env.example` files exist for backend, mobile, and web-admin.
+- [x] Backend bootstrap: Django settings, `manage.py`, initial migrations, local database connection, local superuser, and `/api/health/` are wired and verified.
+- [x] Accounts domain: custom user model fields, profile and notification preference relationships, JWT login and refresh, guest access, and `/api/me/` are implemented.
+- [x] Regions domain: state, district, and local chapter models plus the onboarding hierarchy endpoint are implemented.
+- [x] Rates domain: association, external market, and trend snapshot models exist, and a dashboard endpoint is present.
+- [x] Directory domain: company, verification, product category, product, and enquiry models plus company/product API serializers and views are present.
+- [x] Media metadata model: `MediaAsset`, `CompanyImage`, and `ProductImage` exist with moderation status and visibility fields.
+- [x] Reverse search: request, attachment, and response models plus create/list/detail API views are present.
+- [x] Services and compliance: service, compliance request, reminder models and a services endpoint are present.
+- [x] News and alerts: news, alert, and meeting models plus a news endpoint are present.
+- [x] Ads and advertiser flow: advertisement-related models and API views are present at a scaffold level.
+- [x] Admin operations: audit log model and admin overview endpoint are present.
+- [x] Backend migrations and local database setup: initial Django migrations are generated for all existing apps and the local database has been migrated.
+- [x] Backend tests: auth, permissions, regions, dashboard, directory, reverse-search privacy, ads, and admin access tests are implemented and passing.
+- [x] Mobile theme system: shared tokens and reusable UI building blocks exist.
+- [x] Mobile navigation: stack navigator, bottom tabs, splash route, auth flow, and detail routes are implemented.
+- [x] Splash screen: association-branded splash flow and session check on app open are implemented.
+- [x] Login and onboarding screens: login form, guest path, and region selection flow are implemented, with Google sign-in still intentionally placeholder-only.
+- [x] Dashboard screen: rates, comparison, trends, and quick actions UI are built and connected to the dashboard API.
+- [x] Market tiers, company profile, product search, reverse-search, services, news, and member profile mobile screens are all scaffolded and connected at least to current API responses.
+- [x] Mobile API and state hardening: centralized API client, auth token storage, refresh handling, and loading/empty-state patterns are present.
+- [x] Web landing and web admin shell: initial pages/components exist, but workflow depth and routing are still incomplete.
+
+## Newly Identified Follow-up Tasks
+
+- seed local data for regions, dashboard rates, directory, services, news, ads, and admin queues so the implemented UIs are backed by realistic records
+- split `web-admin` into real routes so the public landing page and admin dashboard are not rendered on the same page
+- add route protection and authentication flow for `web-admin`
+- replace placeholder or static API responses with model-backed query logic where views still return hard-coded payloads
+- finish reverse-search attachment upload flow on mobile with real file picking and upload/finalize requests
+- normalize zero-argument Django test discovery or add a dedicated backend test command; full-suite verification currently runs via explicit app test module labels
+
 ## Build Sequence
 
 ### 1. Repo cleanup
@@ -10,19 +47,19 @@ Use this file as the day-to-day execution order. Unlike the other documents, thi
 - confirm `backend/`, `frontend-mobile/`, and `web-admin/` are the only implementation surfaces
 
 ### 2. Environment setup
-- create backend virtual environment
-- install Python requirements
-- install mobile npm packages
-- install web-admin npm packages
-- create `.env` files for each surface
+- [x] create backend virtual environment
+- [x] install Python requirements
+- [x] install mobile npm packages
+- [x] install web-admin npm packages
+- [x] create `.env` files for each surface
 
 ### 3. Backend bootstrap
-- verify Django settings load
-- verify `manage.py` works
-- configure database connection
-- run initial migrations
-- create superuser
-- verify `/api/health/`
+- [x] verify Django settings load
+- [x] verify `manage.py` works
+- [x] configure database connection
+- [x] run initial migrations
+- [x] create superuser
+- [x] verify `/api/health/`
 
 ### 4. Accounts domain
 - finish custom user model fields

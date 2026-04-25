@@ -1,4 +1,4 @@
-from rest_framework import status
+from rest_framework import permissions, status
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +10,8 @@ from .serializers import ReverseSearchRequestSerializer
 
 
 class ReverseSearchListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request):
         queryset = ReverseSearchRequest.objects.filter(created_by=request.user).prefetch_related("responses")
         return Response(ReverseSearchRequestSerializer(queryset, many=True).data)
@@ -22,6 +24,8 @@ class ReverseSearchListCreateView(APIView):
 
 
 class ReverseSearchUploadSessionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request):
         request_id = request.data.get("request_id", "new-request")
         filename = request.data.get("filename", "reference-image.jpg")
@@ -30,6 +34,7 @@ class ReverseSearchUploadSessionView(APIView):
 
 
 class ReverseSearchStatusListView(ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = ReverseSearchRequestSerializer
 
     def get_queryset(self):

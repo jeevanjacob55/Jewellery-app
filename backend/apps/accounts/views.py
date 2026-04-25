@@ -24,6 +24,8 @@ class GuestAccessView(APIView):
 
 
 class MeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request):
         return Response(UserSerializer(request.user).data)
 

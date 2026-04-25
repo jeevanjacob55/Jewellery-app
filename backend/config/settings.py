@@ -73,6 +73,13 @@ DATABASES = {
     "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
 }
 
+default_database = DATABASES["default"]
+database_name = default_database.get("NAME")
+if default_database.get("ENGINE") == "django.db.backends.sqlite3" and database_name:
+    sqlite_path = Path(database_name)
+    if not sqlite_path.is_absolute():
+        default_database["NAME"] = str((BASE_DIR / sqlite_path).resolve())
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
