@@ -1,0 +1,96 @@
+import { AuthTokens } from "../types/api";
+
+const DEFAULT_API_BASE_URL = "http://10.0.2.2:8000/api";
+
+type ApiClientConfig = {
+  getTokens?: () => AuthTokens | null;
+  onTokensUpdated?: (tokens: AuthTokens | null) => Promise<void> | void;
+  onUnauthorized?: () => Promise<void> | void;
+};
+
+let config: ApiClientConfig = {};
+
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+
+export function configureApiClient(nextConfig: ApiClientConfig) {
+  config = nextConfig;
+}
+
+type RequestOptions = {
+  method?: "GET" | "POST" | "PATCH";
+  body?: unknown;
+  authenticated?: boolean;
+  retrying?: boolean;
+};
+
+async function refreshAccessToken(refresh: string): Promise<AuthTokens | null> {
+  const response = await fetch(`${API_BASE_URL}/auth/refresh/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh }),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = (await response.json()) as { access: string };
+  return { access: payload.access, refresh };
+}
+
+async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const tokens = config.getTokens?.() ?? null;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (options.authenticated && tokens?.access) {
+    headers.Authorization = `Bearer ${tokens.access}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: options.method ?? "GET",
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (response.status === 401 && options.authenticated && !options.retrying && tokens?.refresh) {
+    const refreshedTokens = await refreshAccessToken(tokens.refresh);
+    if (refreshedTokens) {
+      await config.onTokensUpdated?.(refreshedTokens);
+      return requestJson<T>(path, { ...options, retrying: true });
+    }
+
+    await config.onUnauthorized?.();
+  }
+
+  if (!response.ok) {
+    let message = `Request failed for ${path}`;
+    try {
+      const errorBody = (await response.json()) as Record<string, string[] | string>;
+      const firstValue = Object.values(errorBody)[0];
+      if (typeof firstValue === "string") {
+        message = firstValue;
+      } else if (Array.isArray(firstValue) && firstValue[0]) {
+        message = firstValue[0];
+      }
+    } catch {
+      // Fall back to the default message when the error response is not JSON.
+    }
+    throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export function getJson<T>(path: string, authenticated = false): Promise<T> {
+  return requestJson<T>(path, { authenticated });
+}
+
+export function postJson<T>(path: string, body: unknown, authenticated = false): Promise<T> {
+  return requestJson<T>(path, { method: "POST", body, authenticated });
+}
