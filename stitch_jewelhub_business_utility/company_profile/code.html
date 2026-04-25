@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#ffffff",
+                    "surface-container": "#f1edec",
+                    "secondary": "#5d5f5f",
+                    "background": "#fcf8f8",
+                    "tertiary": "#5d5f5f",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "outline": "#747878",
+                    "surface-bright": "#fcf8f8",
+                    "tertiary-container": "#ffffff",
+                    "on-secondary-fixed-variant": "#454747",
+                    "surface-container-high": "#ebe7e7",
+                    "on-primary-fixed-variant": "#454747",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "surface-variant": "#e5e2e1",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "primary": "#5d5f5f",
+                    "on-background": "#1c1b1b",
+                    "surface-tint": "#5d5f5f",
+                    "surface-dim": "#ddd9d9",
+                    "surface": "#fcf8f8",
+                    "secondary-fixed": "#e2e2e2",
+                    "primary-container": "#ffffff",
+                    "on-primary-container": "#747676",
+                    "on-primary-fixed": "#1a1c1c",
+                    "on-secondary": "#ffffff",
+                    "on-surface-variant": "#444748",
+                    "secondary-container": "#dcdddd",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#747676",
+                    "error-container": "#ffdad6",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "on-surface": "#1c1b1b",
+                    "error": "#ba1a1a",
+                    "on-error": "#ffffff",
+                    "inverse-on-surface": "#f4f0ef",
+                    "outline-variant": "#c4c7c8",
+                    "on-error-container": "#93000a",
+                    "surface-container-highest": "#e5e2e1",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "inverse-surface": "#313030",
+                    "tertiary-fixed": "#e2e2e2",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "primary-fixed": "#e2e2e2",
+                    "surface-container-low": "#f6f3f2",
+                    "on-secondary-container": "#5f6161",
+                    "inverse-primary": "#c6c6c7"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "gutter": "16px",
+                    "container-margin": "24px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "xl": "48px",
+                    "xs": "4px",
+                    "base": "8px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "data-tabular": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "h3": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "h1": ["Inter"],
+                    "h2": ["Inter"]
+            },
+            "fontSize": {
+                    "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                    "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                    "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 16px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-lg antialiased">
+<!-- TopAppBar -->
+<header class="bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100 docked full-width top-0 z-50 border-b border-stone-100 dark:border-stone-800 shadow-[0px_4px_20px_rgba(26,26,26,0.05)] sticky">
+<div class="flex justify-between items-center w-full px-6 py-4">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-stone-900 dark:text-stone-100 hover:bg-stone-50 dark:hover:bg-stone-900 transition-colors active:opacity-70" data-icon="menu">menu</button>
+<h1 class="text-lg font-black tracking-widest text-stone-900 dark:text-stone-50 uppercase font-['Inter']">Jewellery Association</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-stone-900 dark:text-stone-100 hover:bg-stone-50 dark:hover:bg-stone-900 transition-colors active:opacity-70" data-icon="notifications">notifications</button>
+</div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-6 py-8 pb-32">
+<!-- Hero Profile Section -->
+<section class="mb-xl">
+<div class="bg-white rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] overflow-hidden">
+<div class="h-48 w-full bg-surface-container relative">
+<img class="w-full h-full object-cover opacity-60" data-alt="luxury jewelry workshop interior with elegant displays and professional tools in a minimalist Kerala setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZnmNnHjW3PsKJmVHxbMNdb_n8Dzrs1Se7bNMaMpzHYSq9ZBYJ8k7xJ8997zaO2Fk-oLUQDg0rtYBVJuGYwH9xQrwrgQaEXQhPOes7V_t2-pTKggjX-8BLPW7qKSWKRhf2Cd1rXgxFev-DSFwBYVzSn4opzlZCkRDwng-Y6BmwV_KZReW4S2mEVQEa2UQmH_DbGAYkFhiKcbeogCHQCpol_4jzlmNxtHfe87zMDDu2MToDl5odQxEQI9vereXHywcv-xCjUM_lsaA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-white to-transparent"></div>
+</div>
+<div class="px-lg pb-lg -mt-16 relative z-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+<div class="flex flex-col md:flex-row gap-6 items-start md:items-end">
+<div class="w-32 h-32 rounded-lg bg-white p-2 shadow-lg border border-surface-container">
+<div class="w-full h-full bg-stone-900 flex items-center justify-center text-white font-bold text-2xl uppercase">
+                                MAL
+                            </div>
+</div>
+<div>
+<h2 class="font-h1 text-h1 text-on-background mb-1">Malabar Artisan Luxuries</h2>
+<div class="flex flex-wrap items-center gap-4 text-on-surface-variant font-body-sm">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="location_on">location_on</span>
+                                    Kerala, India
+                                </div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="call">call</span>
+                                    9876543210
+                                </div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px] text-[#D4AF37]" data-icon="verified" style="font-variation-settings: 'FILL' 1;">verified</span>
+                                    Gold Association Member
+                                </div>
+</div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="px-6 py-2 border border-outline-variant text-on-background font-label-caps text-label-caps rounded hover:bg-surface-container transition-colors">Download Brochure</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Layout -->
+<div class="bento-grid">
+<!-- About Section -->
+<div class="col-span-12 lg:col-span-8 bg-white p-lg rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container">
+<h3 class="font-h2 text-h2 mb-4 text-on-background">About</h3>
+<p class="font-body-lg text-on-surface-variant leading-relaxed mb-6">
+                    Leading gold manufacturer in the heart of Kerala, specializing in traditional artisan craftsmanship fused with modern precision. With over three decades of excellence, Malabar Artisan Luxuries has been at the forefront of the regional jewellery trade, supplying premium retailers with certified 22K and 24K gold ornaments.
+                </p>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 py-4 border-t border-surface-container">
+<div>
+<p class="font-label-caps text-label-caps text-outline uppercase mb-1">Established</p>
+<p class="font-data-tabular text-data-tabular">1992</p>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-outline uppercase mb-1">Specialization</p>
+<p class="font-data-tabular text-data-tabular">Temple Jewellery</p>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-outline uppercase mb-1">Daily Capacity</p>
+<p class="font-data-tabular text-data-tabular">15.5 kg</p>
+</div>
+</div>
+</div>
+<!-- Trade Info -->
+<div class="col-span-12 lg:col-span-4 bg-[#1A1A1A] p-lg rounded-xl text-white shadow-[0px_4px_20px_rgba(26,26,26,0.05)]">
+<h3 class="font-h3 text-h3 mb-6 text-white border-b border-white/10 pb-4">Trade Verification</h3>
+<ul class="space-y-4">
+<li class="flex items-center justify-between">
+<span class="font-body-sm opacity-70">GST Registered</span>
+<span class="material-symbols-outlined text-green-400" data-icon="check_circle">check_circle</span>
+</li>
+<li class="flex items-center justify-between">
+<span class="font-body-sm opacity-70">BIS Hallmarked</span>
+<span class="material-symbols-outlined text-green-400" data-icon="check_circle">check_circle</span>
+</li>
+<li class="flex items-center justify-between">
+<span class="font-body-sm opacity-70">Export License</span>
+<span class="material-symbols-outlined text-green-400" data-icon="check_circle">check_circle</span>
+</li>
+<li class="flex items-center justify-between">
+<span class="font-body-sm opacity-70">Member ID</span>
+<span class="font-data-tabular">KJA-2024-889</span>
+</li>
+</ul>
+<div class="mt-8 p-4 bg-white/5 rounded border border-white/10">
+<p class="font-label-caps text-label-caps text-[#D4AF37] mb-2">Live Status</p>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+<span class="font-body-sm">Currently accepting wholesale orders</span>
+</div>
+</div>
+</div>
+<!-- Products Preview Title -->
+<div class="col-span-12 mt-8">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-h2 text-h2 text-on-background uppercase tracking-tight">Products Preview</h3>
+<a class="font-label-caps text-label-caps text-primary hover:underline transition-all" href="#">View All Collections</a>
+</div>
+</div>
+<!-- Product Cards -->
+<div class="col-span-12 md:col-span-4 group cursor-pointer">
+<div class="bg-white rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container transition-transform duration-300 group-hover:-translate-y-1">
+<div class="aspect-square bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Close-up of a handcrafted intricate 22k gold ring with ruby embellishments on a dark velvet pedestal" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvTrSuh6FGw4tAB_-W1e0WMsik1IJGJy9J0AyyAeHS7g_M3S3Sqa_XzLylDgfsMDb-NlXEujPOzphsgYREcMJjUJd5hSM5z3cgihVwCIZC68JkAAgEkALDEAau9JUcsXkqytGrU4lzXG5wwewj7-v9MiqHnPvOuPwDUTzd6iBp_7L-PIt4ju0abWrBoKi8xrPS8LtruQfQn_dp0schaQu9cwphGnkWIp2urd6MaHiei7KyHNgflrDos30rkq7EsESVj3fLVpesjDY"/>
+</div>
+<div class="p-lg">
+<h4 class="font-h3 text-h3 mb-1">Classic Gold Ring</h4>
+<p class="font-body-sm text-on-surface-variant">22K Hallmark Certified</p>
+</div>
+</div>
+</div>
+<div class="col-span-12 md:col-span-4 group cursor-pointer">
+<div class="bg-white rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container transition-transform duration-300 group-hover:-translate-y-1">
+<div class="aspect-square bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="macro photo of a heavy gold chain link necklace with mirror finish reflections on a minimalist white surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATmXuSprsm9XYlDjMLEVRzfhjXk7waKIgFN1PxoWKztNPayLzPUMhOqpDlMxlkfUUeyez9YdThpl5V9sxWjK8w904oWS8XPxO3hz6WsPMtAMc2CpJqMm5bzZiUETCVw8g44I1Gay1bXtlc31cuxyTYVHEF9VM6RES-_au3T_ybYIM9FJW5EeJIHYjmRUfuTzSjwDXftVcoPdz0M-Pf7uCtDvOC0eg0lN3bVWNn3PCcd_gyPOdFF2PV1BcAvX0nJej-1BFXZMe6wXc"/>
+</div>
+<div class="p-lg">
+<h4 class="font-h3 text-h3 mb-1">Artisan Gold Chain</h4>
+<p class="font-body-sm text-on-surface-variant">Double-link craftsmanship</p>
+</div>
+</div>
+</div>
+<div class="col-span-12 md:col-span-4 group cursor-pointer">
+<div class="bg-white rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container transition-transform duration-300 group-hover:-translate-y-1">
+<div class="aspect-square bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="magnificent traditional kerala style gold necklace with temple motifs and emerald droplets" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSj45_PwiqkApdKblfXFRZLsL-eSMNkLjeQoJRXbMVSvrBUNXru6As2rYrU-rNskFffxY0QxyQuAGNjTqwTbTND1ZeYWVIm5nTO0UzOujS3TRzmKtnqeqzmZLxLQklA7OSdLJRsovSl0gmKgfmzt8ATDlxJr8tqQnUgcIk2S-Kv6aeQ5NmP9oj3WYv5Ra_EZj9MSIF0D_fKNLMVdioe7WeUkXmjrQgownIjjNSyoJLODSAK-vJ-NXritOWAD8cw_0KTiAFD7VHrHI"/>
+</div>
+<div class="p-lg">
+<h4 class="font-h3 text-h3 mb-1">Bridal Necklace</h4>
+<p class="font-body-sm text-on-surface-variant">Signature Kerala Heritage</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Fixed Action Bar -->
+<div class="fixed bottom-0 left-0 right-0 p-6 z-40 flex justify-center pointer-events-none">
+<div class="max-w-md w-full bg-white shadow-2xl rounded-full p-2 border border-surface-container pointer-events-auto">
+<button class="w-full bg-[#1A1A1A] text-white py-4 px-8 rounded-full font-label-caps text-label-caps flex items-center justify-center gap-2 hover:bg-[#D4AF37] transition-all active:scale-95 duration-150">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+                Enquire Now
+            </button>
+</div>
+</div>
+</body></html>

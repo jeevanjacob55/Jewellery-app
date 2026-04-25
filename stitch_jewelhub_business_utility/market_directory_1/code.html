@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#ffffff",
+                        "surface-container": "#f1edec",
+                        "secondary": "#5d5f5f",
+                        "background": "#fcf8f8",
+                        "tertiary": "#5d5f5f",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "outline": "#747878",
+                        "surface-bright": "#fcf8f8",
+                        "tertiary-container": "#ffffff",
+                        "on-secondary-fixed-variant": "#454747",
+                        "surface-container-high": "#ebe7e7",
+                        "on-primary-fixed-variant": "#454747",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "surface-variant": "#e5e2e1",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "primary": "#5d5f5f",
+                        "on-background": "#1c1b1b",
+                        "surface-tint": "#5d5f5f",
+                        "surface-dim": "#ddd9d9",
+                        "surface": "#fcf8f8",
+                        "secondary-fixed": "#e2e2e2",
+                        "primary-container": "#ffffff",
+                        "on-primary-container": "#747676",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-secondary": "#ffffff",
+                        "on-surface-variant": "#444748",
+                        "secondary-container": "#dcdddd",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#747676",
+                        "error-container": "#ffdad6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-surface": "#1c1b1b",
+                        "error": "#ba1a1a",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#f4f0ef",
+                        "outline-variant": "#c4c7c8",
+                        "on-error-container": "#93000a",
+                        "surface-container-highest": "#e5e2e1",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "inverse-surface": "#313030",
+                        "tertiary-fixed": "#e2e2e2",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "primary-fixed": "#e2e2e2",
+                        "surface-container-low": "#f6f3f2",
+                        "on-secondary-container": "#5f6161",
+                        "inverse-primary": "#c6c6c7",
+                        "amber-600": "#d97706",
+                        "amber-500": "#f59e0b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "container-margin": "24px",
+                        "sm": "8px",
+                        "lg": "24px",
+                        "xl": "48px",
+                        "xs": "4px",
+                        "base": "8px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "data-tabular": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "h3": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "h1": ["Inter"],
+                        "h2": ["Inter"]
+                    },
+                    "fontSize": {
+                        "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                        "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .premium-gradient { background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background font-body-lg text-on-background min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="bg-white dark:bg-stone-950 fixed top-0 z-50 w-full border-b border-stone-100 dark:border-stone-800 shadow-[0px_4px_20px_rgba(26,26,26,0.05)]">
+<div class="flex justify-between items-center w-full px-6 py-4">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-stone-900 dark:text-stone-100 cursor-pointer active:opacity-70 transition-opacity" data-icon="menu">menu</span>
+<h1 class="text-lg font-black tracking-widest text-stone-900 dark:text-stone-50 uppercase font-['Inter']">Jewellery Association</h1>
+</div>
+<span class="material-symbols-outlined text-stone-900 dark:text-stone-100 cursor-pointer active:opacity-70 transition-opacity" data-icon="notifications">notifications</span>
+</div>
+</header>
+<main class="pt-20 px-container-margin max-w-7xl mx-auto">
+<!-- Search & Filter Section -->
+<section class="mt-lg">
+<div class="flex items-center gap-sm bg-surface-container-lowest border border-surface-container-high rounded-xl p-3 shadow-[0px_4px_20px_rgba(26,26,26,0.05)] focus-within:ring-1 focus-within:ring-amber-600 transition-all">
+<span class="material-symbols-outlined text-outline" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 w-full font-body-sm text-on-surface" placeholder="Search companies, bullion traders..." type="text"/>
+<button class="flex items-center justify-center p-2 rounded-lg hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-on-surface" data-icon="filter_list">filter_list</span>
+</button>
+</div>
+</section>
+<!-- Category Tabs -->
+<nav class="mt-lg flex gap-md overflow-x-auto no-scrollbar py-2">
+<button class="bg-on-background text-on-primary px-6 py-2 rounded-full font-label-caps whitespace-nowrap">Manufacturer</button>
+<button class="bg-white border border-surface-container-high text-secondary px-6 py-2 rounded-full font-label-caps whitespace-nowrap hover:bg-surface-container transition-colors">Wholesaler</button>
+<button class="bg-white border border-surface-container-high text-secondary px-6 py-2 rounded-full font-label-caps whitespace-nowrap hover:bg-surface-container transition-colors">Trader</button>
+<button class="bg-white border border-surface-container-high text-secondary px-6 py-2 rounded-full font-label-caps whitespace-nowrap hover:bg-surface-container transition-colors">Supplier</button>
+</nav>
+<!-- Featured Section (Premium) -->
+<section class="mt-xl">
+<div class="flex justify-between items-end mb-md">
+<div>
+<span class="font-label-caps text-amber-600">Featured Partners</span>
+<h2 class="font-h2 text-on-background">Premium Enterprises</h2>
+</div>
+<button class="text-amber-600 font-label-caps flex items-center gap-1 hover:underline">
+                    View All <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+<div class="flex gap-lg overflow-x-auto no-scrollbar py-2 -mx-4 px-4">
+<!-- Premium Card 1 -->
+<div class="min-w-[280px] md:min-w-[320px] bg-white rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-amber-600/20 group">
+<div class="h-32 w-full relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Close-up of luxury gold jewellery display in a high-end boutique with elegant warm lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpbpS84ubfMxfz4M9Rm2DEgTp_w0LI4rCN8WoXpVNMmV0xFojqad6qNLh30868TLj_DQqU1fMCBSm0hd3zMZJF5lVBeVgsJJ7aTJaBnfVAMFhk-1wZl2FugKDezyGewuVL8nABMutT-nhGYCBq74RrN-g_msdYkAoKlSiLQeh0VccEUiusnI7lYStdz_PQjwZEyTyfAjzDmuY04VjOytuCUBQnTWCZjZLK5eiZLxWDG66X06yOihJlKMNHrdfpAe-Y8e_qDq0LsEU"/>
+<div class="absolute top-3 left-3 bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 shadow-lg">
+<span class="material-symbols-outlined text-[12px]" data-icon="workspace_premium" data-weight="fill">workspace_premium</span>
+                            Premium
+                        </div>
+</div>
+<div class="p-md">
+<h3 class="font-h3 text-on-background mb-1">Aura Gold Exports</h3>
+<div class="flex items-center gap-1 text-outline mb-4">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span>
+<span class="text-xs font-body-sm">Kochi, Kerala</span>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full border-2 border-white bg-stone-100 flex items-center justify-center text-[10px] font-bold text-amber-600">IS</div>
+<div class="w-6 h-6 rounded-full border-2 border-white bg-stone-100 flex items-center justify-center text-[10px] font-bold text-amber-600">GJ</div>
+</div>
+<button class="bg-on-background text-on-primary p-2 rounded-lg hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-base" data-icon="contact_page">contact_page</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Premium Card 2 -->
+<div class="min-w-[280px] md:min-w-[320px] bg-white rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-amber-600/20 group">
+<div class="h-32 w-full relative overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Traditional Indian bridal gold necklaces and ornaments arranged on dark velvet fabric with soft atmospheric light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeN1ZXtXMuDDl37NxNUcd77itn3P5E-OfvUg0ncd70VV6ShtLoEEDnD7p6R1DLuO3nbahbPt9cQxICGkRj1Dr-XSxpf3eWxbpqK66czQf3mjDMzSUZ7Zfqw6YQqBuSRVUAmC_ZAPv2XwEk0KG-E1Z9kflLBT5DzfOZU6eExuvwJM3bnrgxmmxo88pnWKZsPMfs4h7-R71LgsQ2dp0MwcL9-wJU23J4lDVldBcgrH2bW9_OK1KerxEDH0jPLr_BQJidAZJ8z2BW1jc"/>
+<div class="absolute top-3 left-3 bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 shadow-lg">
+<span class="material-symbols-outlined text-[12px]" data-icon="workspace_premium" data-weight="fill">workspace_premium</span>
+                            Premium
+                        </div>
+</div>
+<div class="p-md">
+<h3 class="font-h3 text-on-background mb-1">Elite Diamonds Ltd</h3>
+<div class="flex items-center gap-1 text-outline mb-4">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span>
+<span class="text-xs font-body-sm">Surat, Gujarat</span>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full border-2 border-white bg-stone-100 flex items-center justify-center text-[10px] font-bold text-amber-600">ID</div>
+<div class="w-6 h-6 rounded-full border-2 border-white bg-stone-100 flex items-center justify-center text-[10px] font-bold text-amber-600">TC</div>
+</div>
+<button class="bg-on-background text-on-primary p-2 rounded-lg hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-base" data-icon="contact_page">contact_page</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Ad Banner -->
+<section class="mt-xl">
+<div class="relative w-full h-32 md:h-48 rounded-2xl overflow-hidden shadow-lg group cursor-pointer">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Cinematic shot of molten gold being poured into an ingot mold in a professional foundry workshop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZPhbHvpSvpAL5N28NgnO09mPoefszwPgtbJNSLcybcQEZuZhGwUnB8wL_YTPTZXQ8xViLLqy6KMGvU41IJwOfxAB2uk9CREfNKc24yJwmBfUFMtCunJTY-TB29YQJbypg2ad6BHlEXLD4YNrbw5Lkcw15gxuB8EqFhYyb2sQkMwOexxTDe8rrYd3tGiARtDYuxRv0tMdF4wJ6mV_dEk7gdw9PttW5b74xeXZ91rUA2BFFqUhbfRcrdn1wtLrJfkFYQ55zB3sK9ig"/>
+<div class="absolute inset-0 bg-gradient-to-r from-stone-900/80 to-transparent flex flex-col justify-center px-lg">
+<span class="font-label-caps text-amber-500 mb-1">Global Trade Expo 2024</span>
+<h3 class="text-white font-h2 mb-2">Join the Industry Elite</h3>
+<p class="text-white/80 text-xs font-body-sm max-w-xs">Early bird registration now open for members of the Jewellery Association.</p>
+</div>
+<div class="absolute bottom-3 right-3 bg-white/20 backdrop-blur-md px-2 py-1 rounded text-[8px] text-white/60 uppercase tracking-tighter">Sponsored</div>
+</div>
+</section>
+<!-- Company List (Tiered) -->
+<section class="mt-xl">
+<div class="flex items-center justify-between mb-md">
+<h2 class="font-h2 text-on-background">Trade Directory</h2>
+<div class="flex items-center gap-2 text-outline font-label-caps text-[10px]">
+<span>Sort by:</span>
+<button class="text-on-background flex items-center gap-1 underline decoration-amber-600">Premium First</button>
+</div>
+</div>
+<div class="space-y-4">
+<!-- Pro Tier Company -->
+<div class="bg-white p-4 rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border-l-4 border-primary hover:shadow-md transition-shadow">
+<div class="flex items-start justify-between">
+<div class="flex gap-4">
+<div class="w-12 h-12 bg-surface-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="corporate_fare">corporate_fare</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h4 class="font-h3 text-on-background">Zenith Bullion Pro</h4>
+<span class="bg-surface-container text-on-surface-variant text-[10px] px-2 py-0.5 rounded font-bold uppercase">Pro</span>
+</div>
+<div class="flex items-center gap-3 mt-1">
+<div class="flex items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span>
+<span class="text-xs font-body-sm">Chennai, Tamil Nadu</span>
+</div>
+<div class="flex items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-[14px]" data-icon="verified">verified</span>
+<span class="text-xs font-body-sm">Verified</span>
+</div>
+</div>
+</div>
+</div>
+<button class="text-on-surface hover:text-amber-600 transition-colors">
+<span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+</button>
+</div>
+</div>
+<!-- Normal Tier Company -->
+<div class="bg-white p-4 rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container-high hover:bg-surface-container-low transition-colors">
+<div class="flex items-start justify-between">
+<div class="flex gap-4">
+<div class="w-12 h-12 bg-surface-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="store">store</span>
+</div>
+<div>
+<h4 class="font-h3 text-on-background">Coastal Ornaments</h4>
+<div class="flex items-center gap-3 mt-1">
+<div class="flex items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span>
+<span class="text-xs font-body-sm">Mangaluru, Karnataka</span>
+</div>
+<div class="flex items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-[14px]" data-icon="category">category</span>
+<span class="text-xs font-body-sm">Wholesaler</span>
+</div>
+</div>
+</div>
+</div>
+<button class="text-on-surface hover:text-amber-600 transition-colors">
+<span class="material-symbols-outlined" data-icon="call">call</span>
+</button>
+</div>
+</div>
+<!-- Another Normal Tier Company -->
+<div class="bg-white p-4 rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container-high hover:bg-surface-container-low transition-colors">
+<div class="flex items-start justify-between">
+<div class="flex gap-4">
+<div class="w-12 h-12 bg-surface-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="factory">factory</span>
+</div>
+<div>
+<h4 class="font-h3 text-on-background">Royal Casting Co.</h4>
+<div class="flex items-center gap-3 mt-1">
+<div class="flex items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span>
+<span class="text-xs font-body-sm">Thrissur, Kerala</span>
+</div>
+<div class="flex items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-[14px]" data-icon="manufacturing">manufacturing</span>
+<span class="text-xs font-body-sm">Manufacturer</span>
+</div>
+</div>
+</div>
+</div>
+<button class="text-on-surface hover:text-amber-600 transition-colors">
+<span class="material-symbols-outlined" data-icon="call">call</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-white dark:bg-stone-950 fixed bottom-0 w-full z-50 border-t border-stone-100 dark:border-stone-800 shadow-[0px_-4px_20px_rgba(26,26,26,0.05)]">
+<div class="flex justify-around items-center w-full py-3 px-2">
+<!-- Home -->
+<div class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-600 hover:text-stone-900 dark:hover:text-stone-100 active:scale-95 transition-all duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-wider mt-1">Home</span>
+</div>
+<!-- Market (Active) -->
+<div class="flex flex-col items-center justify-center text-amber-600 dark:text-amber-500 font-bold active:scale-95 transition-all duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-wider mt-1">Market</span>
+</div>
+<!-- News -->
+<div class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-600 hover:text-stone-900 dark:hover:text-stone-100 active:scale-95 transition-all duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="newspaper">newspaper</span>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-wider mt-1">News</span>
+</div>
+<!-- Services -->
+<div class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-600 hover:text-stone-900 dark:hover:text-stone-100 active:scale-95 transition-all duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="business_center">business_center</span>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-wider mt-1">Services</span>
+</div>
+<!-- Profile -->
+<div class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-600 hover:text-stone-900 dark:hover:text-stone-100 active:scale-95 transition-all duration-150 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-wider mt-1">Profile</span>
+</div>
+</div>
+</nav>
+</body></html>
