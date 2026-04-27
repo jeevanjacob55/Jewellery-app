@@ -24,8 +24,12 @@ All seeded demo users share the same password:
 | `demo_unit_admin` | `admin` | Nisha Pillai | `unit-admin@demo-jewellery.app` | Scoped admin seeded at unit level |
 | `demo_kgsma_admin` | `admin` | Kiran George | `kgsma-admin@demo-jewellery.app` | KGSMA-scoped admin |
 | `demo_akgsma_admin` | `admin` | Aparna Das | `akgsma-admin@demo-jewellery.app` | AKGSMA-scoped admin |
+| `demo_tnja_admin` | `admin` | Sanjay Raman | `tnja-admin@demo-jewellery.app` | Tamil Nadu Jewellers Association-scoped admin |
+| `demo_kgta_admin` | `admin` | Meera Shetty | `kgta-admin@demo-jewellery.app` | Karnataka Gold Traders Association-scoped admin |
 | `demo_member` | `member` | Anika Menon | `member@demo-jewellery.app` | KGSMA member. Corporate email `member@heritagegold.example`, jeweller ID `JWL-DEMO-1001` |
 | `demo_akgsma_member` | `member` | Rahul Nambiar | `akgsma-member@demo-jewellery.app` | AKGSMA member. Corporate email `member@malabargoldline.example`, jeweller ID `JWL-DEMO-2001` |
+| `demo_tnja_member` | `member` | Priya Sundar | `tnja-member@demo-jewellery.app` | Tamil Nadu Jewellers Association member. Corporate email `member@chennaitrade.example`, jeweller ID `JWL-DEMO-3001` |
+| `demo_kgta_member` | `member` | Aditya Rao | `kgta-member@demo-jewellery.app` | Karnataka Gold Traders Association member. Corporate email `member@bengalurubullion.example`, jeweller ID `JWL-DEMO-4001` |
 | `demo_supplier` | `supplier` | Rohit Varma | `supplier@demo-jewellery.app` | Verified member, onboarding complete |
 | `demo_advertiser` | `advertiser` | Leena Joseph | `advertiser@demo-jewellery.app` | Verified member, onboarding complete |
 
@@ -50,6 +54,26 @@ All seeded demo users share the same password:
 - District operational unit: `Kozhikode District Unit`
 - Unit: `Nadakkavu Unit`
 - Membership tier: `Gold`
+
+### `demo_tnja_member` profile
+
+- Phone number: `9876512345`
+- Company name: `Chennai Crown Jewels`
+- State: `Tamil Nadu`
+- Association: `Tamil Nadu Jewellers Association`
+- District operational unit: `Chennai District Unit`
+- Unit: `T Nagar Unit`
+- Membership tier: `Gold`
+
+### `demo_kgta_member` profile
+
+- Phone number: `9876523456`
+- Company name: `Bengaluru Bullion House`
+- State: `Karnataka`
+- Association: `Karnataka Gold Traders Association`
+- District operational unit: `Bengaluru Urban District Unit`
+- Unit: `Chickpet Unit`
+- Membership tier: `Silver`
 
 ### Notification preferences
 
@@ -274,6 +298,10 @@ Visibility and moderation:
 | KGSMA | KGSMA Latest | 5450.00 | 5900.00 | 75.00 | 2026-04-21 10:30 |
 | AKGSMA | AKGSMA Previous | 5415.00 | 5860.00 | 73.80 | 2026-04-20 09:00 |
 | AKGSMA | AKGSMA Latest | 5435.00 | 5880.00 | 74.50 | 2026-04-21 10:30 |
+| Tamil Nadu Jewellers Association | TNJA Previous | 5485.00 | 5935.00 | 75.60 | 2026-04-20 09:00 |
+| Tamil Nadu Jewellers Association | TNJA Latest | 5495.00 | 5950.00 | 76.10 | 2026-04-21 10:30 |
+| Karnataka Gold Traders Association | KGTA Previous | 5470.00 | 5920.00 | 75.20 | 2026-04-20 09:00 |
+| Karnataka Gold Traders Association | KGTA Latest | 5480.00 | 5930.00 | 75.70 | 2026-04-21 10:30 |
 
 ### External market rates
 

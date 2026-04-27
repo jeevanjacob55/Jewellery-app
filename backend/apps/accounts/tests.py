@@ -6,7 +6,7 @@ from rest_framework.test import APITestCase
 
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .models import AdminScopeAssignment, MemberProfile, NotificationPreference
+from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference
 
 
 class AccountsApiTests(APITestCase):
@@ -98,6 +98,48 @@ class AccountsApiTests(APITestCase):
                 "guest_name": "Trade Visitor",
                 "state_id": self.state.id,
                 "association_id": self.other_association.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_member_access_request_creates_pending_request(self):
+        response = self.client.post(
+            reverse("member_access_request"),
+            {
+                "full_name": "Trade Applicant",
+                "phone_number": "9876540000",
+                "email": "applicant@example.com",
+                "business_name": "Applicant Gold House",
+                "state_id": self.state.id,
+                "association_id": self.association.id,
+                "district_operational_unit_id": self.district_unit.id,
+                "unit_id": self.unit.id,
+                "notes": "Existing retail member applying for portal access.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["message"], "Member access request submitted for review.")
+        self.assertEqual(response.data["request"]["status"], "pending")
+        self.assertEqual(response.data["request"]["association"]["name"], "KGSMA")
+        self.assertTrue(MemberAccessRequest.objects.filter(email="applicant@example.com").exists())
+
+    def test_member_access_request_rejects_cross_branch_hierarchy(self):
+        response = self.client.post(
+            reverse("member_access_request"),
+            {
+                "full_name": "Trade Applicant",
+                "phone_number": "9876540000",
+                "email": "applicant@example.com",
+                "business_name": "Applicant Gold House",
+                "state_id": self.state.id,
+                "association_id": self.other_association.id,
+                "district_operational_unit_id": self.district_unit.id,
+                "unit_id": self.unit.id,
+                "notes": "",
             },
             format="json",
         )

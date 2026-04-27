@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .models import AdminScopeAssignment, MemberProfile, NotificationPreference, User
+from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference, User
 
 
 class HierarchyReferenceSerializer(serializers.Serializer):
@@ -197,6 +197,89 @@ class GuestAccessSerializer(serializers.Serializer):
         if unit and unit.district_operational_unit != district_operational_unit:
             raise serializers.ValidationError({"unit_id": "Selected unit does not belong to the selected district operational unit."})
         return attrs
+
+
+class MemberAccessRequestCreateSerializer(serializers.ModelSerializer):
+    state_id = serializers.PrimaryKeyRelatedField(queryset=RegionState.objects.all(), source="state")
+    association_id = serializers.PrimaryKeyRelatedField(queryset=Association.objects.all(), source="association")
+    district_operational_unit_id = serializers.PrimaryKeyRelatedField(
+        queryset=DistrictOperationalUnit.objects.all(),
+        source="district_operational_unit",
+    )
+    unit_id = serializers.PrimaryKeyRelatedField(queryset=Unit.objects.all(), source="unit")
+
+    class Meta:
+        model = MemberAccessRequest
+        fields = [
+            "full_name",
+            "phone_number",
+            "email",
+            "business_name",
+            "state_id",
+            "association_id",
+            "district_operational_unit_id",
+            "unit_id",
+            "notes",
+        ]
+
+    def validate_full_name(self, value: str) -> str:
+        normalized = " ".join(value.split()).strip()
+        if not normalized:
+            raise serializers.ValidationError("Full name is required.")
+        return normalized
+
+    def validate_business_name(self, value: str) -> str:
+        normalized = " ".join(value.split()).strip()
+        if not normalized:
+            raise serializers.ValidationError("Business name is required.")
+        return normalized
+
+    def validate_phone_number(self, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise serializers.ValidationError("Phone number is required.")
+        return normalized
+
+    def validate_notes(self, value: str) -> str:
+        return value.strip()
+
+    def validate(self, attrs):
+        state = attrs["state"]
+        association = attrs["association"]
+        district_operational_unit = attrs["district_operational_unit"]
+        unit = attrs["unit"]
+
+        if association.state != state:
+            raise serializers.ValidationError({"association_id": "Selected association does not belong to the selected state."})
+        if district_operational_unit.association != association:
+            raise serializers.ValidationError(
+                {"district_operational_unit_id": "Selected district operational unit does not belong to the selected association."}
+            )
+        if unit.district_operational_unit != district_operational_unit:
+            raise serializers.ValidationError({"unit_id": "Selected unit does not belong to the selected district operational unit."})
+        return attrs
+
+
+class MemberAccessRequestResponseSerializer(serializers.ModelSerializer):
+    state = StateReferenceField(read_only=True)
+    association = AssociationReferenceField(read_only=True)
+    district_operational_unit = DistrictOperationalUnitReferenceField(read_only=True)
+    unit = UnitReferenceField(read_only=True)
+
+    class Meta:
+        model = MemberAccessRequest
+        fields = [
+            "id",
+            "full_name",
+            "email",
+            "business_name",
+            "state",
+            "association",
+            "district_operational_unit",
+            "unit",
+            "status",
+            "created_at",
+        ]
 
 
 class AdminScopeAssignmentSerializer(serializers.ModelSerializer):

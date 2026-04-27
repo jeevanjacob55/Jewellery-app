@@ -51,7 +51,7 @@ class SeedDemoDataCommandTests(APITestCase):
 
         self.assertFalse(Company.objects.filter(name="Temporary Local Entry").exists())
         self.assertTrue(Company.objects.filter(name="Heritage Gold House").exists())
-        self.assertEqual(get_user_model().objects.filter(username__startswith="demo_").count(), 11)
+        self.assertEqual(get_user_model().objects.filter(username__startswith="demo_").count(), 15)
 
     def test_seed_demo_data_command_prints_demo_password(self):
         stdout = StringIO()

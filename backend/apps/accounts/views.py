@@ -2,9 +2,11 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import NotificationPreference
+from .models import MemberAccessRequest, NotificationPreference
 from .serializers import (
     GuestAccessSerializer,
+    MemberAccessRequestCreateSerializer,
+    MemberAccessRequestResponseSerializer,
     NotificationPreferenceSerializer,
     UpdateNotificationPreferenceSerializer,
     UpdateUserSerializer,
@@ -44,6 +46,23 @@ class GuestAccessView(APIView):
                 "capabilities": ["directory:browse", "market_tiers:view", "company_profiles:view"],
             },
             status=status.HTTP_200_OK,
+        )
+
+
+class MemberAccessRequestView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = MemberAccessRequestCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        access_request = serializer.save()
+        return Response(
+            {
+                "message": "Member access request submitted for review.",
+                "request": MemberAccessRequestResponseSerializer(access_request).data,
+            },
+            status=status.HTTP_201_CREATED,
         )
 
 

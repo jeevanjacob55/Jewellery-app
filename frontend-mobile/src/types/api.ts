@@ -78,6 +78,34 @@ export interface GuestAccessPayload {
   unit_id?: number;
 }
 
+export interface MemberAccessRequestPayload {
+  full_name: string;
+  phone_number: string;
+  email: string;
+  business_name: string;
+  state_id: number;
+  association_id: number;
+  district_operational_unit_id: number;
+  unit_id: number;
+  notes: string;
+}
+
+export interface MemberAccessRequestResponse {
+  message: string;
+  request: {
+    id: number;
+    full_name: string;
+    email: string;
+    business_name: string;
+    state: HierarchyReference;
+    association: HierarchyReference;
+    district_operational_unit: HierarchyReference;
+    unit: HierarchyReference;
+    status: string;
+    created_at: string;
+  };
+}
+
 export interface GuestSession {
   access_type: "guest";
   guest_profile: GuestProfile;

@@ -34,8 +34,12 @@ DEMO_USERNAMES = [
     "demo_unit_admin",
     "demo_kgsma_admin",
     "demo_akgsma_admin",
+    "demo_tnja_admin",
+    "demo_kgta_admin",
     "demo_member",
     "demo_akgsma_member",
+    "demo_tnja_member",
+    "demo_kgta_member",
     "demo_supplier",
     "demo_advertiser",
 ]
@@ -254,6 +258,58 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
             },
         },
         {
+            "key": "tnja_admin",
+            "lookup": {"username": "demo_tnja_admin"},
+            "defaults": {
+                "email": "tnja-admin@demo-jewellery.app",
+                "first_name": "Sanjay",
+                "last_name": "Raman",
+                "role": user_model.Role.ADMIN,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "kgta_admin",
+            "lookup": {"username": "demo_kgta_admin"},
+            "defaults": {
+                "email": "kgta-admin@demo-jewellery.app",
+                "first_name": "Meera",
+                "last_name": "Shetty",
+                "role": user_model.Role.ADMIN,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "tnja_member",
+            "lookup": {"username": "demo_tnja_member"},
+            "defaults": {
+                "email": "tnja-member@demo-jewellery.app",
+                "corporate_email": "member@chennaitrade.example",
+                "first_name": "Priya",
+                "last_name": "Sundar",
+                "role": user_model.Role.MEMBER,
+                "jeweller_id": "JWL-DEMO-3001",
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "kgta_member",
+            "lookup": {"username": "demo_kgta_member"},
+            "defaults": {
+                "email": "kgta-member@demo-jewellery.app",
+                "corporate_email": "member@bengalurubullion.example",
+                "first_name": "Aditya",
+                "last_name": "Rao",
+                "role": user_model.Role.MEMBER,
+                "jeweller_id": "JWL-DEMO-4001",
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
             "key": "supplier",
             "lookup": {"username": "demo_supplier"},
             "defaults": {
@@ -288,12 +344,20 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
 
     member = users["member"]
     kerala = hierarchy["states"]["Kerala"]
+    tamil_nadu = hierarchy["states"]["Tamil Nadu"]
+    karnataka = hierarchy["states"]["Karnataka"]
     kgsma = hierarchy["associations"]["KGSMA"]
     akgsma = hierarchy["associations"]["AKGSMA"]
+    tnja = hierarchy["associations"]["Tamil Nadu Jewellers Association"]
+    kgta = hierarchy["associations"]["Karnataka Gold Traders Association"]
     ernakulam_district_unit = hierarchy["district_units"]["Ernakulam District Unit"]
     kadavanthra_unit = hierarchy["units"]["Kadavanthra Unit"]
     kozhikode_district_unit = hierarchy["district_units"]["Kozhikode District Unit"]
     nadakkavu_unit = hierarchy["units"]["Nadakkavu Unit"]
+    chennai_district_unit = hierarchy["district_units"]["Chennai District Unit"]
+    t_nagar_unit = hierarchy["units"]["T Nagar Unit"]
+    bengaluru_urban_district_unit = hierarchy["district_units"]["Bengaluru Urban District Unit"]
+    chickpet_unit = hierarchy["units"]["Chickpet Unit"]
     _upsert(
         MemberProfile,
         {"user": member},
@@ -321,6 +385,32 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
         },
     )
     _upsert(
+        MemberProfile,
+        {"user": users["tnja_member"]},
+        {
+            "phone_number": "9876512345",
+            "company_name": "Chennai Crown Jewels",
+            "state": tamil_nadu,
+            "association": tnja,
+            "district_operational_unit": chennai_district_unit,
+            "unit": t_nagar_unit,
+            "membership_tier": "Gold",
+        },
+    )
+    _upsert(
+        MemberProfile,
+        {"user": users["kgta_member"]},
+        {
+            "phone_number": "9876523456",
+            "company_name": "Bengaluru Bullion House",
+            "state": karnataka,
+            "association": kgta,
+            "district_operational_unit": bengaluru_urban_district_unit,
+            "unit": chickpet_unit,
+            "membership_tier": "Silver",
+        },
+    )
+    _upsert(
         NotificationPreference,
         {"user": member},
         {
@@ -333,6 +423,26 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
     _upsert(
         NotificationPreference,
         {"user": users["akgsma_member"]},
+        {
+            "rate_alerts": True,
+            "news_alerts": True,
+            "ad_alerts": False,
+            "meeting_alerts": True,
+        },
+    )
+    _upsert(
+        NotificationPreference,
+        {"user": users["tnja_member"]},
+        {
+            "rate_alerts": True,
+            "news_alerts": True,
+            "ad_alerts": False,
+            "meeting_alerts": True,
+        },
+    )
+    _upsert(
+        NotificationPreference,
+        {"user": users["kgta_member"]},
         {
             "rate_alerts": True,
             "news_alerts": True,
@@ -374,6 +484,24 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
         {"user": users["akgsma_admin"]},
         {
             "association": akgsma,
+            "district_operational_unit": None,
+            "unit": None,
+        },
+    )
+    _upsert(
+        AdminScopeAssignment,
+        {"user": users["tnja_admin"]},
+        {
+            "association": tnja,
+            "district_operational_unit": None,
+            "unit": None,
+        },
+    )
+    _upsert(
+        AdminScopeAssignment,
+        {"user": users["kgta_admin"]},
+        {
+            "association": kgta,
             "district_operational_unit": None,
             "unit": None,
         },
@@ -630,6 +758,8 @@ def _seed_rates() -> None:
     )
     kgsma = Association.objects.get(name="KGSMA")
     akgsma = Association.objects.get(name="AKGSMA")
+    tnja = Association.objects.get(name="Tamil Nadu Jewellers Association")
+    kgta = Association.objects.get(name="Karnataka Gold Traders Association")
     _upsert(
         AssociationRate,
         {"association": kgsma, "region_label": "KGSMA Previous"},
@@ -667,6 +797,46 @@ def _seed_rates() -> None:
             "gold_22k": "5435.00",
             "gold_24k": "5880.00",
             "silver": "74.50",
+            "effective_at": _aware_datetime(2026, 4, 21, 10, 30),
+        },
+    )
+    _upsert(
+        AssociationRate,
+        {"association": tnja, "region_label": "TNJA Previous"},
+        {
+            "gold_22k": "5485.00",
+            "gold_24k": "5935.00",
+            "silver": "75.60",
+            "effective_at": _aware_datetime(2026, 4, 20, 9, 0),
+        },
+    )
+    _upsert(
+        AssociationRate,
+        {"association": tnja, "region_label": "TNJA Latest"},
+        {
+            "gold_22k": "5495.00",
+            "gold_24k": "5950.00",
+            "silver": "76.10",
+            "effective_at": _aware_datetime(2026, 4, 21, 10, 30),
+        },
+    )
+    _upsert(
+        AssociationRate,
+        {"association": kgta, "region_label": "KGTA Previous"},
+        {
+            "gold_22k": "5470.00",
+            "gold_24k": "5920.00",
+            "silver": "75.20",
+            "effective_at": _aware_datetime(2026, 4, 20, 9, 0),
+        },
+    )
+    _upsert(
+        AssociationRate,
+        {"association": kgta, "region_label": "KGTA Latest"},
+        {
+            "gold_22k": "5480.00",
+            "gold_24k": "5930.00",
+            "silver": "75.70",
             "effective_at": _aware_datetime(2026, 4, 21, 10, 30),
         },
     )
