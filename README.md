@@ -32,7 +32,23 @@ cd backend
 python manage.py makemigrations
 python manage.py migrate
 python manage.py createsuperuser
+python manage.py seed_demo_data --reset
 python manage.py runserver
+```
+
+5. Seed deterministic local demo data when you want realistic mobile-facing records:
+
+```bash
+cd backend
+python manage.py seed_demo_data
+python manage.py seed_demo_data --reset
+```
+
+6. Run the backend test suite with the explicit app-label command:
+
+```bash
+cd ..
+backend\venv\Scripts\python.exe backend\manage.py test apps.accounts apps.regions apps.rates apps.directory apps.reverse_search apps.services_app apps.news apps.ads apps.admin_ops
 ```
 
 ## Mobile App
