@@ -7,6 +7,7 @@ from apps.regions.models import Association, DistrictOperationalUnit, RegionStat
 
 class User(AbstractUser):
     class Role(models.TextChoices):
+        SUPER_ADMIN = "super_admin", "Super Admin"
         GUEST = "guest", "Guest"
         MEMBER = "member", "Member"
         SUPPLIER = "supplier", "Supplier"

@@ -27,6 +27,7 @@ from .models import AuditLog
 
 DEMO_PASSWORD = "DemoPass123!"
 DEMO_USERNAMES = [
+    "demo_super_admin",
     "demo_admin",
     "demo_association_admin",
     "demo_district_admin",
@@ -135,6 +136,19 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
     user_model = get_user_model()
 
     user_specs = [
+        {
+            "key": "super_admin",
+            "lookup": {"username": "demo_super_admin"},
+            "defaults": {
+                "email": "super-admin@demo-jewellery.app",
+                "first_name": "Super",
+                "last_name": "Admin",
+                "role": user_model.Role.SUPER_ADMIN,
+                "is_staff": True,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
         {
             "key": "admin",
             "lookup": {"username": "demo_admin"},
@@ -256,6 +270,16 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
             "rate_alerts": True,
             "news_alerts": True,
             "ad_alerts": False,
+            "meeting_alerts": True,
+        },
+    )
+    _upsert(
+        NotificationPreference,
+        {"user": users["super_admin"]},
+        {
+            "rate_alerts": True,
+            "news_alerts": True,
+            "ad_alerts": True,
             "meeting_alerts": True,
         },
     )

@@ -17,7 +17,11 @@ All seeded demo users share the same password:
 
 | Username | Role | Name | Email | Notes |
 | --- | --- | --- | --- | --- |
+| `demo_super_admin` | `super_admin` | Super Admin | `super-admin@demo-jewellery.app` | `is_staff=True`, verified member, onboarding complete |
 | `demo_admin` | `admin` | Admin Desk | `admin@demo-jewellery.app` | `is_staff=True`, verified member, onboarding complete |
+| `demo_association_admin` | `admin` | Maya Nair | `association-admin@demo-jewellery.app` | Scoped admin seeded at association level |
+| `demo_district_admin` | `admin` | Vikram Iyer | `district-admin@demo-jewellery.app` | Scoped admin seeded at district-unit level |
+| `demo_unit_admin` | `admin` | Nisha Pillai | `unit-admin@demo-jewellery.app` | Scoped admin seeded at unit level |
 | `demo_member` | `member` | Anika Menon | `member@demo-jewellery.app` | Corporate email `member@heritagegold.example`, jeweller ID `JWL-DEMO-1001` |
 | `demo_supplier` | `supplier` | Rohit Varma | `supplier@demo-jewellery.app` | Verified member, onboarding complete |
 | `demo_advertiser` | `advertiser` | Leena Joseph | `advertiser@demo-jewellery.app` | Verified member, onboarding complete |
@@ -29,8 +33,9 @@ All seeded demo users share the same password:
 - Phone number: `9876543210`
 - Company name: `Heritage Gold House`
 - State: `Kerala`
-- District: `Thrissur`
-- Local chapter: `Thrissur Central`
+- Association: `KGSMA`
+- District operational unit: `Ernakulam District Unit`
+- Unit: `Kadavanthra Unit`
 - Membership tier: `Platinum`
 
 ### Notification preferences
@@ -39,6 +44,11 @@ All seeded demo users share the same password:
   - `rate_alerts=True`
   - `news_alerts=True`
   - `ad_alerts=False`
+  - `meeting_alerts=True`
+- `demo_super_admin`
+  - `rate_alerts=True`
+  - `news_alerts=True`
+  - `ad_alerts=True`
   - `meeting_alerts=True`
 - `demo_admin`
   - `rate_alerts=True`
@@ -50,30 +60,37 @@ All seeded demo users share the same password:
 
 ### Kerala
 
-- Thrissur
-  - Thrissur Central
-  - Kodungallur
-- Kochi
-  - Ernakulam North
-  - Aluva
+- KGSMA
+  - Ernakulam District Unit
+    - Kadavanthra Unit
+    - Aluva Unit
+  - Thrissur District Unit
+    - Round North Unit
+    - Kodungallur Unit
+- AKGSMA
+  - Kozhikode District Unit
+    - SM Street Unit
+    - Nadakkavu Unit
 
 ### Tamil Nadu
 
-- Coimbatore
-  - Coimbatore North
-  - Coimbatore South
-- Chennai
-  - T Nagar
-  - Anna Salai
+- Tamil Nadu Jewellers Association
+  - Chennai District Unit
+    - T Nagar Unit
+    - Anna Salai Unit
+  - Coimbatore District Unit
+    - RS Puram Unit
+    - Gandhipuram Unit
 
 ### Karnataka
 
-- Bengaluru Urban
-  - Chickpet
-  - Jayanagar
-- Mysuru
-  - Devaraja Market
-  - VV Mohalla
+- Karnataka Gold Traders Association
+  - Bengaluru Urban District Unit
+    - Chickpet Unit
+    - Jayanagar Unit
+  - Mysuru District Unit
+    - Devaraja Unit
+    - VV Mohalla Unit
 
 ## Directory Data
 
@@ -295,7 +312,7 @@ Note: `GlobalTrendSnapshot.captured_at` is an auto timestamp field, so the persi
 ### News items
 
 - Title: `Association onboarding camp expands to new districts`
-- Summary: `Regional outreach and member support counters are opening in more chapters this month.`
+- Summary: `Regional outreach and member support counters are opening across more association district units this month.`
 - Is urgent: `False`
 
 Note: `NewsItem.published_at` is auto-generated at seed time.
@@ -328,8 +345,9 @@ All meeting calendar links are:
 ### Ad targeting
 
 - State: `Kerala`
-- District: `Thrissur`
-- Local chapter: `Thrissur Central`
+- Association: `KGSMA`
+- District operational unit: `Ernakulam District Unit`
+- Unit: `Kadavanthra Unit`
 
 ### Ad asset
 
@@ -370,7 +388,7 @@ Note: `created_at` timestamps for the request and response are generated at seed
 
 | Action | Entity type | Entity id | Actor | Metadata |
 | --- | --- | --- | --- | --- |
-| `member_verified` | `user` | `demo_member` | `demo_admin` | `{"actor_role": "admin", "chapter": "Thrissur Central"}` |
+| `member_verified` | `user` | `demo_member` | `demo_admin` | `{"actor_role": "admin", "state": "Kerala", "association": "KGSMA", "district_unit": "Ernakulam District Unit", "unit": "Kadavanthra Unit"}` |
 | `rate_updated` | `association_rate` | `board-rate-latest` | `demo_admin` | `{"region": "Association Board Rate - Latest"}` |
 | `ad_approved` | `advertisement` | `akshaya-tritiya-launch-banner` | `demo_admin` | `{"placement": "dashboard_hero"}` |
 
