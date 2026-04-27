@@ -4,5 +4,6 @@
       "fileMatch": ["frontend-mobile/tsconfig.json"],
       "url": "https://json.schemastore.org/tsconfig"
     }
-  ]
+  ],
+  "python-envs.defaultEnvManager": "ms-python.python:system"
 }

@@ -94,3 +94,7 @@ export function getJson<T>(path: string, authenticated = false): Promise<T> {
 export function postJson<T>(path: string, body: unknown, authenticated = false): Promise<T> {
   return requestJson<T>(path, { method: "POST", body, authenticated });
 }
+
+export function patchJson<T>(path: string, body: unknown, authenticated = false): Promise<T> {
+  return requestJson<T>(path, { method: "PATCH", body, authenticated });
+}

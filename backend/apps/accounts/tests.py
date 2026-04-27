@@ -35,6 +35,18 @@ class AccountsApiTests(APITestCase):
             ad_alerts=False,
             meeting_alerts=True,
         )
+        self.other_user = get_user_model().objects.create_user(
+            username="member2",
+            password="StrongPass123!",
+            first_name="Neha",
+        )
+        NotificationPreference.objects.create(
+            user=self.other_user,
+            rate_alerts=False,
+            news_alerts=False,
+            ad_alerts=True,
+            meeting_alerts=False,
+        )
 
     def test_jwt_login_and_refresh_flow(self):
         response = self.client.post(
@@ -81,6 +93,122 @@ class AccountsApiTests(APITestCase):
         self.assertEqual(response.data["username"], "member1")
         self.assertEqual(response.data["member_profile"]["company_name"], "Asha Jewels")
         self.assertTrue(response.data["notification_preferences"]["rate_alerts"])
+
+    def test_me_patch_requires_authentication(self):
+        response = self.client.patch(reverse("me"), {"first_name": "Updated"}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_me_patch_updates_allowed_root_and_profile_fields(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(
+            reverse("me"),
+            {
+                "first_name": "Anu",
+                "email": "anu@example.com",
+                "corporate_email": "anu@trade.example",
+                "onboarding_completed": False,
+                "member_profile": {
+                    "phone_number": "8888888888",
+                    "company_name": "Anu Gold House",
+                    "state_name": "Tamil Nadu",
+                    "district_name": "Coimbatore",
+                    "local_chapter_name": "Coimbatore North",
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Anu")
+        self.assertEqual(self.user.email, "anu@example.com")
+        self.assertEqual(self.user.corporate_email, "anu@trade.example")
+        self.assertFalse(self.user.onboarding_completed)
+        self.assertEqual(self.user.member_profile.phone_number, "8888888888")
+        self.assertEqual(self.user.member_profile.local_chapter_name, "Coimbatore North")
+        self.assertEqual(response.data["member_profile"]["state_name"], "Tamil Nadu")
+
+    def test_me_patch_ignores_read_only_fields(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(
+            reverse("me"),
+            {
+                "role": "admin",
+                "jeweller_id": "HACKED-ID",
+                "member_profile": {"membership_tier": "Diamond"},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, "member")
+        self.assertEqual(self.user.jeweller_id, "JWL-1001")
+        self.assertEqual(self.user.member_profile.membership_tier, "Platinum")
+
+    def test_me_patch_creates_profile_when_missing(self):
+        self.user.member_profile.delete()
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(
+            reverse("me"),
+            {
+                "member_profile": {
+                    "company_name": "Fresh Profile Jewels",
+                    "phone_number": "7777777777",
+                }
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.member_profile.company_name, "Fresh Profile Jewels")
+        self.assertEqual(self.user.member_profile.phone_number, "7777777777")
+
+    def test_preferences_patch_requires_authentication(self):
+        response = self.client.patch(reverse("me_preferences"), {"rate_alerts": False}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_preferences_patch_updates_only_current_user(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(
+            reverse("me_preferences"),
+            {
+                "rate_alerts": False,
+                "news_alerts": False,
+                "ad_alerts": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.notification_preferences.refresh_from_db()
+        self.other_user.notification_preferences.refresh_from_db()
+        self.assertFalse(self.user.notification_preferences.rate_alerts)
+        self.assertFalse(self.user.notification_preferences.news_alerts)
+        self.assertTrue(self.user.notification_preferences.ad_alerts)
+        self.assertFalse(self.other_user.notification_preferences.rate_alerts)
+        self.assertTrue(self.other_user.notification_preferences.ad_alerts)
+
+    def test_preferences_patch_creates_preferences_when_missing(self):
+        self.user.notification_preferences.delete()
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(
+            reverse("me_preferences"),
+            {"meeting_alerts": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.notification_preferences.meeting_alerts)
 
     def test_session_info_is_public(self):
         response = self.client.get(reverse("session_info"))

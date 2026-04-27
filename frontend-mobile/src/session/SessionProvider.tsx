@@ -1,8 +1,17 @@
 import { PropsWithChildren, createContext, useContext, useEffect, useRef, useState } from "react";
 
-import { API_BASE_URL, configureApiClient, getJson, postJson } from "../api/client";
+import { API_BASE_URL, configureApiClient, getJson, patchJson, postJson } from "../api/client";
 import { readStoredGuestSession, readStoredTokens, writeStoredGuestSession, writeStoredTokens } from "../storage/sessionStorage";
-import { AuthTokens, GuestProfile, GuestSession, MemberUser, SessionInfo, SessionStatus } from "../types/api";
+import {
+  AuthTokens,
+  GuestProfile,
+  GuestSession,
+  MemberUser,
+  SessionInfo,
+  SessionStatus,
+  UpdateMemberUserPayload,
+  UpdateNotificationPreferencesPayload,
+} from "../types/api";
 
 type SessionContextValue = {
   apiBaseUrl: string;
@@ -14,6 +23,8 @@ type SessionContextValue = {
   signInMember: (credentials: { username: string; password: string }) => Promise<void>;
   continueAsGuest: (payload: GuestProfile) => Promise<void>;
   refreshCurrentUser: () => Promise<void>;
+  updateCurrentUser: (payload: UpdateMemberUserPayload) => Promise<void>;
+  updateNotificationPreferences: (payload: UpdateNotificationPreferencesPayload) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -67,6 +78,18 @@ export function SessionProvider({ children }: PropsWithChildren) {
   async function refreshCurrentUser() {
     const nextUser = await getJson<MemberUser>("/me/", true);
     setUser(nextUser);
+  }
+
+  async function updateCurrentUser(payload: UpdateMemberUserPayload) {
+    setError(null);
+    await patchJson<MemberUser>("/me/", payload, true);
+    await refreshCurrentUser();
+  }
+
+  async function updateNotificationPreferences(payload: UpdateNotificationPreferencesPayload) {
+    setError(null);
+    await patchJson("/me/preferences/", payload, true);
+    await refreshCurrentUser();
   }
 
   useEffect(() => {
@@ -163,6 +186,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
         signInMember,
         continueAsGuest,
         refreshCurrentUser,
+        updateCurrentUser,
+        updateNotificationPreferences,
         signOut,
       }}
     >

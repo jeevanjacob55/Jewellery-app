@@ -9,7 +9,7 @@ Confirmed complete in the repo on 2026-04-25:
 - [x] Repo cleanup: monorepo structure is correct and `backend/`, `frontend-mobile/`, and `web-admin/` are the active implementation surfaces.
 - [x] Environment setup: backend virtual environment exists, backend requirements are installed, mobile and web-admin npm packages are installed, and local `.env` plus `.env.example` files exist for backend, mobile, and web-admin.
 - [x] Backend bootstrap: Django settings, `manage.py`, initial migrations, local database connection, local superuser, and `/api/health/` are wired and verified.
-- [x] Accounts domain: custom user model fields, profile and notification preference relationships, JWT login and refresh, guest access, and `/api/me/` are implemented.
+- [x] Accounts domain: custom user model fields, profile and notification preference relationships, JWT login and refresh, guest access, `/api/me/`, preference updates, and the writable mobile member profile flow are implemented.
 - [x] Regions domain: state, district, and local chapter models plus the onboarding hierarchy endpoint are implemented.
 - [x] Rates domain: association, external market, and trend snapshot models exist, and a dashboard endpoint is present.
 - [x] Directory domain: company, verification, product category, product, and enquiry models plus company/product API serializers and views are present.
@@ -62,12 +62,12 @@ Confirmed complete in the repo on 2026-04-25:
 - [x] verify `/api/health/`
 
 ### 4. Accounts domain
-- finish custom user model fields
-- add profile and notification preference relationships
-- add JWT login and refresh
-- add guest access endpoint
-- add `/api/me/`
-- add update profile and preference endpoints
+- [x] finish custom user model fields
+- [x] add profile and notification preference relationships
+- [x] add JWT login and refresh
+- [x] add guest access endpoint
+- [x] add `/api/me/`
+- [x] add update profile and preference endpoints
 
 ### 5. Regions domain
 - create state model

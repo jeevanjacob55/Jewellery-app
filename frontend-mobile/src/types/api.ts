@@ -36,6 +36,25 @@ export interface MemberUser {
   notification_preferences: NotificationPreferences | null;
 }
 
+export interface UpdateMemberProfileValues {
+  phone_number?: string;
+  company_name?: string;
+  state_name?: string;
+  district_name?: string;
+  local_chapter_name?: string;
+}
+
+export interface UpdateMemberUserPayload {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  corporate_email?: string;
+  onboarding_completed?: boolean;
+  member_profile?: UpdateMemberProfileValues;
+}
+
+export type UpdateNotificationPreferencesPayload = Partial<NotificationPreferences>;
+
 export interface GuestProfile {
   guest_name: string;
   state: string;

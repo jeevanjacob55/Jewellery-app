@@ -15,6 +15,55 @@ class MemberProfileSerializer(serializers.ModelSerializer):
         fields = ["phone_number", "company_name", "state_name", "district_name", "local_chapter_name", "membership_tier"]
 
 
+class UpdateNotificationPreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotificationPreference
+        fields = ["rate_alerts", "news_alerts", "ad_alerts", "meeting_alerts"]
+
+
+class UpdateMemberProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MemberProfile
+        fields = ["phone_number", "company_name", "state_name", "district_name", "local_chapter_name", "membership_tier"]
+        read_only_fields = ["membership_tier"]
+
+
+class UpdateUserSerializer(serializers.ModelSerializer):
+    member_profile = UpdateMemberProfileSerializer(required=False)
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "corporate_email",
+            "role",
+            "jeweller_id",
+            "is_verified_member",
+            "onboarding_completed",
+            "member_profile",
+        ]
+        read_only_fields = ["id", "username", "role", "jeweller_id", "is_verified_member"]
+
+    def update(self, instance, validated_data):
+        member_profile_data = validated_data.pop("member_profile", None)
+
+        for attribute, value in validated_data.items():
+            setattr(instance, attribute, value)
+        instance.save()
+
+        if member_profile_data is not None:
+            profile, _ = MemberProfile.objects.get_or_create(user=instance)
+            for attribute, value in member_profile_data.items():
+                setattr(profile, attribute, value)
+            profile.save()
+
+        return instance
+
+
 class UserSerializer(serializers.ModelSerializer):
     member_profile = MemberProfileSerializer(read_only=True)
     notification_preferences = NotificationPreferenceSerializer(read_only=True)
