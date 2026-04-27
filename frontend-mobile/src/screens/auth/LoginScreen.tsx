@@ -217,14 +217,6 @@ export function LoginScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topBar}>
-        <View style={styles.topBarLeft}>
-          <Text style={styles.topBarIcon}>☰</Text>
-          <Text style={styles.topBarTitle}>Jewellery Association</Text>
-        </View>
-        <Text style={styles.topBarIcon}>◉</Text>
-      </View>
-
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.authContainer}>
           <View style={styles.tabRow}>
@@ -524,40 +516,6 @@ export function LoginScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  topBar: {
-    height: 64,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0ECEB",
-    paddingHorizontal: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    shadowColor: "#1A1A1A",
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  topBarLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  topBarTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-    textTransform: "uppercase",
-  },
-  topBarIcon: {
-    color: colors.text,
-    fontSize: 26,
-    fontWeight: "700",
-    width: 28,
-    textAlign: "center",
-  },
   content: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
