@@ -32,7 +32,10 @@ DEMO_USERNAMES = [
     "demo_association_admin",
     "demo_district_admin",
     "demo_unit_admin",
+    "demo_kgsma_admin",
+    "demo_akgsma_admin",
     "demo_member",
+    "demo_akgsma_member",
     "demo_supplier",
     "demo_advertiser",
 ]
@@ -213,6 +216,44 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
             },
         },
         {
+            "key": "kgsma_admin",
+            "lookup": {"username": "demo_kgsma_admin"},
+            "defaults": {
+                "email": "kgsma-admin@demo-jewellery.app",
+                "first_name": "Kiran",
+                "last_name": "George",
+                "role": user_model.Role.ADMIN,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "akgsma_admin",
+            "lookup": {"username": "demo_akgsma_admin"},
+            "defaults": {
+                "email": "akgsma-admin@demo-jewellery.app",
+                "first_name": "Aparna",
+                "last_name": "Das",
+                "role": user_model.Role.ADMIN,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "akgsma_member",
+            "lookup": {"username": "demo_akgsma_member"},
+            "defaults": {
+                "email": "akgsma-member@demo-jewellery.app",
+                "corporate_email": "member@malabargoldline.example",
+                "first_name": "Rahul",
+                "last_name": "Nambiar",
+                "role": user_model.Role.MEMBER,
+                "jeweller_id": "JWL-DEMO-2001",
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
             "key": "supplier",
             "lookup": {"username": "demo_supplier"},
             "defaults": {
@@ -248,8 +289,11 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
     member = users["member"]
     kerala = hierarchy["states"]["Kerala"]
     kgsma = hierarchy["associations"]["KGSMA"]
+    akgsma = hierarchy["associations"]["AKGSMA"]
     ernakulam_district_unit = hierarchy["district_units"]["Ernakulam District Unit"]
     kadavanthra_unit = hierarchy["units"]["Kadavanthra Unit"]
+    kozhikode_district_unit = hierarchy["district_units"]["Kozhikode District Unit"]
+    nadakkavu_unit = hierarchy["units"]["Nadakkavu Unit"]
     _upsert(
         MemberProfile,
         {"user": member},
@@ -264,8 +308,31 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
         },
     )
     _upsert(
+        MemberProfile,
+        {"user": users["akgsma_member"]},
+        {
+            "phone_number": "9876501234",
+            "company_name": "Malabar Goldline",
+            "state": kerala,
+            "association": akgsma,
+            "district_operational_unit": kozhikode_district_unit,
+            "unit": nadakkavu_unit,
+            "membership_tier": "Gold",
+        },
+    )
+    _upsert(
         NotificationPreference,
         {"user": member},
+        {
+            "rate_alerts": True,
+            "news_alerts": True,
+            "ad_alerts": False,
+            "meeting_alerts": True,
+        },
+    )
+    _upsert(
+        NotificationPreference,
+        {"user": users["akgsma_member"]},
         {
             "rate_alerts": True,
             "news_alerts": True,
@@ -291,6 +358,24 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
             "news_alerts": True,
             "ad_alerts": True,
             "meeting_alerts": True,
+        },
+    )
+    _upsert(
+        AdminScopeAssignment,
+        {"user": users["kgsma_admin"]},
+        {
+            "association": kgsma,
+            "district_operational_unit": None,
+            "unit": None,
+        },
+    )
+    _upsert(
+        AdminScopeAssignment,
+        {"user": users["akgsma_admin"]},
+        {
+            "association": akgsma,
+            "district_operational_unit": None,
+            "unit": None,
         },
     )
     _upsert(
@@ -525,7 +610,7 @@ def _seed_directory(users: dict[str, object]) -> None:
 def _seed_rates() -> None:
     _upsert(
         AssociationRate,
-        {"region_label": "Association Board Rate - Previous"},
+        {"association": None, "region_label": "Association Board Rate - Previous"},
         {
             "gold_22k": "6765.00",
             "gold_24k": "7395.00",
@@ -535,12 +620,54 @@ def _seed_rates() -> None:
     )
     _upsert(
         AssociationRate,
-        {"region_label": "Association Board Rate - Latest"},
+        {"association": None, "region_label": "Association Board Rate - Latest"},
         {
             "gold_22k": "6785.00",
             "gold_24k": "7410.00",
             "silver": "89.40",
             "effective_at": _aware_datetime(2026, 4, 21, 9, 0),
+        },
+    )
+    kgsma = Association.objects.get(name="KGSMA")
+    akgsma = Association.objects.get(name="AKGSMA")
+    _upsert(
+        AssociationRate,
+        {"association": kgsma, "region_label": "KGSMA Previous"},
+        {
+            "gold_22k": "5440.00",
+            "gold_24k": "5890.00",
+            "silver": "74.25",
+            "effective_at": _aware_datetime(2026, 4, 20, 9, 0),
+        },
+    )
+    _upsert(
+        AssociationRate,
+        {"association": kgsma, "region_label": "KGSMA Latest"},
+        {
+            "gold_22k": "5450.00",
+            "gold_24k": "5900.00",
+            "silver": "75.00",
+            "effective_at": _aware_datetime(2026, 4, 21, 10, 30),
+        },
+    )
+    _upsert(
+        AssociationRate,
+        {"association": akgsma, "region_label": "AKGSMA Previous"},
+        {
+            "gold_22k": "5415.00",
+            "gold_24k": "5860.00",
+            "silver": "73.80",
+            "effective_at": _aware_datetime(2026, 4, 20, 9, 0),
+        },
+    )
+    _upsert(
+        AssociationRate,
+        {"association": akgsma, "region_label": "AKGSMA Latest"},
+        {
+            "gold_22k": "5435.00",
+            "gold_24k": "5880.00",
+            "silver": "74.50",
+            "effective_at": _aware_datetime(2026, 4, 21, 10, 30),
         },
     )
 

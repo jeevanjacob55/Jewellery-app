@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { useSession } from "../session/SessionProvider";
 import { LoginScreen } from "../screens/auth/LoginScreen";
+import { AssociationRatesScreen } from "../screens/dashboard/AssociationRatesScreen";
 import { HomeDashboardScreen } from "../screens/dashboard/HomeDashboardScreen";
 import { CompanyProfileScreen } from "../screens/directory/CompanyProfileScreen";
 import { MarketTiersScreen } from "../screens/directory/MarketTiersScreen";
@@ -48,6 +49,7 @@ export function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="AssociationRates" component={AssociationRatesScreen} options={{ title: "Other Associations" }} />
           <Stack.Screen name="CompanyProfile" component={CompanyProfileScreen} options={{ title: "Company Profile" }} />
           <Stack.Screen name="ProductSearch" component={ProductSearchScreen} options={{ title: "Product Search" }} />
           <Stack.Screen name="ReverseSearch" component={ReverseSearchScreen} options={{ title: "Reverse Search" }} />

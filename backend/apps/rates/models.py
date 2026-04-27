@@ -1,7 +1,10 @@
 from django.db import models
 
+from apps.regions.models import Association
+
 
 class AssociationRate(models.Model):
+    association = models.ForeignKey(Association, on_delete=models.CASCADE, null=True, blank=True, related_name="rates")
     region_label = models.CharField(max_length=120)
     gold_22k = models.DecimalField(max_digits=10, decimal_places=2)
     gold_24k = models.DecimalField(max_digits=10, decimal_places=2)

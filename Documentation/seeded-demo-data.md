@@ -22,7 +22,10 @@ All seeded demo users share the same password:
 | `demo_association_admin` | `admin` | Maya Nair | `association-admin@demo-jewellery.app` | Scoped admin seeded at association level |
 | `demo_district_admin` | `admin` | Vikram Iyer | `district-admin@demo-jewellery.app` | Scoped admin seeded at district-unit level |
 | `demo_unit_admin` | `admin` | Nisha Pillai | `unit-admin@demo-jewellery.app` | Scoped admin seeded at unit level |
-| `demo_member` | `member` | Anika Menon | `member@demo-jewellery.app` | Corporate email `member@heritagegold.example`, jeweller ID `JWL-DEMO-1001` |
+| `demo_kgsma_admin` | `admin` | Kiran George | `kgsma-admin@demo-jewellery.app` | KGSMA-scoped admin |
+| `demo_akgsma_admin` | `admin` | Aparna Das | `akgsma-admin@demo-jewellery.app` | AKGSMA-scoped admin |
+| `demo_member` | `member` | Anika Menon | `member@demo-jewellery.app` | KGSMA member. Corporate email `member@heritagegold.example`, jeweller ID `JWL-DEMO-1001` |
+| `demo_akgsma_member` | `member` | Rahul Nambiar | `akgsma-member@demo-jewellery.app` | AKGSMA member. Corporate email `member@malabargoldline.example`, jeweller ID `JWL-DEMO-2001` |
 | `demo_supplier` | `supplier` | Rohit Varma | `supplier@demo-jewellery.app` | Verified member, onboarding complete |
 | `demo_advertiser` | `advertiser` | Leena Joseph | `advertiser@demo-jewellery.app` | Verified member, onboarding complete |
 
@@ -37,6 +40,16 @@ All seeded demo users share the same password:
 - District operational unit: `Ernakulam District Unit`
 - Unit: `Kadavanthra Unit`
 - Membership tier: `Platinum`
+
+### `demo_akgsma_member` profile
+
+- Phone number: `9876501234`
+- Company name: `Malabar Goldline`
+- State: `Kerala`
+- Association: `AKGSMA`
+- District operational unit: `Kozhikode District Unit`
+- Unit: `Nadakkavu Unit`
+- Membership tier: `Gold`
 
 ### Notification preferences
 
@@ -253,10 +266,14 @@ Visibility and moderation:
 
 ### Association rates
 
-| Region label | Gold 22K | Gold 24K | Silver | Effective at |
-| --- | ---: | ---: | ---: | --- |
-| Association Board Rate - Previous | 6765.00 | 7395.00 | 90.25 | 2026-04-20 09:00 |
-| Association Board Rate - Latest | 6785.00 | 7410.00 | 89.40 | 2026-04-21 09:00 |
+| Association | Region label | Gold 22K | Gold 24K | Silver | Effective at |
+| --- | --- | ---: | ---: | ---: | --- |
+| Global board fallback | Association Board Rate - Previous | 6765.00 | 7395.00 | 90.25 | 2026-04-20 09:00 |
+| Global board fallback | Association Board Rate - Latest | 6785.00 | 7410.00 | 89.40 | 2026-04-21 09:00 |
+| KGSMA | KGSMA Previous | 5440.00 | 5890.00 | 74.25 | 2026-04-20 09:00 |
+| KGSMA | KGSMA Latest | 5450.00 | 5900.00 | 75.00 | 2026-04-21 10:30 |
+| AKGSMA | AKGSMA Previous | 5415.00 | 5860.00 | 73.80 | 2026-04-20 09:00 |
+| AKGSMA | AKGSMA Latest | 5435.00 | 5880.00 | 74.50 | 2026-04-21 10:30 |
 
 ### External market rates
 

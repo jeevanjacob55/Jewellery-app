@@ -115,6 +115,8 @@ export interface RegionState {
 }
 
 export interface DashboardData {
+  association: { id: number | null; name: string };
+  updated_at_label: string;
   headline_rates: {
     gold_22k: { value: number; trend: string };
     gold_24k: { value: number; trend: string };
@@ -123,6 +125,13 @@ export interface DashboardData {
   comparisons: Array<{
     label: string;
     gold_22k: number;
+  }>;
+  other_associations: Array<{
+    id: number;
+    name: string;
+    gold_22k: number;
+    gold_24k: number;
+    silver: number;
   }>;
   global_trends: {
     usd_inr: number;

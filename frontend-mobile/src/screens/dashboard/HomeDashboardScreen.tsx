@@ -4,10 +4,8 @@ import { useNavigation } from "@react-navigation/native";
 
 import { getJson } from "../../api/client";
 import { ScreenState } from "../../components/ScreenState";
-import { SectionHeading } from "../../components/SectionHeading";
-import { SurfaceCard } from "../../components/SurfaceCard";
 import { useSession } from "../../session/SessionProvider";
-import { colors, spacing, typography } from "../../theme/tokens";
+import { colors, radii, spacing, typography } from "../../theme/tokens";
 import { DashboardData } from "../../types/api";
 import { formatCompactNumber, formatCurrency } from "../../utils/format";
 
@@ -27,7 +25,7 @@ export function HomeDashboardScreen() {
     }
 
     try {
-      const nextDashboard = await getJson<DashboardData>("/dashboard/");
+      const nextDashboard = await getJson<DashboardData>("/dashboard/", status === "authenticated");
       setDashboard(nextDashboard);
       setError(null);
     } catch {
@@ -54,6 +52,12 @@ export function HomeDashboardScreen() {
     status === "authenticated"
       ? `${user?.member_profile?.membership_tier ?? "Member"} access for ${user?.first_name || user?.username || "member"}`
       : `Guest browsing for ${guestSession?.guest_profile.guest_name ?? "visitor"}`;
+  const associationName = user?.member_profile?.association?.name ?? dashboard.association.name;
+  const latestNews = [
+    { title: "General Body Meeting at 5 PM", summary: "All members are requested to attend the meeting at the association hall today.", time: "10m ago" },
+    { title: "New GST Update for Jewellery", summary: "Revised tax implications on gold import and sales finalized by ministry.", time: "2h ago" },
+    { title: "Emergency Rate Alert", summary: "Market volatility detected. Check revised evening gold rates.", time: "5h ago" },
+  ];
 
   return (
     <ScrollView
@@ -61,48 +65,78 @@ export function HomeDashboardScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadDashboard(true)} />}
     >
-      <Text style={styles.brand}>Jewellery Association</Text>
-      <SectionHeading>Daily Command Center</SectionHeading>
-      <Text style={styles.context}>{identityLine}</Text>
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.brand}>{associationName.toUpperCase()}</Text>
+          <Text style={styles.context}>{identityLine}</Text>
+        </View>
+      </View>
 
-      <SurfaceCard>
-        <Text style={styles.cardTitle}>Association Rates</Text>
+      <View style={styles.heroCard}>
+        <View style={styles.heroHeader}>
+          <View>
+            <Text style={styles.heroAssociation}>{associationName}</Text>
+            <Text style={styles.heroSubtitle}>Live Bullion Rates</Text>
+          </View>
+          <View style={styles.heroTimestamp}>
+            <Text style={styles.heroTimestampText}>Updated: {dashboard.updated_at_label}</Text>
+          </View>
+        </View>
+
         {[
-          { label: "22K Gold", value: dashboard.headline_rates.gold_22k.value, trend: dashboard.headline_rates.gold_22k.trend },
-          { label: "24K Gold", value: dashboard.headline_rates.gold_24k.value, trend: dashboard.headline_rates.gold_24k.trend },
-          { label: "Silver", value: dashboard.headline_rates.silver.value, trend: dashboard.headline_rates.silver.trend },
-        ].map((rate) => (
-          <View key={rate.label} style={styles.rateRow}>
-            <Text style={styles.rateLabel}>{rate.label}</Text>
+          { label: "Gold 22K (1G)", value: dashboard.headline_rates.gold_22k.value, trend: dashboard.headline_rates.gold_22k.trend },
+          { label: "Gold 24K (1G)", value: dashboard.headline_rates.gold_24k.value, trend: dashboard.headline_rates.gold_24k.trend },
+          { label: "Silver (1G)", value: dashboard.headline_rates.silver.value, trend: dashboard.headline_rates.silver.trend },
+        ].map((rate, index) => (
+          <View key={rate.label} style={[styles.heroRateRow, index === 2 && styles.heroRateRowBorder]}>
             <View>
-              <Text style={styles.rateValue}>{formatCurrency(rate.value)}</Text>
-              <Text style={[styles.rateTrend, rate.trend === "down" ? styles.negative : styles.positive]}>
-                {rate.trend === "down" ? "Falling" : "Rising"}
-              </Text>
+              <Text style={styles.heroRateLabel}>{rate.label}</Text>
+              <Text style={styles.heroRateValue}>{formatCurrency(rate.value, 0)}</Text>
             </View>
+            <Text style={[styles.heroTrend, rate.trend === "down" ? styles.heroTrendDown : styles.heroTrendUp]}>
+              {rate.trend === "down" ? "↓" : rate.trend === "up" ? "↑" : "•"}
+            </Text>
           </View>
         ))}
-      </SurfaceCard>
+      </View>
 
-      <SurfaceCard>
-        <Text style={styles.cardTitle}>Comparison Watch</Text>
-        {dashboard.comparisons.map((comparison) => (
-          <View key={comparison.label} style={styles.comparisonRow}>
-            <Text style={styles.rateLabel}>{comparison.label}</Text>
-            <Text style={styles.comparisonValue}>{formatCurrency(comparison.gold_22k)}</Text>
+      <View style={styles.subNavGrid}>
+        <Pressable style={styles.subNavButton} onPress={() => navigation.navigate("AssociationRates")}>
+          <Text style={styles.subNavIcon}>◫</Text>
+          <Text style={styles.subNavText}>Other Associations</Text>
+        </Pressable>
+        <Pressable style={styles.subNavButton}>
+          <Text style={styles.subNavIcon}>⌖</Text>
+          <Text style={styles.subNavText}>Other States</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionEyebrow}>Global Trends</Text>
+        <View style={styles.globalItem}>
+          <View>
+            <Text style={styles.globalLabel}>USD → INR</Text>
+            <Text style={styles.globalValue}>₹{formatCompactNumber(dashboard.global_trends.usd_inr)}</Text>
           </View>
-        ))}
-      </SurfaceCard>
+          <Text style={styles.globalTrendUp}>↗</Text>
+        </View>
+        <View style={styles.globalItem}>
+          <View>
+            <Text style={styles.globalLabel}>Gold / Oz (USD)</Text>
+            <Text style={styles.globalValue}>${formatCompactNumber(dashboard.global_trends.gold_oz)}</Text>
+          </View>
+          <Text style={styles.globalTrendDown}>↘</Text>
+        </View>
+      </View>
 
-      <SurfaceCard>
-        <Text style={styles.cardTitle}>Global Trends</Text>
-        <Text style={styles.meta}>USD / INR {formatCompactNumber(dashboard.global_trends.usd_inr)}</Text>
-        <Text style={styles.meta}>Gold / Oz {formatCompactNumber(dashboard.global_trends.gold_oz)}</Text>
-        <Text style={styles.meta}>Silver / Oz {formatCompactNumber(dashboard.global_trends.silver_oz)}</Text>
-      </SurfaceCard>
+      <View style={styles.bannerCard}>
+        <Text style={styles.bannerTag}>Featured Offer</Text>
+        <Text style={styles.bannerTitle}>New Membership Perks</Text>
+        <Text style={styles.bannerText}>Exclusive access to trade analysis tools starting this month.</Text>
+      </View>
 
-      <SurfaceCard>
-        <Text style={styles.cardTitle}>Quick Actions</Text>
+      <View>
+        <Text style={styles.quickActionLabel}>Quick Actions</Text>
         <View style={styles.actionGrid}>
           {dashboard.quick_actions.map((action) => (
             <Pressable
@@ -111,6 +145,8 @@ export function HomeDashboardScreen() {
               onPress={() => {
                 if (action === "Market Tiers") {
                   navigation.navigate("Market");
+                } else if (action === "Other Associations") {
+                  navigation.navigate("AssociationRates");
                 } else if (action === "Services") {
                   navigation.navigate("Services");
                 } else if (action === "News & Alerts") {
@@ -120,14 +156,49 @@ export function HomeDashboardScreen() {
                 }
               }}
             >
+              <Text style={styles.actionIcon}>{ACTION_SYMBOLS[action] ?? "•"}</Text>
               <Text style={styles.actionText}>{action}</Text>
             </Pressable>
           ))}
         </View>
-      </SurfaceCard>
+      </View>
+
+      <View style={styles.newsSection}>
+        <View style={styles.newsSectionHeader}>
+          <Text style={styles.quickActionLabel}>Latest News</Text>
+          <Pressable onPress={() => navigation.navigate("News")}>
+            <Text style={styles.viewAllLink}>View All</Text>
+          </Pressable>
+        </View>
+        <View style={styles.newsListCard}>
+          {latestNews.map((item, index) => (
+            <Pressable key={item.title} style={[styles.newsItem, index !== latestNews.length - 1 && styles.newsItemDivider]} onPress={() => navigation.navigate("News")}>
+              <View style={styles.newsIconWrap}>
+                <Text style={styles.newsIcon}>{index === 0 ? "◷" : index === 1 ? "⚖" : "!"}</Text>
+              </View>
+              <View style={styles.newsCopy}>
+                <View style={styles.newsTitleRow}>
+                  <Text style={styles.newsTitle}>{item.title}</Text>
+                  <Text style={styles.newsTime}>{item.time}</Text>
+                </View>
+                <Text style={styles.newsSummary}>{item.summary}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </View>
     </ScrollView>
   );
 }
+
+const ACTION_SYMBOLS: Record<string, string> = {
+  "Market Tiers": "↗",
+  "Other Associations": "◫",
+  "Reverse Search": "⌕",
+  Services: "▣",
+  "News & Alerts": "✦",
+  "Advertiser Portal": "◉",
+};
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
@@ -135,28 +206,166 @@ const styles = StyleSheet.create({
   brand: {
     color: colors.text,
     marginTop: spacing.md,
-    ...typography.eyebrow,
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 2.2,
   },
   context: {
     color: colors.mutedText,
-    marginTop: -spacing.sm,
     ...typography.body,
   },
-  cardTitle: { color: colors.text, fontWeight: "700", fontSize: 18, marginBottom: spacing.md },
-  rateRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.md },
-  comparisonRow: {
+  topBar: { marginBottom: spacing.xs },
+  heroCard: {
+    backgroundColor: "#0A0E1A",
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  heroHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: spacing.lg },
+  heroAssociation: {
+    color: "#F1C40F",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+  },
+  heroSubtitle: {
+    color: "rgba(255,255,255,0.62)",
+    marginTop: spacing.xs,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+  },
+  heroTimestamp: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  heroTimestampText: { color: colors.surface, fontSize: 10, fontWeight: "700" },
+  heroRateRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
+  heroRateRowBorder: { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.12)", paddingTop: spacing.md },
+  heroRateLabel: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", textTransform: "uppercase" },
+  heroRateValue: { color: colors.surface, fontSize: 30, fontWeight: "800", marginTop: spacing.xs },
+  heroTrend: { fontSize: 24, fontWeight: "800" },
+  heroTrendUp: { color: "#4ADE80" },
+  heroTrendDown: { color: "#F87171" },
+  subNavGrid: { flexDirection: "row", gap: spacing.md },
+  subNavButton: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    flexDirection: "row",
+  },
+  subNavIcon: { color: "#B9770E", fontSize: 18, fontWeight: "800" },
+  subNavText: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  sectionCard: {
+    backgroundColor: "#F6F3F2",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+  },
+  sectionEyebrow: {
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    marginBottom: spacing.md,
+  },
+  globalItem: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: spacing.sm,
   },
-  rateLabel: { color: colors.mutedText, fontWeight: "600", maxWidth: "58%" },
-  rateValue: { color: colors.text, fontSize: 20, fontWeight: "800", textAlign: "right" },
-  comparisonValue: { color: colors.text, fontWeight: "700" },
-  rateTrend: { fontWeight: "700", textAlign: "right" },
-  positive: { color: colors.positive },
-  negative: { color: colors.negative },
-  meta: { color: colors.text, fontSize: 16, marginBottom: spacing.sm },
-  actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  actionTile: { width: "48%", backgroundColor: colors.surfaceAlt, padding: spacing.md },
-  actionText: { fontWeight: "700", color: colors.text },
+  globalLabel: { color: colors.mutedText, fontSize: 12, marginBottom: spacing.xs },
+  globalValue: { color: colors.text, fontSize: 20, fontWeight: "800" },
+  globalTrendUp: { color: colors.positive, fontSize: 24, fontWeight: "800" },
+  globalTrendDown: { color: colors.negative, fontSize: 24, fontWeight: "800" },
+  bannerCard: {
+    backgroundColor: "#1C1917",
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    minHeight: 144,
+    justifyContent: "flex-end",
+  },
+  bannerTag: {
+    alignSelf: "flex-start",
+    backgroundColor: "#D97706",
+    color: colors.surface,
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    marginBottom: spacing.sm,
+  },
+  bannerTitle: { color: colors.surface, fontSize: 22, fontWeight: "800" },
+  bannerText: { color: "rgba(255,255,255,0.74)", marginTop: spacing.xs, ...typography.body },
+  quickActionLabel: {
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    marginBottom: spacing.sm,
+  },
+  actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+  actionTile: {
+    width: "47%",
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F6F3F2",
+    gap: spacing.sm,
+  },
+  actionIcon: { color: "#D97706", fontSize: 28, fontWeight: "800" },
+  actionText: { fontWeight: "800", color: colors.text, textAlign: "center" },
+  newsSection: { paddingBottom: spacing.lg },
+  newsSectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  viewAllLink: { color: "#D97706", fontWeight: "800", fontSize: 12 },
+  newsListCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    overflow: "hidden",
+  },
+  newsItem: { flexDirection: "row", gap: spacing.md, padding: spacing.md, alignItems: "flex-start" },
+  newsItemDivider: { borderBottomWidth: 1, borderBottomColor: "#ECE7E7" },
+  newsIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.md,
+    backgroundColor: "#FEF3C7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  newsIcon: { color: "#D97706", fontSize: 18, fontWeight: "800" },
+  newsCopy: { flex: 1 },
+  newsTitleRow: { flexDirection: "row", justifyContent: "space-between", gap: spacing.sm },
+  newsTitle: { color: colors.text, fontWeight: "800", flex: 1 },
+  newsTime: { color: "#A8A29E", fontSize: 10, marginTop: 2 },
+  newsSummary: { color: colors.mutedText, fontSize: 12, lineHeight: 18, marginTop: spacing.xs },
 });

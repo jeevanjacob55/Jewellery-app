@@ -17,6 +17,19 @@ class DashboardComparisonSerializer(serializers.Serializer):
     gold_22k = serializers.FloatField()
 
 
+class DashboardAssociationContextSerializer(serializers.Serializer):
+    id = serializers.IntegerField(allow_null=True)
+    name = serializers.CharField()
+
+
+class DashboardAssociationRateSummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    gold_22k = serializers.FloatField()
+    gold_24k = serializers.FloatField()
+    silver = serializers.FloatField()
+
+
 class DashboardGlobalTrendsSerializer(serializers.Serializer):
     usd_inr = serializers.FloatField()
     gold_oz = serializers.FloatField()
@@ -24,7 +37,10 @@ class DashboardGlobalTrendsSerializer(serializers.Serializer):
 
 
 class DashboardResponseSerializer(serializers.Serializer):
+    association = DashboardAssociationContextSerializer()
+    updated_at_label = serializers.CharField()
     headline_rates = DashboardHeadlineRatesSerializer()
     comparisons = DashboardComparisonSerializer(many=True)
+    other_associations = DashboardAssociationRateSummarySerializer(many=True)
     global_trends = DashboardGlobalTrendsSerializer()
     quick_actions = serializers.ListField(child=serializers.CharField())
