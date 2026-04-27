@@ -1,14 +1,23 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import MemberProfile, NotificationPreference
+from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
+
+from .models import AdminScopeAssignment, MemberProfile, NotificationPreference
 
 
 class AccountsApiTests(APITestCase):
     def setUp(self):
         self.password = "StrongPass123!"
+        self.state = RegionState.objects.create(name="Kerala")
+        self.association = Association.objects.create(state=self.state, name="KGSMA")
+        self.district_unit = DistrictOperationalUnit.objects.create(association=self.association, name="Ernakulam District Unit")
+        self.unit = Unit.objects.create(district_operational_unit=self.district_unit, name="Kadavanthra Unit")
+        self.other_state = RegionState.objects.create(name="Tamil Nadu")
+        self.other_association = Association.objects.create(state=self.other_state, name="TN Gold Federation")
         self.user = get_user_model().objects.create_user(
             username="member1",
             password=self.password,
@@ -23,9 +32,10 @@ class AccountsApiTests(APITestCase):
             user=self.user,
             phone_number="9999999999",
             company_name="Asha Jewels",
-            state_name="Kerala",
-            district_name="Thrissur",
-            local_chapter_name="Thrissur Central",
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district_unit,
+            unit=self.unit,
             membership_tier="Platinum",
         )
         NotificationPreference.objects.create(
@@ -71,13 +81,28 @@ class AccountsApiTests(APITestCase):
     def test_guest_access_returns_capabilities(self):
         response = self.client.post(
             reverse("guest_access"),
-            {"guest_name": "Trade Visitor", "state": "Kerala", "district": "Thrissur"},
+            {"guest_name": "Trade Visitor", "state_id": self.state.id, "association_id": self.association.id},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["access_type"], "guest")
+        self.assertEqual(response.data["guest_profile"]["state"]["name"], "Kerala")
+        self.assertEqual(response.data["guest_profile"]["association"]["name"], "KGSMA")
         self.assertIn("directory:browse", response.data["capabilities"])
+
+    def test_guest_access_rejects_cross_branch_hierarchy(self):
+        response = self.client.post(
+            reverse("guest_access"),
+            {
+                "guest_name": "Trade Visitor",
+                "state_id": self.state.id,
+                "association_id": self.other_association.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_me_requires_authentication(self):
         response = self.client.get(reverse("me"))
@@ -92,6 +117,8 @@ class AccountsApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["username"], "member1")
         self.assertEqual(response.data["member_profile"]["company_name"], "Asha Jewels")
+        self.assertEqual(response.data["member_profile"]["state"]["name"], "Kerala")
+        self.assertEqual(response.data["member_profile"]["association"]["name"], "KGSMA")
         self.assertTrue(response.data["notification_preferences"]["rate_alerts"])
 
     def test_me_patch_requires_authentication(self):
@@ -101,6 +128,13 @@ class AccountsApiTests(APITestCase):
 
     def test_me_patch_updates_allowed_root_and_profile_fields(self):
         self.client.force_authenticate(user=self.user)
+
+        updated_association = Association.objects.create(state=self.other_state, name="Coimbatore Gold Association")
+        updated_district_unit = DistrictOperationalUnit.objects.create(
+            association=updated_association,
+            name="Coimbatore District Unit",
+        )
+        updated_unit = Unit.objects.create(district_operational_unit=updated_district_unit, name="RS Puram Unit")
 
         response = self.client.patch(
             reverse("me"),
@@ -112,9 +146,10 @@ class AccountsApiTests(APITestCase):
                 "member_profile": {
                     "phone_number": "8888888888",
                     "company_name": "Anu Gold House",
-                    "state_name": "Tamil Nadu",
-                    "district_name": "Coimbatore",
-                    "local_chapter_name": "Coimbatore North",
+                    "state_id": self.other_state.id,
+                    "association_id": updated_association.id,
+                    "district_operational_unit_id": updated_district_unit.id,
+                    "unit_id": updated_unit.id,
                 },
             },
             format="json",
@@ -127,8 +162,27 @@ class AccountsApiTests(APITestCase):
         self.assertEqual(self.user.corporate_email, "anu@trade.example")
         self.assertFalse(self.user.onboarding_completed)
         self.assertEqual(self.user.member_profile.phone_number, "8888888888")
-        self.assertEqual(self.user.member_profile.local_chapter_name, "Coimbatore North")
-        self.assertEqual(response.data["member_profile"]["state_name"], "Tamil Nadu")
+        self.assertEqual(self.user.member_profile.unit.name, "RS Puram Unit")
+        self.assertEqual(response.data["member_profile"]["state"]["name"], "Tamil Nadu")
+        self.assertEqual(response.data["member_profile"]["unit"]["name"], "RS Puram Unit")
+
+    def test_me_patch_rejects_mismatched_hierarchy_ids(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(
+            reverse("me"),
+            {
+                "member_profile": {
+                    "state_id": self.state.id,
+                    "association_id": self.other_association.id,
+                    "district_operational_unit_id": self.district_unit.id,
+                    "unit_id": self.unit.id,
+                }
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_me_patch_ignores_read_only_fields(self):
         self.client.force_authenticate(user=self.user)
@@ -216,3 +270,17 @@ class AccountsApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["auth_provider"], "jwt")
         self.assertTrue(response.data["supports_google_sso"])
+
+    def test_admin_scope_assignment_requires_exactly_one_scope_for_admin_users(self):
+        self.user.role = get_user_model().Role.ADMIN
+        self.user.save(update_fields=["role"])
+        assignment = AdminScopeAssignment(user=self.user, association=self.association, district_operational_unit=self.district_unit)
+
+        with self.assertRaises(ValidationError):
+            assignment.full_clean()
+
+    def test_admin_scope_assignment_rejects_non_admin_user(self):
+        assignment = AdminScopeAssignment(user=self.user, association=self.association)
+
+        with self.assertRaises(ValidationError):
+            assignment.full_clean()

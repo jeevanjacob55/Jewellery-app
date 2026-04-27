@@ -6,7 +6,7 @@ import { FilterChip } from "../../components/FilterChip";
 import { SurfaceCard } from "../../components/SurfaceCard";
 import { useSession } from "../../session/SessionProvider";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
-import { RegionDistrict, RegionState } from "../../types/api";
+import { Association, DistrictOperationalUnit, RegionState, Unit } from "../../types/api";
 
 type AuthMode = "member" | "guest";
 
@@ -18,7 +18,9 @@ export function LoginScreen() {
   const [guestName, setGuestName] = useState("");
   const [states, setStates] = useState<RegionState[]>([]);
   const [selectedState, setSelectedState] = useState<RegionState | null>(null);
-  const [selectedDistrict, setSelectedDistrict] = useState<RegionDistrict | null>(null);
+  const [selectedAssociation, setSelectedAssociation] = useState<Association | null>(null);
+  const [selectedDistrictUnit, setSelectedDistrictUnit] = useState<DistrictOperationalUnit | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const [loadingRegions, setLoadingRegions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,9 @@ export function LoginScreen() {
         }
         setStates(nextStates);
         setSelectedState(nextStates[0] ?? null);
-        setSelectedDistrict(nextStates[0]?.districts[0] ?? null);
+        setSelectedAssociation(null);
+        setSelectedDistrictUnit(null);
+        setSelectedUnit(null);
       } catch {
         if (active) {
           setError("Unable to load the region hierarchy right now.");
@@ -55,7 +59,20 @@ export function LoginScreen() {
 
   function handleStateSelect(state: RegionState) {
     setSelectedState(state);
-    setSelectedDistrict(state.districts[0] ?? null);
+    setSelectedAssociation(null);
+    setSelectedDistrictUnit(null);
+    setSelectedUnit(null);
+  }
+
+  function handleAssociationSelect(association: Association) {
+    setSelectedAssociation(association);
+    setSelectedDistrictUnit(null);
+    setSelectedUnit(null);
+  }
+
+  function handleDistrictUnitSelect(districtUnit: DistrictOperationalUnit) {
+    setSelectedDistrictUnit(districtUnit);
+    setSelectedUnit(null);
   }
 
   async function handleMemberLogin() {
@@ -86,8 +103,10 @@ export function LoginScreen() {
     try {
       await continueAsGuest({
         guest_name: guestName.trim(),
-        state: selectedState.name,
-        district: selectedDistrict?.name ?? "",
+        state_id: selectedState.id,
+        association_id: selectedAssociation?.id,
+        district_operational_unit_id: selectedDistrictUnit?.id,
+        unit_id: selectedUnit?.id,
       });
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Guest access failed.");
@@ -135,42 +154,72 @@ export function LoginScreen() {
           </>
         )}
 
-        <Text style={styles.label}>State</Text>
-        {loadingRegions ? (
-          <ActivityIndicator color={colors.text} style={styles.loader} />
-        ) : (
-          <View style={styles.chipWrap}>
-            {states.map((state) => (
-              <FilterChip
-                key={state.id}
-                label={state.name}
-                selected={selectedState?.id === state.id}
-                onPress={() => handleStateSelect(state)}
-              />
-            ))}
-          </View>
-        )}
-
-        {selectedState?.districts.length ? (
+        {authMode === "guest" ? (
           <>
-            <Text style={styles.label}>District</Text>
-            <View style={styles.chipWrap}>
-              {selectedState.districts.map((district) => (
-                <FilterChip
-                  key={district.id}
-                  label={district.name}
-                  selected={selectedDistrict?.id === district.id}
-                  onPress={() => setSelectedDistrict(district)}
-                />
-              ))}
-            </View>
-          </>
-        ) : null}
+            <Text style={styles.label}>State</Text>
+            {loadingRegions ? (
+              <ActivityIndicator color={colors.text} style={styles.loader} />
+            ) : (
+              <View style={styles.chipWrap}>
+                {states.map((state) => (
+                  <FilterChip
+                    key={state.id}
+                    label={state.name}
+                    selected={selectedState?.id === state.id}
+                    onPress={() => handleStateSelect(state)}
+                  />
+                ))}
+              </View>
+            )}
 
-        {selectedDistrict?.chapters.length ? (
-          <>
-            <Text style={styles.label}>Local Chapter</Text>
-            <Text style={styles.hint}>{selectedDistrict.chapters.map((chapter) => chapter.name).join(", ")}</Text>
+            {selectedState?.associations.length ? (
+              <>
+                <Text style={styles.label}>Association</Text>
+                <View style={styles.chipWrap}>
+                  {selectedState.associations.map((association) => (
+                    <FilterChip
+                      key={association.id}
+                      label={association.name}
+                      selected={selectedAssociation?.id === association.id}
+                      onPress={() => handleAssociationSelect(association)}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.hint}>Associations and lower levels are optional for guest browsing, but you can narrow the context if needed.</Text>
+              </>
+            ) : null}
+
+            {selectedAssociation?.district_units.length ? (
+              <>
+                <Text style={styles.label}>District Unit</Text>
+                <View style={styles.chipWrap}>
+                  {selectedAssociation.district_units.map((districtUnit) => (
+                    <FilterChip
+                      key={districtUnit.id}
+                      label={districtUnit.name}
+                      selected={selectedDistrictUnit?.id === districtUnit.id}
+                      onPress={() => handleDistrictUnitSelect(districtUnit)}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
+
+            {selectedDistrictUnit?.units.length ? (
+              <>
+                <Text style={styles.label}>Unit</Text>
+                <View style={styles.chipWrap}>
+                  {selectedDistrictUnit.units.map((unit) => (
+                    <FilterChip
+                      key={unit.id}
+                      label={unit.name}
+                      selected={selectedUnit?.id === unit.id}
+                      onPress={() => setSelectedUnit(unit)}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
           </>
         ) : null}
 

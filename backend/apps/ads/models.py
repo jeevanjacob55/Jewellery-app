@@ -1,7 +1,9 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.directory.models import MediaAsset
+from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 
 class Advertisement(models.Model):
@@ -15,9 +17,24 @@ class Advertisement(models.Model):
 
 class AdTargeting(models.Model):
     advertisement = models.OneToOneField(Advertisement, on_delete=models.CASCADE, related_name="targeting")
-    state_name = models.CharField(max_length=100, blank=True)
-    district_name = models.CharField(max_length=100, blank=True)
-    local_chapter_name = models.CharField(max_length=100, blank=True)
+    state = models.ForeignKey(RegionState, on_delete=models.SET_NULL, null=True, blank=True, related_name="ad_targetings")
+    association = models.ForeignKey(Association, on_delete=models.SET_NULL, null=True, blank=True, related_name="ad_targetings")
+    district_operational_unit = models.ForeignKey(
+        DistrictOperationalUnit,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ad_targetings",
+    )
+    unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name="ad_targetings")
+
+    def clean(self):
+        if self.unit and self.district_operational_unit != self.unit.district_operational_unit:
+            raise ValidationError({"unit": "Selected unit does not belong to the chosen district operational unit."})
+        if self.district_operational_unit and self.association != self.district_operational_unit.association:
+            raise ValidationError({"district_operational_unit": "Selected district operational unit does not belong to the chosen association."})
+        if self.association and self.state != self.association.state:
+            raise ValidationError({"association": "Selected association does not belong to the chosen state."})
 
 
 class AdAsset(models.Model):

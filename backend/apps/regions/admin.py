@@ -1,7 +1,8 @@
 from django.contrib import admin
 
-from .models import LocalChapter, RegionDistrict, RegionState
+from .models import Association, DistrictOperationalUnit, RegionState, Unit
 
 admin.site.register(RegionState)
-admin.site.register(RegionDistrict)
-admin.site.register(LocalChapter)
+admin.site.register(Association)
+admin.site.register(DistrictOperationalUnit)
+admin.site.register(Unit)

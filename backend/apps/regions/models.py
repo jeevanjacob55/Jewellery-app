@@ -8,8 +8,8 @@ class RegionState(models.Model):
         return self.name
 
 
-class RegionDistrict(models.Model):
-    state = models.ForeignKey(RegionState, on_delete=models.CASCADE, related_name="districts")
+class Association(models.Model):
+    state = models.ForeignKey(RegionState, on_delete=models.CASCADE, related_name="associations")
     name = models.CharField(max_length=100)
 
     class Meta:
@@ -19,12 +19,27 @@ class RegionDistrict(models.Model):
         return f"{self.name}, {self.state.name}"
 
 
-class LocalChapter(models.Model):
-    district = models.ForeignKey(RegionDistrict, on_delete=models.CASCADE, related_name="chapters")
+class DistrictOperationalUnit(models.Model):
+    association = models.ForeignKey(Association, on_delete=models.CASCADE, related_name="district_units")
     name = models.CharField(max_length=100)
 
     class Meta:
-        unique_together = ("district", "name")
+        unique_together = ("association", "name")
 
     def __str__(self) -> str:
-        return f"{self.name}, {self.district.name}"
+        return f"{self.name}, {self.association.name}"
+
+
+class Unit(models.Model):
+    district_operational_unit = models.ForeignKey(
+        DistrictOperationalUnit,
+        on_delete=models.CASCADE,
+        related_name="units",
+    )
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        unique_together = ("district_operational_unit", "name")
+
+    def __str__(self) -> str:
+        return f"{self.name}, {self.district_operational_unit.name}"

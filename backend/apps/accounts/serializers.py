@@ -1,6 +1,33 @@
 from rest_framework import serializers
 
-from .models import MemberProfile, NotificationPreference, User
+from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
+
+from .models import AdminScopeAssignment, MemberProfile, NotificationPreference, User
+
+
+class HierarchyReferenceSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
+class StateReferenceField(serializers.RelatedField):
+    def to_representation(self, value):
+        return {"id": value.id, "name": value.name}
+
+
+class AssociationReferenceField(serializers.RelatedField):
+    def to_representation(self, value):
+        return {"id": value.id, "name": value.name}
+
+
+class DistrictOperationalUnitReferenceField(serializers.RelatedField):
+    def to_representation(self, value):
+        return {"id": value.id, "name": value.name}
+
+
+class UnitReferenceField(serializers.RelatedField):
+    def to_representation(self, value):
+        return {"id": value.id, "name": value.name}
 
 
 class NotificationPreferenceSerializer(serializers.ModelSerializer):
@@ -10,9 +37,22 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
 
 
 class MemberProfileSerializer(serializers.ModelSerializer):
+    state = StateReferenceField(read_only=True)
+    association = AssociationReferenceField(read_only=True)
+    district_operational_unit = DistrictOperationalUnitReferenceField(read_only=True)
+    unit = UnitReferenceField(read_only=True)
+
     class Meta:
         model = MemberProfile
-        fields = ["phone_number", "company_name", "state_name", "district_name", "local_chapter_name", "membership_tier"]
+        fields = [
+            "phone_number",
+            "company_name",
+            "state",
+            "association",
+            "district_operational_unit",
+            "unit",
+            "membership_tier",
+        ]
 
 
 class UpdateNotificationPreferenceSerializer(serializers.ModelSerializer):
@@ -22,10 +62,49 @@ class UpdateNotificationPreferenceSerializer(serializers.ModelSerializer):
 
 
 class UpdateMemberProfileSerializer(serializers.ModelSerializer):
+    state_id = serializers.PrimaryKeyRelatedField(queryset=RegionState.objects.all(), source="state", required=False, allow_null=True)
+    association_id = serializers.PrimaryKeyRelatedField(queryset=Association.objects.all(), source="association", required=False, allow_null=True)
+    district_operational_unit_id = serializers.PrimaryKeyRelatedField(
+        queryset=DistrictOperationalUnit.objects.all(),
+        source="district_operational_unit",
+        required=False,
+        allow_null=True,
+    )
+    unit_id = serializers.PrimaryKeyRelatedField(queryset=Unit.objects.all(), source="unit", required=False, allow_null=True)
+
     class Meta:
         model = MemberProfile
-        fields = ["phone_number", "company_name", "state_name", "district_name", "local_chapter_name", "membership_tier"]
+        fields = [
+            "phone_number",
+            "company_name",
+            "state_id",
+            "association_id",
+            "district_operational_unit_id",
+            "unit_id",
+            "membership_tier",
+        ]
         read_only_fields = ["membership_tier"]
+
+    def validate(self, attrs):
+        state = attrs.get("state", getattr(self.instance, "state", None))
+        association = attrs.get("association", getattr(self.instance, "association", None))
+        district_operational_unit = attrs.get("district_operational_unit", getattr(self.instance, "district_operational_unit", None))
+        unit = attrs.get("unit", getattr(self.instance, "unit", None))
+
+        hierarchy_fields_present = any(
+            field in attrs for field in ["state", "association", "district_operational_unit", "unit"]
+        )
+        if hierarchy_fields_present and not all([state, association, district_operational_unit, unit]):
+            raise serializers.ValidationError("State, association, district operational unit, and unit are all required together.")
+        if unit and unit.district_operational_unit != district_operational_unit:
+            raise serializers.ValidationError({"unit_id": "Selected unit does not belong to the selected district operational unit."})
+        if district_operational_unit and district_operational_unit.association != association:
+            raise serializers.ValidationError(
+                {"district_operational_unit_id": "Selected district operational unit does not belong to the selected association."}
+            )
+        if association and association.state != state:
+            raise serializers.ValidationError({"association_id": "Selected association does not belong to the selected state."})
+        return attrs
 
 
 class UpdateUserSerializer(serializers.ModelSerializer):
@@ -59,6 +138,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
             profile, _ = MemberProfile.objects.get_or_create(user=instance)
             for attribute, value in member_profile_data.items():
                 setattr(profile, attribute, value)
+            profile.full_clean()
             profile.save()
 
         return instance
@@ -88,5 +168,42 @@ class UserSerializer(serializers.ModelSerializer):
 
 class GuestAccessSerializer(serializers.Serializer):
     guest_name = serializers.CharField(max_length=100)
-    state = serializers.CharField(max_length=100)
-    district = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    state_id = serializers.PrimaryKeyRelatedField(queryset=RegionState.objects.all(), source="state")
+    association_id = serializers.PrimaryKeyRelatedField(queryset=Association.objects.all(), source="association", required=False, allow_null=True)
+    district_operational_unit_id = serializers.PrimaryKeyRelatedField(
+        queryset=DistrictOperationalUnit.objects.all(),
+        source="district_operational_unit",
+        required=False,
+        allow_null=True,
+    )
+    unit_id = serializers.PrimaryKeyRelatedField(queryset=Unit.objects.all(), source="unit", required=False, allow_null=True)
+
+    def validate(self, attrs):
+        state = attrs["state"]
+        association = attrs.get("association")
+        district_operational_unit = attrs.get("district_operational_unit")
+        unit = attrs.get("unit")
+
+        if association and association.state != state:
+            raise serializers.ValidationError({"association_id": "Selected association does not belong to the selected state."})
+        if district_operational_unit and not association:
+            raise serializers.ValidationError({"association_id": "Association is required when selecting a district operational unit."})
+        if district_operational_unit and district_operational_unit.association != association:
+            raise serializers.ValidationError(
+                {"district_operational_unit_id": "Selected district operational unit does not belong to the selected association."}
+            )
+        if unit and not district_operational_unit:
+            raise serializers.ValidationError({"district_operational_unit_id": "District operational unit is required when selecting a unit."})
+        if unit and unit.district_operational_unit != district_operational_unit:
+            raise serializers.ValidationError({"unit_id": "Selected unit does not belong to the selected district operational unit."})
+        return attrs
+
+
+class AdminScopeAssignmentSerializer(serializers.ModelSerializer):
+    association = AssociationReferenceField(read_only=True)
+    district_operational_unit = DistrictOperationalUnitReferenceField(read_only=True)
+    unit = UnitReferenceField(read_only=True)
+
+    class Meta:
+        model = AdminScopeAssignment
+        fields = ["association", "district_operational_unit", "unit"]

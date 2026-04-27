@@ -1,5 +1,8 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
+
+from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 
 class User(AbstractUser):
@@ -21,13 +24,28 @@ class MemberProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="member_profile")
     phone_number = models.CharField(max_length=20, blank=True)
     company_name = models.CharField(max_length=255, blank=True)
-    state_name = models.CharField(max_length=100, blank=True)
-    district_name = models.CharField(max_length=100, blank=True)
-    local_chapter_name = models.CharField(max_length=100, blank=True)
+    state = models.ForeignKey(RegionState, on_delete=models.SET_NULL, null=True, blank=True, related_name="member_profiles")
+    association = models.ForeignKey(Association, on_delete=models.SET_NULL, null=True, blank=True, related_name="member_profiles")
+    district_operational_unit = models.ForeignKey(
+        DistrictOperationalUnit,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="member_profiles",
+    )
+    unit = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name="member_profiles")
     membership_tier = models.CharField(max_length=50, default="Platinum")
 
     def __str__(self) -> str:
         return f"{self.user.username} profile"
+
+    def clean(self):
+        if self.unit and self.district_operational_unit != self.unit.district_operational_unit:
+            raise ValidationError({"unit": "Selected unit does not belong to the chosen district operational unit."})
+        if self.district_operational_unit and self.association != self.district_operational_unit.association:
+            raise ValidationError({"district_operational_unit": "Selected district operational unit does not belong to the chosen association."})
+        if self.association and self.state != self.association.state:
+            raise ValidationError({"association": "Selected association does not belong to the chosen state."})
 
 
 class NotificationPreference(models.Model):
@@ -39,3 +57,30 @@ class NotificationPreference(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.username} notifications"
+
+
+class AdminScopeAssignment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="admin_scope_assignments")
+    association = models.ForeignKey(Association, on_delete=models.CASCADE, null=True, blank=True, related_name="admin_assignments")
+    district_operational_unit = models.ForeignKey(
+        DistrictOperationalUnit,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="admin_assignments",
+    )
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, null=True, blank=True, related_name="admin_assignments")
+
+    def clean(self):
+        selected_scopes = [scope for scope in [self.association, self.district_operational_unit, self.unit] if scope is not None]
+        if len(selected_scopes) != 1:
+            raise ValidationError("Exactly one admin scope must be assigned.")
+        if self.user.role != User.Role.ADMIN:
+            raise ValidationError({"user": "Admin scope assignments can only be attached to admin users."})
+
+    def __str__(self) -> str:
+        if self.unit:
+            return f"{self.user.username} -> unit:{self.unit.name}"
+        if self.district_operational_unit:
+            return f"{self.user.username} -> district_unit:{self.district_operational_unit.name}"
+        return f"{self.user.username} -> association:{self.association.name}"

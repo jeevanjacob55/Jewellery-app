@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
-from apps.accounts.models import MemberProfile, NotificationPreference
+from apps.accounts.models import AdminScopeAssignment, MemberProfile, NotificationPreference
 from apps.ads.models import AdApproval, AdAsset, AdTargeting, Advertisement
 from apps.directory.models import (
     Company,
@@ -19,14 +19,22 @@ from apps.directory.models import (
 )
 from apps.news.models import Alert, MeetingEvent, NewsItem
 from apps.rates.models import AssociationRate, ExternalMarketRate, GlobalTrendSnapshot
-from apps.regions.models import LocalChapter, RegionDistrict, RegionState
+from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 from apps.reverse_search.models import ReverseSearchAttachment, ReverseSearchRequest, ReverseSearchResponse
 from apps.services_app.models import ComplianceReminder, ComplianceRequest, ServiceType
 
 from .models import AuditLog
 
 DEMO_PASSWORD = "DemoPass123!"
-DEMO_USERNAMES = ["demo_admin", "demo_member", "demo_supplier", "demo_advertiser"]
+DEMO_USERNAMES = [
+    "demo_admin",
+    "demo_association_admin",
+    "demo_district_admin",
+    "demo_unit_admin",
+    "demo_member",
+    "demo_supplier",
+    "demo_advertiser",
+]
 
 
 def _aware_datetime(year: int, month: int, day: int, hour: int = 9, minute: int = 0) -> datetime:
@@ -97,8 +105,10 @@ def reset_demo_data() -> None:
     ExternalMarketRate.objects.all().delete()
     AssociationRate.objects.all().delete()
     AuditLog.objects.all().delete()
-    LocalChapter.objects.all().delete()
-    RegionDistrict.objects.all().delete()
+    AdminScopeAssignment.objects.all().delete()
+    Unit.objects.all().delete()
+    DistrictOperationalUnit.objects.all().delete()
+    Association.objects.all().delete()
     RegionState.objects.all().delete()
     user_model.objects.filter(username__in=DEMO_USERNAMES).delete()
 
@@ -108,20 +118,20 @@ def seed_demo_data(reset: bool = False) -> dict[str, object]:
         if reset:
             reset_demo_data()
 
-        users = _seed_users()
-        _seed_regions()
+        hierarchy = _seed_regions()
+        users = _seed_users(hierarchy)
         _seed_directory(users)
         _seed_rates()
         _seed_services()
         _seed_news()
-        _seed_ads(users)
+        _seed_ads(users, hierarchy)
         _seed_reverse_search(users)
-        _seed_audit_logs(users)
+        _seed_audit_logs(users, hierarchy)
 
     return users
 
 
-def _seed_users() -> dict[str, object]:
+def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
     user_model = get_user_model()
 
     user_specs = [
@@ -134,6 +144,42 @@ def _seed_users() -> dict[str, object]:
                 "last_name": "Desk",
                 "role": user_model.Role.ADMIN,
                 "is_staff": True,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "association_admin",
+            "lookup": {"username": "demo_association_admin"},
+            "defaults": {
+                "email": "association-admin@demo-jewellery.app",
+                "first_name": "Maya",
+                "last_name": "Nair",
+                "role": user_model.Role.ADMIN,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "district_admin",
+            "lookup": {"username": "demo_district_admin"},
+            "defaults": {
+                "email": "district-admin@demo-jewellery.app",
+                "first_name": "Vikram",
+                "last_name": "Iyer",
+                "role": user_model.Role.ADMIN,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "unit_admin",
+            "lookup": {"username": "demo_unit_admin"},
+            "defaults": {
+                "email": "unit-admin@demo-jewellery.app",
+                "first_name": "Nisha",
+                "last_name": "Pillai",
+                "role": user_model.Role.ADMIN,
                 "is_verified_member": True,
                 "onboarding_completed": True,
             },
@@ -186,15 +232,20 @@ def _seed_users() -> dict[str, object]:
         users[spec["key"]] = user
 
     member = users["member"]
+    kerala = hierarchy["states"]["Kerala"]
+    kgsma = hierarchy["associations"]["KGSMA"]
+    ernakulam_district_unit = hierarchy["district_units"]["Ernakulam District Unit"]
+    kadavanthra_unit = hierarchy["units"]["Kadavanthra Unit"]
     _upsert(
         MemberProfile,
         {"user": member},
         {
             "phone_number": "9876543210",
             "company_name": "Heritage Gold House",
-            "state_name": "Kerala",
-            "district_name": "Thrissur",
-            "local_chapter_name": "Thrissur Central",
+            "state": kerala,
+            "association": kgsma,
+            "district_operational_unit": ernakulam_district_unit,
+            "unit": kadavanthra_unit,
             "membership_tier": "Platinum",
         },
     )
@@ -218,32 +269,86 @@ def _seed_users() -> dict[str, object]:
             "meeting_alerts": True,
         },
     )
+    _upsert(
+        AdminScopeAssignment,
+        {"user": users["association_admin"]},
+        {
+            "association": kgsma,
+            "district_operational_unit": None,
+            "unit": None,
+        },
+    )
+    _upsert(
+        AdminScopeAssignment,
+        {"user": users["district_admin"]},
+        {
+            "association": None,
+            "district_operational_unit": ernakulam_district_unit,
+            "unit": None,
+        },
+    )
+    _upsert(
+        AdminScopeAssignment,
+        {"user": users["unit_admin"]},
+        {
+            "association": None,
+            "district_operational_unit": None,
+            "unit": kadavanthra_unit,
+        },
+    )
 
     return users
 
 
-def _seed_regions() -> None:
-    states = {
+def _seed_regions() -> dict[str, dict[str, object]]:
+    hierarchy_spec = {
         "Kerala": {
-            "Thrissur": ["Thrissur Central", "Kodungallur"],
-            "Kochi": ["Ernakulam North", "Aluva"],
+            "KGSMA": {
+                "Ernakulam District Unit": ["Kadavanthra Unit", "Aluva Unit"],
+                "Thrissur District Unit": ["Round North Unit", "Kodungallur Unit"],
+            },
+            "AKGSMA": {
+                "Kozhikode District Unit": ["SM Street Unit", "Nadakkavu Unit"],
+            },
         },
         "Tamil Nadu": {
-            "Coimbatore": ["Coimbatore North", "Coimbatore South"],
-            "Chennai": ["T Nagar", "Anna Salai"],
+            "Tamil Nadu Jewellers Association": {
+                "Chennai District Unit": ["T Nagar Unit", "Anna Salai Unit"],
+                "Coimbatore District Unit": ["RS Puram Unit", "Gandhipuram Unit"],
+            },
         },
         "Karnataka": {
-            "Bengaluru Urban": ["Chickpet", "Jayanagar"],
-            "Mysuru": ["Devaraja Market", "VV Mohalla"],
+            "Karnataka Gold Traders Association": {
+                "Bengaluru Urban District Unit": ["Chickpet Unit", "Jayanagar Unit"],
+                "Mysuru District Unit": ["Devaraja Unit", "VV Mohalla Unit"],
+            },
         },
     }
 
-    for state_name, districts in states.items():
+    hierarchy = {"states": {}, "associations": {}, "district_units": {}, "units": {}}
+
+    for state_name, associations in hierarchy_spec.items():
         state = _upsert(RegionState, {"name": state_name}, {})
-        for district_name, chapters in districts.items():
-            district = _upsert(RegionDistrict, {"state": state, "name": district_name}, {})
-            for chapter_name in chapters:
-                _upsert(LocalChapter, {"district": district, "name": chapter_name}, {})
+        hierarchy["states"][state_name] = state
+        for association_name, district_units in associations.items():
+            association = _upsert(Association, {"state": state, "name": association_name}, {})
+            hierarchy["associations"][association_name] = association
+            for district_unit_name, units in district_units.items():
+                district_unit = _upsert(
+                    DistrictOperationalUnit,
+                    {"association": association, "name": district_unit_name},
+                    {},
+                )
+                hierarchy["district_units"][district_unit_name] = district_unit
+                for unit_name in units:
+                    unit = _upsert(
+                        Unit,
+                        {"district_operational_unit": district_unit, "name": unit_name},
+                        {},
+                    )
+                    hierarchy["units"][unit_name] = unit
+
+    return hierarchy
 
 
 def _seed_directory(users: dict[str, object]) -> None:
@@ -500,7 +605,7 @@ def _seed_news() -> None:
         NewsItem,
         {"title": "Association onboarding camp expands to new districts"},
         {
-            "summary": "Regional outreach and member support counters are opening in more chapters this month.",
+            "summary": "Regional outreach and member support counters are opening across more association district units this month.",
             "is_urgent": False,
         },
     )
@@ -521,7 +626,7 @@ def _seed_news() -> None:
         )
 
 
-def _seed_ads(users: dict[str, object]) -> None:
+def _seed_ads(users: dict[str, object], hierarchy: dict[str, dict[str, object]]) -> None:
     advertisement = _upsert(
         Advertisement,
         {"advertiser": users["advertiser"], "title": "Akshaya Tritiya Launch Banner"},
@@ -536,9 +641,10 @@ def _seed_ads(users: dict[str, object]) -> None:
         AdTargeting,
         {"advertisement": advertisement},
         {
-            "state_name": "Kerala",
-            "district_name": "Thrissur",
-            "local_chapter_name": "Thrissur Central",
+            "state": hierarchy["states"]["Kerala"],
+            "association": hierarchy["associations"]["KGSMA"],
+            "district_operational_unit": hierarchy["district_units"]["Ernakulam District Unit"],
+            "unit": hierarchy["units"]["Kadavanthra Unit"],
         },
     )
     ad_asset = _seed_media_asset(
@@ -601,9 +707,20 @@ def _seed_reverse_search(users: dict[str, object]) -> None:
     )
 
 
-def _seed_audit_logs(users: dict[str, object]) -> None:
+def _seed_audit_logs(users: dict[str, object], hierarchy: dict[str, dict[str, object]]) -> None:
     for action, entity_type, entity_id, metadata in [
-        ("member_verified", "user", "demo_member", {"actor_role": "admin", "chapter": "Thrissur Central"}),
+        (
+            "member_verified",
+            "user",
+            "demo_member",
+            {
+                "actor_role": "admin",
+                "state": hierarchy["states"]["Kerala"].name,
+                "association": hierarchy["associations"]["KGSMA"].name,
+                "district_unit": hierarchy["district_units"]["Ernakulam District Unit"].name,
+                "unit": hierarchy["units"]["Kadavanthra Unit"].name,
+            },
+        ),
         ("rate_updated", "association_rate", "board-rate-latest", {"region": "Association Board Rate - Latest"}),
         ("ad_approved", "advertisement", "akshaya-tritiya-launch-banner", {"placement": "dashboard_hero"}),
     ]:

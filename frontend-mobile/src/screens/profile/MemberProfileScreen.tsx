@@ -7,7 +7,7 @@ import { SectionHeading } from "../../components/SectionHeading";
 import { SurfaceCard } from "../../components/SurfaceCard";
 import { useSession } from "../../session/SessionProvider";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
-import { NotificationPreferences, RegionState } from "../../types/api";
+import { Association, DistrictOperationalUnit, NotificationPreferences, RegionState } from "../../types/api";
 
 export function MemberProfileScreen() {
   const { guestSession, signOut, status, updateCurrentUser, updateNotificationPreferences, user } = useSession();
@@ -23,9 +23,10 @@ export function MemberProfileScreen() {
   const [corporateEmail, setCorporateEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [stateName, setStateName] = useState("");
-  const [districtName, setDistrictName] = useState("");
-  const [chapterName, setChapterName] = useState("");
+  const [selectedStateId, setSelectedStateId] = useState<number | null>(null);
+  const [selectedAssociationId, setSelectedAssociationId] = useState<number | null>(null);
+  const [selectedDistrictUnitId, setSelectedDistrictUnitId] = useState<number | null>(null);
+  const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     rate_alerts: false,
@@ -77,9 +78,10 @@ export function MemberProfileScreen() {
     setCorporateEmail(user.corporate_email ?? "");
     setCompanyName(user.member_profile?.company_name ?? "");
     setPhoneNumber(user.member_profile?.phone_number ?? "");
-    setStateName(user.member_profile?.state_name ?? "");
-    setDistrictName(user.member_profile?.district_name ?? "");
-    setChapterName(user.member_profile?.local_chapter_name ?? "");
+    setSelectedStateId(user.member_profile?.state?.id ?? null);
+    setSelectedAssociationId(user.member_profile?.association?.id ?? null);
+    setSelectedDistrictUnitId(user.member_profile?.district_operational_unit?.id ?? null);
+    setSelectedUnitId(user.member_profile?.unit?.id ?? null);
     setOnboardingCompleted(Boolean(user.onboarding_completed));
     setPreferences({
       rate_alerts: Boolean(user.notification_preferences?.rate_alerts),
@@ -89,25 +91,35 @@ export function MemberProfileScreen() {
     });
   }, [user]);
 
-  const selectedState = regions.find((region) => region.name === stateName) ?? null;
-  const selectedDistrict = selectedState?.districts.find((district) => district.name === districtName) ?? null;
+  const selectedState = regions.find((region) => region.id === selectedStateId) ?? null;
+  const selectedAssociation = selectedState?.associations.find((association) => association.id === selectedAssociationId) ?? null;
+  const selectedDistrictUnit =
+    selectedAssociation?.district_units.find((districtUnit) => districtUnit.id === selectedDistrictUnitId) ?? null;
 
   function handleStateSelect(nextState: RegionState) {
-    const nextDistrict = nextState.districts[0] ?? null;
-    const nextChapter = nextDistrict?.chapters[0]?.name ?? "";
-    setStateName(nextState.name);
-    setDistrictName(nextDistrict?.name ?? "");
-    setChapterName(nextChapter);
+    setSelectedStateId(nextState.id);
+    setSelectedAssociationId(null);
+    setSelectedDistrictUnitId(null);
+    setSelectedUnitId(null);
   }
 
-  function handleDistrictSelect(nextDistrictName: string) {
-    const nextDistrict = selectedState?.districts.find((district) => district.name === nextDistrictName) ?? null;
-    const nextChapter = nextDistrict?.chapters[0]?.name ?? "";
-    setDistrictName(nextDistrictName);
-    setChapterName(nextChapter);
+  function handleAssociationSelect(nextAssociation: Association) {
+    setSelectedAssociationId(nextAssociation.id);
+    setSelectedDistrictUnitId(null);
+    setSelectedUnitId(null);
+  }
+
+  function handleDistrictUnitSelect(nextDistrictUnit: DistrictOperationalUnit) {
+    setSelectedDistrictUnitId(nextDistrictUnit.id);
+    setSelectedUnitId(null);
   }
 
   async function handleProfileSave() {
+    if (!selectedStateId || !selectedAssociationId || !selectedDistrictUnitId || !selectedUnitId) {
+      setProfileMessage("Choose a full State, Association, District Unit, and Unit path before saving.");
+      return;
+    }
+
     setProfileSubmitting(true);
     setProfileMessage(null);
     try {
@@ -120,9 +132,10 @@ export function MemberProfileScreen() {
         member_profile: {
           phone_number: phoneNumber.trim(),
           company_name: companyName.trim(),
-          state_name: stateName,
-          district_name: districtName,
-          local_chapter_name: chapterName,
+          state_id: selectedStateId,
+          association_id: selectedAssociationId,
+          district_operational_unit_id: selectedDistrictUnitId,
+          unit_id: selectedUnitId,
         },
       });
       setProfileMessage("Profile details saved.");
@@ -161,10 +174,17 @@ export function MemberProfileScreen() {
         </Text>
         <Text style={styles.meta}>Jeweller ID: {user?.jeweller_id ?? "Guest session"}</Text>
         <Text style={styles.meta}>
-          Region: {user?.member_profile?.state_name || guestSession?.guest_profile.state || "Not selected"}
+          State: {user?.member_profile?.state?.name || guestSession?.guest_profile.state?.name || "Not selected"}
         </Text>
         <Text style={styles.meta}>
-          Chapter: {user?.member_profile?.local_chapter_name || guestSession?.guest_profile.district || "Not selected"}
+          Association: {user?.member_profile?.association?.name || guestSession?.guest_profile.association?.name || "Not selected"}
+        </Text>
+        <Text style={styles.meta}>
+          District Unit:{" "}
+          {user?.member_profile?.district_operational_unit?.name || guestSession?.guest_profile.district_operational_unit?.name || "Not selected"}
+        </Text>
+        <Text style={styles.meta}>
+          Unit: {user?.member_profile?.unit?.name || guestSession?.guest_profile.unit?.name || "Not selected"}
         </Text>
       </SurfaceCard>
 
@@ -212,7 +232,7 @@ export function MemberProfileScreen() {
                   <FilterChip
                     key={region.id}
                     label={region.name}
-                    selected={region.name === stateName}
+                    selected={region.id === selectedStateId}
                     onPress={() => handleStateSelect(region)}
                   />
                 ))}
@@ -221,32 +241,48 @@ export function MemberProfileScreen() {
               <Text style={styles.hint}>Region data is not seeded yet, so saved region fields stay as-is until choices are available.</Text>
             )}
 
-            {selectedState?.districts.length ? (
+            {selectedState?.associations.length ? (
               <>
-                <Text style={styles.label}>District</Text>
+                <Text style={styles.label}>Association</Text>
                 <View style={styles.chipWrap}>
-                  {selectedState.districts.map((district) => (
+                  {selectedState.associations.map((association) => (
                     <FilterChip
-                      key={district.id}
-                      label={district.name}
-                      selected={district.name === districtName}
-                      onPress={() => handleDistrictSelect(district.name)}
+                      key={association.id}
+                      label={association.name}
+                      selected={association.id === selectedAssociationId}
+                      onPress={() => handleAssociationSelect(association)}
                     />
                   ))}
                 </View>
               </>
             ) : null}
 
-            {selectedDistrict?.chapters.length ? (
+            {selectedAssociation?.district_units.length ? (
               <>
-                <Text style={styles.label}>Local chapter</Text>
+                <Text style={styles.label}>District unit</Text>
                 <View style={styles.chipWrap}>
-                  {selectedDistrict.chapters.map((chapter) => (
+                  {selectedAssociation.district_units.map((districtUnit) => (
                     <FilterChip
-                      key={chapter.id}
-                      label={chapter.name}
-                      selected={chapter.name === chapterName}
-                      onPress={() => setChapterName(chapter.name)}
+                      key={districtUnit.id}
+                      label={districtUnit.name}
+                      selected={districtUnit.id === selectedDistrictUnitId}
+                      onPress={() => handleDistrictUnitSelect(districtUnit)}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
+
+            {selectedDistrictUnit?.units.length ? (
+              <>
+                <Text style={styles.label}>Unit</Text>
+                <View style={styles.chipWrap}>
+                  {selectedDistrictUnit.units.map((unit) => (
+                    <FilterChip
+                      key={unit.id}
+                      label={unit.name}
+                      selected={unit.id === selectedUnitId}
+                      onPress={() => setSelectedUnitId(unit.id)}
                     />
                   ))}
                 </View>

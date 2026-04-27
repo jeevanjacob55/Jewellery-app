@@ -12,12 +12,18 @@ export interface NotificationPreferences {
   meeting_alerts: boolean;
 }
 
+export interface HierarchyReference {
+  id: number;
+  name: string;
+}
+
 export interface MemberProfile {
   phone_number: string;
   company_name: string;
-  state_name: string;
-  district_name: string;
-  local_chapter_name: string;
+  state: HierarchyReference | null;
+  association: HierarchyReference | null;
+  district_operational_unit: HierarchyReference | null;
+  unit: HierarchyReference | null;
   membership_tier: string;
 }
 
@@ -39,9 +45,10 @@ export interface MemberUser {
 export interface UpdateMemberProfileValues {
   phone_number?: string;
   company_name?: string;
-  state_name?: string;
-  district_name?: string;
-  local_chapter_name?: string;
+  state_id?: number | null;
+  association_id?: number | null;
+  district_operational_unit_id?: number | null;
+  unit_id?: number | null;
 }
 
 export interface UpdateMemberUserPayload {
@@ -57,8 +64,18 @@ export type UpdateNotificationPreferencesPayload = Partial<NotificationPreferenc
 
 export interface GuestProfile {
   guest_name: string;
-  state: string;
-  district?: string;
+  state: HierarchyReference | null;
+  association: HierarchyReference | null;
+  district_operational_unit: HierarchyReference | null;
+  unit: HierarchyReference | null;
+}
+
+export interface GuestAccessPayload {
+  guest_name: string;
+  state_id: number;
+  association_id?: number;
+  district_operational_unit_id?: number;
+  unit_id?: number;
 }
 
 export interface GuestSession {
@@ -74,21 +91,27 @@ export interface SessionInfo {
   firebase_messaging_enabled: boolean;
 }
 
-export interface RegionChapter {
+export interface Unit {
   id: number;
   name: string;
 }
 
-export interface RegionDistrict {
+export interface DistrictOperationalUnit {
   id: number;
   name: string;
-  chapters: RegionChapter[];
+  units: Unit[];
+}
+
+export interface Association {
+  id: number;
+  name: string;
+  district_units: DistrictOperationalUnit[];
 }
 
 export interface RegionState {
   id: number;
   name: string;
-  districts: RegionDistrict[];
+  associations: Association[];
 }
 
 export interface DashboardData {
@@ -172,12 +195,30 @@ export interface ReverseSearchResponse {
   created_at: string;
 }
 
+export interface ReverseSearchAttachment {
+  id: number;
+  original_filename: string;
+  object_key: string;
+  visibility: string;
+  moderation_status: string;
+  uploaded_at: string;
+}
+
 export interface ReverseSearchRequest {
   id: number;
   notes: string;
   status: string;
   created_at: string;
+  attachments: ReverseSearchAttachment[];
   responses: ReverseSearchResponse[];
+}
+
+export interface ReverseSearchUploadSession {
+  object_key: string;
+  bucket_name: string;
+  visibility: string;
+  expires_in: number;
+  upload_url: string;
 }
 
 export interface EnquiryPayload {

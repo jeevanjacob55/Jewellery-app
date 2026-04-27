@@ -12,6 +12,14 @@ let config: ApiClientConfig = {};
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 
+function resolveUrl(pathOrUrl: string): string {
+  try {
+    return new URL(pathOrUrl).toString();
+  } catch {
+    return new URL(pathOrUrl, API_BASE_URL).toString();
+  }
+}
+
 export function configureApiClient(nextConfig: ApiClientConfig) {
   config = nextConfig;
 }
@@ -48,7 +56,7 @@ async function requestJson<T>(path: string, options: RequestOptions = {}): Promi
     headers.Authorization = `Bearer ${tokens.access}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(resolveUrl(`${API_BASE_URL}${path}`), {
     method: options.method ?? "GET",
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -97,4 +105,18 @@ export function postJson<T>(path: string, body: unknown, authenticated = false):
 
 export function patchJson<T>(path: string, body: unknown, authenticated = false): Promise<T> {
   return requestJson<T>(path, { method: "PATCH", body, authenticated });
+}
+
+export async function uploadBinary(uploadUrl: string, body: Blob, mimeType: string): Promise<void> {
+  const response = await fetch(resolveUrl(uploadUrl), {
+    method: "PUT",
+    headers: {
+      "Content-Type": mimeType,
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to upload the reference image.");
+  }
 }

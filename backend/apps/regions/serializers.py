@@ -1,25 +1,33 @@
 from rest_framework import serializers
 
-from .models import LocalChapter, RegionDistrict, RegionState
+from .models import Association, DistrictOperationalUnit, RegionState, Unit
 
 
-class LocalChapterSerializer(serializers.ModelSerializer):
+class UnitSerializer(serializers.ModelSerializer):
     class Meta:
-        model = LocalChapter
+        model = Unit
         fields = ["id", "name"]
 
 
-class RegionDistrictSerializer(serializers.ModelSerializer):
-    chapters = LocalChapterSerializer(many=True, read_only=True)
+class DistrictOperationalUnitSerializer(serializers.ModelSerializer):
+    units = UnitSerializer(many=True, read_only=True)
 
     class Meta:
-        model = RegionDistrict
-        fields = ["id", "name", "chapters"]
+        model = DistrictOperationalUnit
+        fields = ["id", "name", "units"]
+
+
+class AssociationSerializer(serializers.ModelSerializer):
+    district_units = DistrictOperationalUnitSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Association
+        fields = ["id", "name", "district_units"]
 
 
 class RegionStateSerializer(serializers.ModelSerializer):
-    districts = RegionDistrictSerializer(many=True, read_only=True)
+    associations = AssociationSerializer(many=True, read_only=True)
 
     class Meta:
         model = RegionState
-        fields = ["id", "name", "districts"]
+        fields = ["id", "name", "associations"]

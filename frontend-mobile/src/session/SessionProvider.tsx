@@ -4,7 +4,7 @@ import { API_BASE_URL, configureApiClient, getJson, patchJson, postJson } from "
 import { readStoredGuestSession, readStoredTokens, writeStoredGuestSession, writeStoredTokens } from "../storage/sessionStorage";
 import {
   AuthTokens,
-  GuestProfile,
+  GuestAccessPayload,
   GuestSession,
   MemberUser,
   SessionInfo,
@@ -21,7 +21,7 @@ type SessionContextValue = {
   sessionInfo: SessionInfo | null;
   error: string | null;
   signInMember: (credentials: { username: string; password: string }) => Promise<void>;
-  continueAsGuest: (payload: GuestProfile) => Promise<void>;
+  continueAsGuest: (payload: GuestAccessPayload) => Promise<void>;
   refreshCurrentUser: () => Promise<void>;
   updateCurrentUser: (payload: UpdateMemberUserPayload) => Promise<void>;
   updateNotificationPreferences: (payload: UpdateNotificationPreferencesPayload) => Promise<void>;
@@ -158,7 +158,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
     }
   }
 
-  async function continueAsGuest(payload: GuestProfile) {
+  async function continueAsGuest(payload: GuestAccessPayload) {
     setError(null);
     const nextGuestSession = await postJson<GuestSession>("/auth/guest/", payload);
     setGuestSession(nextGuestSession);

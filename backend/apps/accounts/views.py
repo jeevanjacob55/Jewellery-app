@@ -23,7 +23,24 @@ class GuestAccessView(APIView):
         return Response(
             {
                 "access_type": "guest",
-                "guest_profile": payload,
+                "guest_profile": {
+                    "guest_name": payload["guest_name"],
+                    "state": {"id": payload["state"].id, "name": payload["state"].name},
+                    "association": (
+                        {"id": payload["association"].id, "name": payload["association"].name}
+                        if payload.get("association")
+                        else None
+                    ),
+                    "district_operational_unit": (
+                        {
+                            "id": payload["district_operational_unit"].id,
+                            "name": payload["district_operational_unit"].name,
+                        }
+                        if payload.get("district_operational_unit")
+                        else None
+                    ),
+                    "unit": {"id": payload["unit"].id, "name": payload["unit"].name} if payload.get("unit") else None,
+                },
                 "capabilities": ["directory:browse", "market_tiers:view", "company_profiles:view"],
             },
             status=status.HTTP_200_OK,

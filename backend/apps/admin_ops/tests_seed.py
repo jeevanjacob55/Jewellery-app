@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from apps.directory.models import Company
 from apps.news.models import Alert
-from apps.regions.models import RegionState
+from apps.regions.models import Association, RegionState
 
 from .models import AuditLog
 
@@ -51,7 +51,7 @@ class SeedDemoDataCommandTests(APITestCase):
 
         self.assertFalse(Company.objects.filter(name="Temporary Local Entry").exists())
         self.assertTrue(Company.objects.filter(name="Heritage Gold House").exists())
-        self.assertEqual(get_user_model().objects.filter(username__startswith="demo_").count(), 4)
+        self.assertEqual(get_user_model().objects.filter(username__startswith="demo_").count(), 7)
 
     def test_seed_demo_data_command_prints_demo_password(self):
         stdout = StringIO()
@@ -73,6 +73,10 @@ class SeededApiIntegrationTests(APITestCase):
 
         self.assertEqual(regions_response.status_code, 200)
         self.assertGreaterEqual(len(regions_response.data), 3)
+        kerala = next(state for state in regions_response.data if state["name"] == "Kerala")
+        kgsma = next(association for association in kerala["associations"] if association["name"] == "KGSMA")
+        self.assertTrue(any(unit["name"] == "Kadavanthra Unit" for district_unit in kgsma["district_units"] for unit in district_unit["units"]))
+        self.assertTrue(Association.objects.filter(name="KGSMA").exists())
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertGreater(len(dashboard_response.data["comparisons"]), 0)
         self.assertEqual(directory_response.status_code, 200)
