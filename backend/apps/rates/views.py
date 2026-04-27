@@ -3,10 +3,10 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.regions.models import Association
+from apps.regions.models import Association, RegionState
 
 from .models import AssociationRate, ExternalMarketRate, GlobalTrendSnapshot
-from .serializers import DashboardResponseSerializer
+from .serializers import DashboardResponseSerializer, StateRatesResponseSerializer
 
 
 QUICK_ACTIONS = [
@@ -56,17 +56,23 @@ def _previous_rate_for_association(association: Association | None, latest_rate:
     return queryset.order_by("-effective_at", "-id").first()
 
 
-def _build_other_association_rates(current_association: Association | None) -> list[dict]:
+def _build_latest_rates_by_association(*, state: RegionState | None = None) -> dict[int, AssociationRate]:
     latest_by_association: dict[int, AssociationRate] = {}
-    queryset = (
-        AssociationRate.objects.filter(association__isnull=False)
-        .select_related("association")
-        .order_by("association__name", "-effective_at", "-id")
-    )
+    queryset = AssociationRate.objects.filter(association__isnull=False).select_related("association", "association__state")
+    if state is not None:
+        queryset = queryset.filter(association__state=state)
+    queryset = queryset.order_by("association__name", "-effective_at", "-id")
 
     for rate in queryset:
         if rate.association_id not in latest_by_association:
             latest_by_association[rate.association_id] = rate
+
+    return latest_by_association
+
+
+def _build_other_association_rates(current_association: Association | None) -> list[dict]:
+    state = current_association.state if current_association else None
+    latest_by_association = _build_latest_rates_by_association(state=state)
 
     summaries = []
     for association_id, rate in latest_by_association.items():
@@ -83,6 +89,38 @@ def _build_other_association_rates(current_association: Association | None) -> l
         )
 
     return sorted(summaries, key=lambda item: item["name"])
+
+
+def build_state_rates_payload() -> dict:
+    latest_by_association = _build_latest_rates_by_association()
+    states = []
+    queryset = RegionState.objects.prefetch_related("associations").order_by("name")
+
+    for state in queryset:
+        association_summaries = []
+        for association in state.associations.all().order_by("name"):
+            rate = latest_by_association.get(association.id)
+            if rate is None:
+                continue
+            association_summaries.append(
+                {
+                    "id": association.id,
+                    "name": association.name,
+                    "gold_22k": float(rate.gold_22k),
+                    "gold_24k": float(rate.gold_24k),
+                    "silver": float(rate.silver),
+                }
+            )
+
+        states.append(
+            {
+                "id": state.id,
+                "name": state.name,
+                "associations": association_summaries,
+            }
+        )
+
+    return {"states": states}
 
 
 def _resolve_active_association(request) -> Association | None:
@@ -159,3 +197,11 @@ class DashboardView(APIView):
     def get(self, request):
         payload = build_dashboard_payload(request)
         return Response(DashboardResponseSerializer(payload).data)
+
+
+class StateRatesView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        payload = build_state_rates_payload()
+        return Response(StateRatesResponseSerializer(payload).data)

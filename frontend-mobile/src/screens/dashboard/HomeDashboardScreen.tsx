@@ -119,14 +119,12 @@ export function HomeDashboardScreen() {
     {
       key: "other-associations",
       title: "Other\nAssociations",
-      icon: "\u25EB",
       onPress: () => navigation.navigate("AssociationRates"),
     },
     {
       key: "other-states",
       title: "Other States",
-      icon: "\u2316",
-      onPress: () => navigation.navigate("Market"),
+      onPress: () => navigation.navigate("StateRates"),
     },
   ];
   const bannerTag = newsData?.urgent_alert.title === "No active alerts" ? "FEATURED OFFER" : "ADVERTISEMENT";
@@ -141,14 +139,22 @@ export function HomeDashboardScreen() {
     >
       <View style={styles.header}>
         <Pressable style={styles.headerIconButton}>
-          <Text style={styles.headerIconText}>\u2630</Text>
+          <View style={styles.menuIcon}>
+            <View style={styles.menuIconBar} />
+            <View style={styles.menuIconBar} />
+            <View style={styles.menuIconBar} />
+          </View>
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>{associationName.toUpperCase()}</Text>
           <Text style={styles.headerSubtitle}>{identityLine}</Text>
         </View>
         <Pressable style={styles.headerIconButton}>
-          <Text style={styles.headerIconText}>\u25CE</Text>
+          <View style={styles.notificationIcon}>
+            <View style={styles.notificationBell} />
+            <View style={styles.notificationClapper} />
+            <View style={styles.notificationDot} />
+          </View>
         </Pressable>
       </View>
 
@@ -185,7 +191,22 @@ export function HomeDashboardScreen() {
       <View style={styles.shortcutsRow}>
         {shortcuts.map((shortcut) => (
           <Pressable key={shortcut.key} style={styles.shortcutCard} onPress={shortcut.onPress}>
-            <Text style={styles.shortcutIcon}>{shortcut.icon}</Text>
+            {shortcut.key === "other-associations" ? (
+              <View style={styles.associationsIcon}>
+                <View style={styles.associationsIconTop} />
+                <View style={styles.associationsIconColumns}>
+                  <View style={styles.associationsIconColumn} />
+                  <View style={styles.associationsIconColumn} />
+                  <View style={styles.associationsIconColumn} />
+                </View>
+              </View>
+            ) : (
+              <View style={styles.stateMapIcon}>
+                <View style={[styles.stateMapPanel, styles.stateMapPanelLeft]} />
+                <View style={[styles.stateMapPanel, styles.stateMapPanelMiddle]} />
+                <View style={[styles.stateMapPanel, styles.stateMapPanelRight]} />
+              </View>
+            )}
             <Text style={styles.shortcutText}>{shortcut.title}</Text>
           </Pressable>
         ))}
@@ -204,10 +225,7 @@ export function HomeDashboardScreen() {
       </Pressable>
 
       <View style={styles.globalCard}>
-        <View style={styles.globalHeader}>
-          <Text style={styles.globalHeaderIcon}>\u25CB</Text>
-          <Text style={styles.sectionEyebrow}>GLOBAL TRENDS</Text>
-        </View>
+        <Text style={styles.sectionEyebrow}>GLOBAL TRENDS</Text>
         {globalTrendCards.map((trend, index) => (
           <View key={trend.label} style={[styles.globalItem, index < globalTrendCards.length - 1 && styles.globalItemSpacing]}>
             <View>
@@ -279,10 +297,45 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerIconText: {
-    fontSize: 24,
-    color: "#1F2937",
-    fontWeight: "700",
+  menuIcon: {
+    width: 22,
+    gap: 4,
+  },
+  menuIconBar: {
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: "#1F2937",
+  },
+  notificationIcon: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationBell: {
+    width: 13,
+    height: 11,
+    borderTopLeftRadius: 7,
+    borderTopRightRadius: 7,
+    borderWidth: 2,
+    borderBottomWidth: 0,
+    borderColor: "#1F2937",
+  },
+  notificationClapper: {
+    width: 10,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: "#1F2937",
+    marginTop: 1,
+  },
+  notificationDot: {
+    position: "absolute",
+    top: 2,
+    right: 1,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#EF4444",
   },
   headerCenter: {
     flex: 1,
@@ -440,6 +493,53 @@ const styles = StyleSheet.create({
     width: 28,
     textAlign: "center",
   },
+  associationsIcon: {
+    width: 26,
+    height: 26,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  associationsIconTop: {
+    width: 18,
+    height: 4,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+    backgroundColor: "#D97706",
+    marginBottom: 2,
+  },
+  associationsIconColumns: {
+    flexDirection: "row",
+    gap: 3,
+  },
+  associationsIconColumn: {
+    width: 4,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: "#D97706",
+  },
+  stateMapIcon: {
+    width: 26,
+    height: 26,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 2,
+  },
+  stateMapPanel: {
+    borderRadius: 2,
+    borderWidth: 1.6,
+    borderColor: "#D97706",
+  },
+  stateMapPanelLeft: {
+    flex: 1,
+    transform: [{ skewY: "12deg" }],
+  },
+  stateMapPanelMiddle: {
+    flex: 1,
+  },
+  stateMapPanelRight: {
+    flex: 1,
+    transform: [{ skewY: "-12deg" }],
+  },
   shortcutText: {
     color: "#374151",
     fontSize: 13,
@@ -521,22 +621,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
-  globalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 14,
-  },
-  globalHeaderIcon: {
-    color: "#9CA3AF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
   sectionEyebrow: {
     color: "#6B7280",
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1.1,
+    marginBottom: 14,
   },
   globalItem: {
     backgroundColor: "#F9FAFB",

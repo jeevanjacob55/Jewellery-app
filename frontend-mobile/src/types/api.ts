@@ -169,6 +169,24 @@ export interface DashboardData {
   quick_actions: string[];
 }
 
+export interface StateAssociationRates {
+  id: number;
+  name: string;
+  gold_22k: number;
+  gold_24k: number;
+  silver: number;
+}
+
+export interface StateRatesSummary {
+  id: number;
+  name: string;
+  associations: StateAssociationRates[];
+}
+
+export interface StateRatesData {
+  states: StateRatesSummary[];
+}
+
 export interface CompanyVerification {
   gst_registered: boolean;
   bis_hallmarked: boolean;

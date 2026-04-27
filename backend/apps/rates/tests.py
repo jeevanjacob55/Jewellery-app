@@ -150,3 +150,92 @@ class DashboardApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["association"]["name"], "AKGSMA")
         self.assertEqual(response.data["headline_rates"]["gold_22k"]["value"], 5435.0)
+
+    def test_dashboard_other_associations_only_include_member_state(self):
+        kerala = RegionState.objects.create(name="Kerala")
+        tamil_nadu = RegionState.objects.create(name="Tamil Nadu")
+        kgsma = Association.objects.create(state=kerala, name="KGSMA")
+        akgsma = Association.objects.create(state=kerala, name="AKGSMA")
+        tnja = Association.objects.create(state=tamil_nadu, name="Tamil Nadu Jewellers Association")
+        kgsma_district = DistrictOperationalUnit.objects.create(association=kgsma, name="Ernakulam District Unit")
+        kgsma_unit = Unit.objects.create(district_operational_unit=kgsma_district, name="Kadavanthra Unit")
+
+        user_model = get_user_model()
+        member = user_model.objects.create_user(username="scoped-member", password="StrongPass123!")
+        MemberProfile.objects.create(
+            user=member,
+            state=kerala,
+            association=kgsma,
+            district_operational_unit=kgsma_district,
+            unit=kgsma_unit,
+        )
+
+        AssociationRate.objects.create(
+            association=kgsma,
+            region_label="KGSMA Latest",
+            gold_22k="5450.00",
+            gold_24k="5900.00",
+            silver="75.00",
+            effective_at=timezone.make_aware(datetime(2026, 4, 21, 10, 30)),
+        )
+        AssociationRate.objects.create(
+            association=akgsma,
+            region_label="AKGSMA Latest",
+            gold_22k="5435.00",
+            gold_24k="5880.00",
+            silver="74.50",
+            effective_at=timezone.make_aware(datetime(2026, 4, 21, 10, 30)),
+        )
+        AssociationRate.objects.create(
+            association=tnja,
+            region_label="TNJA Latest",
+            gold_22k="5495.00",
+            gold_24k="5950.00",
+            silver="76.10",
+            effective_at=timezone.make_aware(datetime(2026, 4, 21, 10, 30)),
+        )
+
+        self.client.force_authenticate(user=member)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["name"] for item in response.data["other_associations"]], ["AKGSMA"])
+
+    def test_state_rates_returns_states_with_latest_association_rates(self):
+        kerala = RegionState.objects.create(name="Kerala")
+        tamil_nadu = RegionState.objects.create(name="Tamil Nadu")
+        kgsma = Association.objects.create(state=kerala, name="KGSMA")
+        akgsma = Association.objects.create(state=kerala, name="AKGSMA")
+        tnja = Association.objects.create(state=tamil_nadu, name="Tamil Nadu Jewellers Association")
+
+        AssociationRate.objects.create(
+            association=kgsma,
+            region_label="KGSMA Latest",
+            gold_22k="5450.00",
+            gold_24k="5900.00",
+            silver="75.00",
+            effective_at=timezone.make_aware(datetime(2026, 4, 21, 10, 30)),
+        )
+        AssociationRate.objects.create(
+            association=akgsma,
+            region_label="AKGSMA Latest",
+            gold_22k="5435.00",
+            gold_24k="5880.00",
+            silver="74.50",
+            effective_at=timezone.make_aware(datetime(2026, 4, 21, 10, 30)),
+        )
+        AssociationRate.objects.create(
+            association=tnja,
+            region_label="TNJA Latest",
+            gold_22k="5495.00",
+            gold_24k="5950.00",
+            silver="76.10",
+            effective_at=timezone.make_aware(datetime(2026, 4, 21, 10, 30)),
+        )
+
+        response = self.client.get(reverse("dashboard_state_rates"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([state["name"] for state in response.data["states"]], ["Kerala", "Tamil Nadu"])
+        self.assertEqual([association["name"] for association in response.data["states"][0]["associations"]], ["AKGSMA", "KGSMA"])
+        self.assertEqual(response.data["states"][1]["associations"][0]["gold_24k"], 5950.0)
