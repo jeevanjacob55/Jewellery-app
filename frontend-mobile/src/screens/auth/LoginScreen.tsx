@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 import { getJson, postJson } from "../../api/client";
 import { FilterChip } from "../../components/FilterChip";
@@ -220,10 +219,10 @@ export function LoginScreen() {
     <View style={styles.screen}>
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
-          <Ionicons color={colors.text} name="menu-outline" size={28} />
+          <Text style={styles.topBarIcon}>☰</Text>
           <Text style={styles.topBarTitle}>Jewellery Association</Text>
         </View>
-        <Ionicons color={colors.text} name="person-circle-outline" size={30} />
+        <Text style={styles.topBarIcon}>◉</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -241,7 +240,7 @@ export function LoginScreen() {
 
           <View style={styles.brandBlock}>
             <View style={styles.logoTile}>
-              <MaterialIcons color={colors.surface} name="diamond" size={20} />
+              <Text style={styles.logoGlyph}>◇</Text>
               <Text style={styles.logoCaption}>JA</Text>
             </View>
             <Text style={styles.heroTitle}>Jewellery{"\n"}Association</Text>
@@ -275,14 +274,14 @@ export function LoginScreen() {
                     placeholderTextColor="#6B7280"
                   />
                   <Pressable style={styles.passwordToggle} onPress={() => setShowPassword((current) => !current)}>
-                    <Ionicons color={colors.mutedText} name={showPassword ? "eye-off-outline" : "eye-outline"} size={24} />
+                    <Text style={styles.passwordToggleIcon}>{showPassword ? "🙈" : "👁"}</Text>
                   </Pressable>
                 </View>
 
                 <View style={styles.utilityRow}>
                   <Pressable style={styles.rememberRow} onPress={() => setRememberMe((current) => !current)}>
                     <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
-                      {rememberMe ? <Ionicons color={colors.surface} name="checkmark" size={14} /> : null}
+                      {rememberMe ? <Text style={styles.checkboxMark}>✓</Text> : null}
                     </View>
                     <Text style={styles.rememberText}>Remember me</Text>
                   </Pressable>
@@ -418,7 +417,7 @@ export function LoginScreen() {
                 <Text style={styles.modalSubtitle}>Submit your business and association details for admin review.</Text>
               </View>
               <Pressable onPress={closeRequestAccess} hitSlop={12}>
-                <Ionicons color={colors.text} name="close" size={24} />
+                <Text style={styles.modalClose}>✕</Text>
               </Pressable>
             </View>
 
@@ -552,6 +551,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     textTransform: "uppercase",
   },
+  topBarIcon: {
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: "700",
+    width: 28,
+    textAlign: "center",
+  },
   content: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
@@ -605,6 +611,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.lg,
+  },
+  logoGlyph: {
+    color: colors.surface,
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 20,
   },
   logoCaption: {
     color: colors.surface,
@@ -675,6 +687,10 @@ const styles = StyleSheet.create({
     right: spacing.md,
     top: 14,
   },
+  passwordToggleIcon: {
+    color: colors.mutedText,
+    fontSize: 20,
+  },
   utilityRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -700,6 +716,12 @@ const styles = StyleSheet.create({
   checkboxActive: {
     backgroundColor: colors.text,
     borderColor: colors.text,
+  },
+  checkboxMark: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 16,
   },
   rememberText: {
     color: colors.mutedText,
@@ -856,6 +878,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     marginTop: spacing.xs,
+  },
+  modalClose: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "700",
   },
   modalContent: {
     paddingHorizontal: spacing.lg,

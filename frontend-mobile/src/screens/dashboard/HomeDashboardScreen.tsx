@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
@@ -6,13 +6,31 @@ import { getJson } from "../../api/client";
 import { ScreenState } from "../../components/ScreenState";
 import { useSession } from "../../session/SessionProvider";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
-import { DashboardData } from "../../types/api";
+import { DashboardData, NewsData } from "../../types/api";
 import { formatCompactNumber, formatCurrency } from "../../utils/format";
+
+type DashboardUpdate = {
+  id: string;
+  title: string;
+  summary: string;
+  meta: string;
+  icon: string;
+};
+
+const ACTION_SYMBOLS: Record<string, string> = {
+  "Market Tiers": "↗",
+  "Other Associations": "◫",
+  "Reverse Search": "⌕",
+  Services: "▣",
+  "News & Alerts": "✦",
+  "Advertiser Portal": "◉",
+};
 
 export function HomeDashboardScreen() {
   const navigation = useNavigation<any>();
   const { guestSession, status, user } = useSession();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [newsData, setNewsData] = useState<NewsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,8 +43,12 @@ export function HomeDashboardScreen() {
     }
 
     try {
-      const nextDashboard = await getJson<DashboardData>("/dashboard/", status === "authenticated");
+      const [nextDashboard, nextNews] = await Promise.all([
+        getJson<DashboardData>("/dashboard/", status === "authenticated"),
+        getJson<NewsData>("/news/"),
+      ]);
       setDashboard(nextDashboard);
+      setNewsData(nextNews);
       setError(null);
     } catch {
       setError("Unable to load the dashboard right now.");
@@ -38,7 +60,36 @@ export function HomeDashboardScreen() {
 
   useEffect(() => {
     loadDashboard();
-  }, []);
+  }, [status]);
+
+  const updates = useMemo<DashboardUpdate[]>(() => {
+    if (!newsData) {
+      return [];
+    }
+
+    const items: DashboardUpdate[] = [];
+    if (newsData.urgent_alert.title && newsData.urgent_alert.title !== "No active alerts") {
+      items.push({
+        id: "alert",
+        title: newsData.urgent_alert.title,
+        summary: newsData.urgent_alert.summary || "Association update available.",
+        meta: "Urgent alert",
+        icon: "!",
+      });
+    }
+
+    newsData.meetings.slice(0, 2).forEach((meeting, index) => {
+      items.push({
+        id: `meeting-${index}`,
+        title: meeting.title,
+        summary: meeting.venue,
+        meta: "Meeting",
+        icon: "◷",
+      });
+    });
+
+    return items;
+  }, [newsData]);
 
   if (loading && !dashboard) {
     return <ScreenState title="Loading command center" detail="Pulling the latest association rates and market signals." loading />;
@@ -53,10 +104,26 @@ export function HomeDashboardScreen() {
       ? `${user?.member_profile?.membership_tier ?? "Member"} access for ${user?.first_name || user?.username || "member"}`
       : `Guest browsing for ${guestSession?.guest_profile.guest_name ?? "visitor"}`;
   const associationName = user?.member_profile?.association?.name ?? dashboard.association.name;
-  const latestNews = [
-    { title: "General Body Meeting at 5 PM", summary: "All members are requested to attend the meeting at the association hall today.", time: "10m ago" },
-    { title: "New GST Update for Jewellery", summary: "Revised tax implications on gold import and sales finalized by ministry.", time: "2h ago" },
-    { title: "Emergency Rate Alert", summary: "Market volatility detected. Check revised evening gold rates.", time: "5h ago" },
+  const shortcutHighlights = [
+    {
+      key: "associations",
+      title: "Other Associations",
+      icon: "◫",
+      detail: `${dashboard.other_associations.length} live boards`,
+      onPress: () => navigation.navigate("AssociationRates"),
+    },
+    {
+      key: "markets",
+      title: "Market Comparison",
+      icon: "⌖",
+      detail: `${dashboard.comparisons.length} external markets`,
+      onPress: () => navigation.navigate("Market"),
+    },
+  ];
+  const globalTrendCards = [
+    { label: "USD → INR", value: `Rs. ${formatCompactNumber(dashboard.global_trends.usd_inr)}` },
+    { label: "Gold / Oz (USD)", value: `$${formatCompactNumber(dashboard.global_trends.gold_oz)}` },
+    { label: "Silver / Oz (USD)", value: `$${formatCompactNumber(dashboard.global_trends.silver_oz)}` },
   ];
 
   return (
@@ -79,7 +146,8 @@ export function HomeDashboardScreen() {
             <Text style={styles.heroSubtitle}>Live Bullion Rates</Text>
           </View>
           <View style={styles.heroTimestamp}>
-            <Text style={styles.heroTimestampText}>Updated: {dashboard.updated_at_label}</Text>
+            <Text style={styles.heroTimestampLabel}>Updated</Text>
+            <Text style={styles.heroTimestampText}>{dashboard.updated_at_label}</Text>
           </View>
         </View>
 
@@ -93,47 +161,44 @@ export function HomeDashboardScreen() {
               <Text style={styles.heroRateLabel}>{rate.label}</Text>
               <Text style={styles.heroRateValue}>{formatCurrency(rate.value, 0)}</Text>
             </View>
-            <Text style={[styles.heroTrend, rate.trend === "down" ? styles.heroTrendDown : styles.heroTrendUp]}>
-              {rate.trend === "down" ? "↓" : rate.trend === "up" ? "↑" : "•"}
-            </Text>
+            <Text style={[styles.heroTrend, trendStyle(rate.trend)]}>{trendSymbol(rate.trend)}</Text>
           </View>
         ))}
       </View>
 
       <View style={styles.subNavGrid}>
-        <Pressable style={styles.subNavButton} onPress={() => navigation.navigate("AssociationRates")}>
-          <Text style={styles.subNavIcon}>◫</Text>
-          <Text style={styles.subNavText}>Other Associations</Text>
-        </Pressable>
-        <Pressable style={styles.subNavButton}>
-          <Text style={styles.subNavIcon}>⌖</Text>
-          <Text style={styles.subNavText}>Other States</Text>
-        </Pressable>
+        {shortcutHighlights.map((shortcut) => (
+          <Pressable key={shortcut.key} style={styles.subNavButton} onPress={shortcut.onPress}>
+            <Text style={styles.subNavIcon}>{shortcut.icon}</Text>
+            <View style={styles.subNavCopy}>
+              <Text style={styles.subNavText}>{shortcut.title}</Text>
+              <Text style={styles.subNavDetail}>{shortcut.detail}</Text>
+            </View>
+          </Pressable>
+        ))}
       </View>
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionEyebrow}>Global Trends</Text>
-        <View style={styles.globalItem}>
-          <View>
-            <Text style={styles.globalLabel}>USD → INR</Text>
-            <Text style={styles.globalValue}>₹{formatCompactNumber(dashboard.global_trends.usd_inr)}</Text>
+        {globalTrendCards.map((trend) => (
+          <View key={trend.label} style={styles.globalItem}>
+            <View>
+              <Text style={styles.globalLabel}>{trend.label}</Text>
+              <Text style={styles.globalValue}>{trend.value}</Text>
+            </View>
           </View>
-          <Text style={styles.globalTrendUp}>↗</Text>
-        </View>
-        <View style={styles.globalItem}>
-          <View>
-            <Text style={styles.globalLabel}>Gold / Oz (USD)</Text>
-            <Text style={styles.globalValue}>${formatCompactNumber(dashboard.global_trends.gold_oz)}</Text>
-          </View>
-          <Text style={styles.globalTrendDown}>↘</Text>
-        </View>
+        ))}
       </View>
 
-      <View style={styles.bannerCard}>
-        <Text style={styles.bannerTag}>Featured Offer</Text>
-        <Text style={styles.bannerTitle}>New Membership Perks</Text>
-        <Text style={styles.bannerText}>Exclusive access to trade analysis tools starting this month.</Text>
-      </View>
+      {newsData ? (
+        <View style={styles.bannerCard}>
+          <Text style={styles.bannerTag}>{newsData.urgent_alert.title === "No active alerts" ? "Notice" : "Urgent Alert"}</Text>
+          <Text style={styles.bannerTitle}>{newsData.urgent_alert.title}</Text>
+          <Text style={styles.bannerText}>
+            {newsData.urgent_alert.summary || "Your association news feed is live and ready for new updates."}
+          </Text>
+        </View>
+      ) : null}
 
       <View>
         <Text style={styles.quickActionLabel}>Quick Actions</Text>
@@ -165,44 +230,62 @@ export function HomeDashboardScreen() {
 
       <View style={styles.newsSection}>
         <View style={styles.newsSectionHeader}>
-          <Text style={styles.quickActionLabel}>Latest News</Text>
+          <Text style={styles.quickActionLabel}>Latest Updates</Text>
           <Pressable onPress={() => navigation.navigate("News")}>
             <Text style={styles.viewAllLink}>View All</Text>
           </Pressable>
         </View>
         <View style={styles.newsListCard}>
-          {latestNews.map((item, index) => (
-            <Pressable key={item.title} style={[styles.newsItem, index !== latestNews.length - 1 && styles.newsItemDivider]} onPress={() => navigation.navigate("News")}>
-              <View style={styles.newsIconWrap}>
-                <Text style={styles.newsIcon}>{index === 0 ? "◷" : index === 1 ? "⚖" : "!"}</Text>
-              </View>
-              <View style={styles.newsCopy}>
-                <View style={styles.newsTitleRow}>
-                  <Text style={styles.newsTitle}>{item.title}</Text>
-                  <Text style={styles.newsTime}>{item.time}</Text>
+          {updates.length ? (
+            updates.map((item, index) => (
+              <Pressable key={item.id} style={[styles.newsItem, index !== updates.length - 1 && styles.newsItemDivider]} onPress={() => navigation.navigate("News")}>
+                <View style={styles.newsIconWrap}>
+                  <Text style={styles.newsIcon}>{item.icon}</Text>
                 </View>
-                <Text style={styles.newsSummary}>{item.summary}</Text>
-              </View>
-            </Pressable>
-          ))}
+                <View style={styles.newsCopy}>
+                  <View style={styles.newsTitleRow}>
+                    <Text style={styles.newsTitle}>{item.title}</Text>
+                    <Text style={styles.newsTime}>{item.meta}</Text>
+                  </View>
+                  <Text style={styles.newsSummary}>{item.summary}</Text>
+                </View>
+              </Pressable>
+            ))
+          ) : (
+            <View style={styles.emptyNewsState}>
+              <Text style={styles.emptyNewsTitle}>No fresh updates right now</Text>
+              <Text style={styles.emptyNewsText}>Association notices and meetings will appear here as soon as they are published.</Text>
+            </View>
+          )}
         </View>
       </View>
     </ScrollView>
   );
 }
 
-const ACTION_SYMBOLS: Record<string, string> = {
-  "Market Tiers": "↗",
-  "Other Associations": "◫",
-  "Reverse Search": "⌕",
-  Services: "▣",
-  "News & Alerts": "✦",
-  "Advertiser Portal": "◉",
-};
+function trendSymbol(trend: string) {
+  if (trend === "up") {
+    return "↑";
+  }
+  if (trend === "down") {
+    return "↓";
+  }
+  return "•";
+}
+
+function trendStyle(trend: string) {
+  if (trend === "up") {
+    return styles.heroTrendUp;
+  }
+  if (trend === "down") {
+    return styles.heroTrendDown;
+  }
+  return styles.heroTrendFlat;
+}
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, gap: spacing.md },
+  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
   brand: {
     color: colors.text,
     marginTop: spacing.md,
@@ -246,8 +329,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    alignItems: "center",
   },
-  heroTimestampText: { color: colors.surface, fontSize: 10, fontWeight: "700" },
+  heroTimestampLabel: { color: "rgba(255,255,255,0.68)", fontSize: 9, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
+  heroTimestampText: { color: colors.surface, fontSize: 11, fontWeight: "700", marginTop: 2 },
   heroRateRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   heroRateRowBorder: { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.12)", paddingTop: spacing.md },
   heroRateLabel: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700", textTransform: "uppercase" },
@@ -255,6 +340,7 @@ const styles = StyleSheet.create({
   heroTrend: { fontSize: 24, fontWeight: "800" },
   heroTrendUp: { color: "#4ADE80" },
   heroTrendDown: { color: "#F87171" },
+  heroTrendFlat: { color: "#E5E7EB" },
   subNavGrid: { flexDirection: "row", gap: spacing.md },
   subNavButton: {
     flex: 1,
@@ -270,13 +356,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   subNavIcon: { color: "#B9770E", fontSize: 18, fontWeight: "800" },
+  subNavCopy: { flex: 1 },
   subNavText: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  subNavDetail: { color: colors.mutedText, fontSize: 11, marginTop: 2 },
   sectionCard: {
     backgroundColor: "#F6F3F2",
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.lg,
     padding: spacing.md,
+    gap: spacing.sm,
   },
   sectionEyebrow: {
     color: colors.mutedText,
@@ -284,21 +373,15 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1.4,
     textTransform: "uppercase",
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   globalItem: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.sm,
   },
   globalLabel: { color: colors.mutedText, fontSize: 12, marginBottom: spacing.xs },
   globalValue: { color: colors.text, fontSize: 20, fontWeight: "800" },
-  globalTrendUp: { color: colors.positive, fontSize: 24, fontWeight: "800" },
-  globalTrendDown: { color: colors.negative, fontSize: 24, fontWeight: "800" },
   bannerCard: {
     backgroundColor: "#1C1917",
     borderRadius: radii.lg,
@@ -366,6 +449,9 @@ const styles = StyleSheet.create({
   newsCopy: { flex: 1 },
   newsTitleRow: { flexDirection: "row", justifyContent: "space-between", gap: spacing.sm },
   newsTitle: { color: colors.text, fontWeight: "800", flex: 1 },
-  newsTime: { color: "#A8A29E", fontSize: 10, marginTop: 2 },
+  newsTime: { color: "#A8A29E", fontSize: 10, marginTop: 2, textTransform: "uppercase" },
   newsSummary: { color: colors.mutedText, fontSize: 12, lineHeight: 18, marginTop: spacing.xs },
+  emptyNewsState: { padding: spacing.lg },
+  emptyNewsTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
+  emptyNewsText: { color: colors.mutedText, marginTop: spacing.sm, ...typography.body },
 });
