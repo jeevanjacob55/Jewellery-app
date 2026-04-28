@@ -17,7 +17,7 @@ import { getJson } from "../../api/client";
 import { AppScreen } from "../../components/AppScreen";
 import { ScreenState } from "../../components/ScreenState";
 import { colors, radii, spacing } from "../../theme/tokens";
-import { MarketCategory, MarketCompanyCard, MarketFeedData, MarketFeaturedPartner, MarketProductCard } from "../../types/api";
+import { MarketCategory, MarketCompanyCard, MarketFeedData, MarketFeaturedCompany, MarketProductCard } from "../../types/api";
 
 const BACKGROUND = "#F7F7F7";
 
@@ -109,7 +109,7 @@ export function MarketTiersScreen() {
             <View style={styles.headerContent}>
               <SectionLabel label="Featured Partners" />
               <FlatList
-                data={marketFeed.featured_partners}
+                data={marketFeed.featured_companies}
                 keyExtractor={(item) => item.company_id.toString()}
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -197,7 +197,7 @@ function FeaturedPartnerCard({
   onPress,
   onExplore,
 }: {
-  item: MarketFeaturedPartner;
+  item: MarketFeaturedCompany;
   width: number;
   onPress: () => void;
   onExplore: () => void;

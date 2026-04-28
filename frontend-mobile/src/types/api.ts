@@ -208,6 +208,7 @@ export interface Product {
   description: string;
   category_name: string;
   image_url: string | null;
+  is_active?: boolean;
 }
 
 export interface Company {
@@ -215,6 +216,8 @@ export interface Company {
   name: string;
   category: string;
   tier: string;
+  tier_id?: number;
+  tier_visibility_type?: string;
   city: string;
   state: string;
   about: string;
@@ -224,9 +227,12 @@ export interface Company {
   products: Product[];
   hero_image_url: string | null;
   logo_image_url: string | null;
+  admin_priority?: number;
+  is_active?: boolean;
+  is_approved?: boolean;
 }
 
-export interface MarketFeaturedPartner {
+export interface MarketFeaturedCompany {
   company_id: number;
   name: string;
   hero_image_url: string | null;
@@ -262,7 +268,7 @@ export interface MarketProductCard {
 }
 
 export interface MarketFeedData {
-  featured_partners: MarketFeaturedPartner[];
+  featured_companies: MarketFeaturedCompany[];
   pro_companies: MarketCompanyCard[];
   normal_companies: MarketCompanyCard[];
   categories: MarketCategory[];
@@ -286,15 +292,68 @@ export interface NewsData {
     title: string;
     summary: string;
   };
-  meetings: Array<{
+  items?: Array<{
+    id: number;
     title: string;
-    venue: string;
-    calendar_url: string;
+    description: string;
+    publisher_type: string;
+    publisher_id: number | null;
+    published_at: string | null;
   }>;
+  meetings: MeetingListItem[];
   ticker: {
     gold: number;
     silver: number;
   };
+}
+
+export type MeetingRsvpState = "attending" | "maybe" | "not_attending";
+
+export interface MeetingAudienceTarget {
+  id: number;
+  target_type: string;
+  target_id: number | null;
+  mode: string;
+}
+
+export interface MeetingResponseSummary {
+  attending: number;
+  maybe: number;
+  not_attending: number;
+}
+
+export interface MeetingListItem {
+  id: number;
+  title: string;
+  start_datetime: string;
+  venue_name: string;
+  venue_address: string;
+  google_maps_link: string;
+  meeting_mode: string;
+  online_meeting_link: string;
+  current_user_response: MeetingRsvpState | null;
+}
+
+export interface MeetingDetail {
+  id: number;
+  title: string;
+  description: string;
+  created_by_id: number | null;
+  organizer_type: string;
+  organizer_id: number | null;
+  start_datetime: string;
+  end_datetime: string;
+  venue_name: string;
+  venue_address: string;
+  google_maps_link: string;
+  meeting_mode: string;
+  online_meeting_link: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  current_user_response: MeetingRsvpState | null;
+  response_summary: MeetingResponseSummary;
+  targets: MeetingAudienceTarget[];
 }
 
 export interface ReverseSearchResponse {

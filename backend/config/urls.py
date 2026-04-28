@@ -26,6 +26,7 @@ urlpatterns = [
     path("api/reverse-search/", include("apps.reverse_search.urls")),
     path("api/services/", include("apps.services_app.urls")),
     path("api/news/", include("apps.news.urls")),
+    path("api/meetings/", include("apps.news.meeting_urls")),
     path("api/ads/", include("apps.ads.urls")),
     path("api/admin/", include("apps.admin_ops.urls")),
 ]

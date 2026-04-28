@@ -140,12 +140,23 @@ All seeded demo users share the same password:
 - Coins
 - Diamonds
 
+### Seeded company tiers
+
+| Tier | Slug | Visibility | Max products |
+| --- | --- | --- | ---: |
+| Prime Signature | `prime-signature` | `featured` | 50 |
+| Prime Classic | `prime-classic` | `featured` | 25 |
+| Prime Premier | `prime-premier` | `pro` | 15 |
+| Prime Elite | `prime-elite` | `pro` | 7 |
+| Prime Circle | `prime-circle` | `normal` | 3 |
+| Prime Unique | `prime-unique` | `normal` | 1 |
+
 ### Companies, verification, and products
 
 #### Heritage Gold House
 
 - Category: `Wholesale`
-- Tier: `premium`
+- Tier: `Prime Signature` (`featured`)
 - City/State: `Thrissur, Kerala`
 - Daily capacity: `15kg`
 - Specialization: `Bridal gold and statement necklaces`
@@ -172,7 +183,7 @@ All seeded demo users share the same password:
 #### Coastal Bullion Works
 
 - Category: `Manufacturer`
-- Tier: `pro`
+- Tier: `Prime Premier` (`pro`)
 - City/State: `Kochi, Kerala`
 - Daily capacity: `9kg`
 - Specialization: `Lightweight chains`
@@ -194,7 +205,7 @@ All seeded demo users share the same password:
 #### Metro Diamond Studio
 
 - Category: `Retail`
-- Tier: `premium`
+- Tier: `Prime Classic` (`featured`)
 - City/State: `Chennai, Tamil Nadu`
 - Daily capacity: `4kg`
 - Specialization: `Diamond jewellery`
@@ -221,7 +232,7 @@ All seeded demo users share the same password:
 #### Kaveri Ornament Hub
 
 - Category: `Wholesale`
-- Tier: `normal`
+- Tier: `Prime Circle` (`normal`)
 - City/State: `Coimbatore, Tamil Nadu`
 - Daily capacity: `6kg`
 - Specialization: `Bangles`
@@ -243,7 +254,7 @@ All seeded demo users share the same password:
 #### Chickpet Classic Chains
 
 - Category: `Manufacturer`
-- Tier: `pro`
+- Tier: `Prime Premier` (`pro`)
 - City/State: `Bengaluru, Karnataka`
 - Daily capacity: `11kg`
 - Specialization: `Machine chains`
@@ -265,7 +276,7 @@ All seeded demo users share the same password:
 #### Mysuru Heritage Crafts
 
 - Category: `Retail`
-- Tier: `normal`
+- Tier: `Prime Circle` (`normal`)
 - City/State: `Mysuru, Karnataka`
 - Daily capacity: `3kg`
 - Specialization: `Coins and antique finish work`
@@ -286,24 +297,25 @@ All seeded demo users share the same password:
 
 #### Additional market-feed companies
 
-- `Regal Necklace Works` (`pro`, Hyderabad)
+- `Regal Necklace Works` (`Prime Elite`, `pro`, Hyderabad)
   - Product: `Temple Cascade Necklace` in `Necklaces`
-- `Auric Ring Atelier` (`pro`, Mumbai)
+- `Auric Ring Atelier` (`Prime Elite`, `pro`, Mumbai)
   - Product: `Solitaire Stack Ring` in `Rings`
-- `CoinCraft Mint` (`normal`, Jaipur)
+- `CoinCraft Mint` (`Prime Unique`, `normal`, Jaipur)
   - Product: `Lakshmi Gold Coin` in `Coins`
-- `Diamond Light House` (`normal`, Surat)
+- `Diamond Light House` (`Prime Circle`, `normal`, Surat)
   - Product: `Petal Diamond Pendant` in `Diamonds`
-- `Bangle Avenue` (`normal`, Pune)
+- `Bangle Avenue` (`Prime Unique`, `normal`, Pune)
   - Product: `Petal Edge Bangles` in `Bangles`
 
 ### Market feed coverage
 
-- Featured partners: 2 premium companies
-- Established members: 4 pro companies
-- Directory rail: 5 normal companies
+- Featured companies: 2 featured-tier companies
+- Established members: 4 pro-tier companies
+- Directory rail: 5 normal-tier companies
 - Categories rail: 6 categories
 - Latest products grid: populated from the newest seeded products
+- Company grouping is driven entirely by `Company.tier_ref.visibility_type`
 - Company hero images, company logos, and product images all include seeded public URLs for the mobile market screen
 
 ## Media Assets
@@ -314,7 +326,7 @@ Because these keys include runtime database IDs, the exact prefixes vary by data
 
 - Company hero image: `companies/{company.id}/hero.jpg`
 - Company logo image: `companies/{company.id}/logo.jpg`
-- Product images: `products/{company.id}/{product-slug}.jpg`
+- Product images: `products/{company.id}/{product-slug}-{index}.jpg`
 - Ad asset: `ads/{demo_advertiser.id}/akshaya-tritiya-launch-banner.jpg`
 - Reverse-search attachment: `reverse-search/{demo_member.id}/bridal-bangle-reference.jpg`
 
@@ -331,7 +343,7 @@ Visibility and moderation:
 
 - Company hero images: `public`, `approved`
 - Company logo images: `public`, `approved`
-- Product images: `public`, `approved`
+- Product images: `public`, `approved` with three seeded images per product
 - Ad asset: `private`, `approved`
 - Reverse-search attachment: `private`, `pending`
 
@@ -411,19 +423,22 @@ Note: `GlobalTrendSnapshot.captured_at` is an auto timestamp field, so the persi
 
 Note: `NewsItem.published_at` is auto-generated at seed time.
 
-### Meeting events
+### Meetings
 
-Meeting titles and venues are fixed, but `starts_at` is relative to the day you run the seed:
+Seeded meetings now use the scoped `Meeting` model and power both `/api/news/` meeting cards and `/api/meetings/`.
 
-| Title | Venue | Starts at |
-| --- | --- | --- |
-| Association Trade Meet | Thrissur Trade Hall | seed run time + 2 days |
-| Bullion Compliance Workshop | Kochi Convention Centre | seed run time + 5 days |
-| Retail Growth Forum | Chennai Business Centre | seed run time + 9 days |
+| Title | Organizer scope | Mode | Venue | Timing |
+| --- | --- | --- | --- | --- |
+| Association Trade Meet | `association: KGSMA` | `physical` | Thrissur Trade Hall | seed run time + 2 days |
+| Bullion Compliance Workshop | `platform` | `online` | Virtual Session | seed run time + 5 days |
+| Retail Growth Forum | `platform` | `hybrid` | Chennai Business Centre | seed run time + 9 days |
 
-All meeting calendar links are:
+Meeting links:
 
-- `https://calendar.google.com`
+- Association Trade Meet map: `https://maps.google.com/?q=Thrissur+Trade+Hall`
+- Bullion Compliance Workshop online link: `https://meet.google.com/demo-bullion-workshop`
+- Retail Growth Forum map: `https://maps.google.com/?q=Chennai+Business+Centre`
+- Retail Growth Forum online link: `https://meet.google.com/demo-retail-growth`
 
 ## Ads And Advertiser Flow
 

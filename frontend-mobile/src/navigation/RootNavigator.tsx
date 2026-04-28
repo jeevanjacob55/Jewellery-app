@@ -10,6 +10,7 @@ import { StateRatesScreen } from "../screens/dashboard/StateRatesScreen";
 import { CompanyProfileScreen } from "../screens/directory/CompanyProfileScreen";
 import { MarketTiersScreen } from "../screens/directory/MarketTiersScreen";
 import { ProductSearchScreen } from "../screens/directory/ProductSearchScreen";
+import { MeetingDetailScreen } from "../screens/news/MeetingDetailScreen";
 import { NewsAlertsScreen } from "../screens/news/NewsAlertsScreen";
 import { MemberProfileScreen } from "../screens/profile/MemberProfileScreen";
 import { ReverseSearchScreen } from "../screens/reverse-search/ReverseSearchScreen";
@@ -54,6 +55,7 @@ export function RootNavigator() {
           <Stack.Screen name="StateRates" component={StateRatesScreen} options={{ title: "Other States" }} />
           <Stack.Screen name="CompanyProfile" component={CompanyProfileScreen} options={{ title: "Company Profile" }} />
           <Stack.Screen name="ProductSearch" component={ProductSearchScreen} options={{ title: "Product Search" }} />
+          <Stack.Screen name="MeetingDetail" component={MeetingDetailScreen} options={{ title: "Meeting" }} />
           <Stack.Screen name="ReverseSearch" component={ReverseSearchScreen} options={{ title: "Reverse Search" }} />
         </>
       )}

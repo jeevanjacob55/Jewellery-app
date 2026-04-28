@@ -2,20 +2,48 @@ from django.conf import settings
 from django.db import models
 
 
-class Company(models.Model):
-    class Tier(models.TextChoices):
-        PREMIUM = "premium", "Premium"
+class CompanyTier(models.Model):
+    class VisibilityType(models.TextChoices):
+        FEATURED = "featured", "Featured"
         PRO = "pro", "Pro"
         NORMAL = "normal", "Normal"
 
+    name = models.CharField(max_length=120, unique=True)
+    slug = models.SlugField(max_length=140, unique=True)
+    description = models.TextField(blank=True)
+    max_products = models.PositiveIntegerField()
+    min_photos_per_product = models.PositiveIntegerField(default=3)
+    max_photos_per_product = models.PositiveIntegerField(default=5)
+    max_companies_allowed = models.PositiveIntegerField(null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    is_free = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    display_priority = models.PositiveIntegerField(default=0)
+    visibility_type = models.CharField(max_length=20, choices=VisibilityType.choices)
+
+    class Meta:
+        ordering = ["display_priority", "id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Company(models.Model):
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=100)
-    tier = models.CharField(max_length=20, choices=Tier.choices, default=Tier.NORMAL)
+    tier_ref = models.ForeignKey(CompanyTier, on_delete=models.PROTECT, related_name="companies")
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
     about = models.TextField(blank=True)
     daily_capacity = models.CharField(max_length=100, blank=True)
     specialization = models.CharField(max_length=255, blank=True)
+    admin_priority = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    is_approved = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "id"]
 
     def __str__(self) -> str:
         return self.name
@@ -42,6 +70,11 @@ class Product(models.Model):
     weight_grams = models.DecimalField(max_digits=8, decimal_places=2)
     purity = models.CharField(max_length=20)
     description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
 
     def __str__(self) -> str:
         return self.name

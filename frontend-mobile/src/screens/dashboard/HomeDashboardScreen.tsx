@@ -9,7 +9,7 @@ import { ScreenState } from "../../components/ScreenState";
 import { useSession } from "../../session/SessionProvider";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
 import { DashboardData, NewsData } from "../../types/api";
-import { formatCompactNumber, formatCurrency } from "../../utils/format";
+import { formatCompactNumber, formatCurrency, formatDateTimeLabel } from "../../utils/format";
 
 type DashboardUpdate = {
   id: string;
@@ -17,6 +17,7 @@ type DashboardUpdate = {
   summary: string;
   meta: string;
   icon: string;
+  onPress: () => void;
 };
 
 export function HomeDashboardScreen() {
@@ -39,7 +40,7 @@ export function HomeDashboardScreen() {
     try {
       const [nextDashboard, nextNews] = await Promise.all([
         getJson<DashboardData>("/dashboard/", status === "authenticated"),
-        getJson<NewsData>("/news/"),
+        getJson<NewsData>("/news/", status === "authenticated"),
       ]);
       setDashboard(nextDashboard);
       setNewsData(nextNews);
@@ -72,9 +73,10 @@ export function HomeDashboardScreen() {
       items.push({
         id: "meeting-primary",
         title: newsData.meetings[0].title,
-        summary: newsData.meetings[0].venue,
+        summary: `${newsData.meetings[0].venue_name || "Venue to be announced"} | ${formatDateTimeLabel(newsData.meetings[0].start_datetime)}`,
         meta: "Meeting",
         icon: "\u25F7",
+        onPress: () => navigation.navigate("MeetingDetail", { meetingId: newsData.meetings[0].id }),
       });
     }
 
@@ -84,20 +86,22 @@ export function HomeDashboardScreen() {
       summary: newsData.urgent_alert.summary || "Association-wide notice available in the alerts feed.",
       meta: "Alert",
       icon: "!",
+      onPress: () => navigation.navigate("News"),
     });
 
     if (newsData.meetings[1]) {
       items.push({
         id: "meeting-secondary",
         title: newsData.meetings[1].title,
-        summary: newsData.meetings[1].venue,
+        summary: `${newsData.meetings[1].venue_name || "Venue to be announced"} | ${formatDateTimeLabel(newsData.meetings[1].start_datetime)}`,
         meta: "Workshop",
         icon: "\u2696",
+        onPress: () => navigation.navigate("MeetingDetail", { meetingId: newsData.meetings[1].id }),
       });
     }
 
     return items;
-  }, [newsData]);
+  }, [navigation, newsData]);
 
   if (loading && !dashboard) {
     return <ScreenState title="Loading command center" detail="Pulling the latest association rates and market signals." loading />;
@@ -259,7 +263,7 @@ export function HomeDashboardScreen() {
         <View style={styles.newsListCard}>
           {updates.length ? (
             updates.map((item, index) => (
-              <Pressable key={item.id} style={[styles.newsItem, index < updates.length - 1 && styles.newsItemDivider]} onPress={() => navigation.navigate("News")}>
+              <Pressable key={item.id} style={[styles.newsItem, index < updates.length - 1 && styles.newsItemDivider]} onPress={item.onPress}>
                 <View style={styles.newsIconWrap}>
                   <Text style={styles.newsIcon}>{item.icon}</Text>
                 </View>

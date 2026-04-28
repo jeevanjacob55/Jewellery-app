@@ -82,7 +82,7 @@ Help users discover businesses and inventory quickly through a visually strong, 
 
 - Primary endpoint: `GET /api/directory/market/`
 - Required sections:
-  - `featured_partners`
+  - `featured_companies`
   - `pro_companies`
   - `normal_companies`
   - `categories`

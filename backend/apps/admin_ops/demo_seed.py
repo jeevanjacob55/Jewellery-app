@@ -12,13 +12,14 @@ from apps.ads.models import AdApproval, AdAsset, AdTargeting, Advertisement
 from apps.directory.models import (
     Company,
     CompanyImage,
+    CompanyTier,
     CompanyVerification,
     MediaAsset,
     Product,
     ProductCategory,
     ProductImage,
 )
-from apps.news.models import Alert, MeetingEvent, NewsItem
+from apps.news.models import Alert, Meeting, MeetingEvent, MeetingResponse, MeetingTarget, News, NewsItem, NewsTarget
 from apps.rates.models import AssociationRate, ExternalMarketRate, GlobalTrendSnapshot
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 from apps.reverse_search.models import ReverseSearchAttachment, ReverseSearchRequest, ReverseSearchResponse
@@ -121,7 +122,12 @@ def reset_demo_data() -> None:
     ComplianceRequest.objects.all().delete()
     ComplianceReminder.objects.all().delete()
     ServiceType.objects.all().delete()
+    MeetingResponse.objects.all().delete()
+    MeetingTarget.objects.all().delete()
+    Meeting.objects.all().delete()
     MeetingEvent.objects.all().delete()
+    NewsTarget.objects.all().delete()
+    News.objects.all().delete()
     Alert.objects.all().delete()
     NewsItem.objects.all().delete()
     GlobalTrendSnapshot.objects.all().delete()
@@ -606,6 +612,19 @@ def _seed_regions() -> dict[str, dict[str, object]]:
 
 
 def _seed_directory(users: dict[str, object]) -> None:
+    tier_by_slug = {
+        tier.slug: tier
+        for tier in CompanyTier.objects.filter(
+            slug__in=[
+                "prime-signature",
+                "prime-classic",
+                "prime-premier",
+                "prime-elite",
+                "prime-circle",
+                "prime-unique",
+            ]
+        )
+    }
     categories = {
         "Rings": ProductCategory.objects.filter(name="Rings").first() or ProductCategory.objects.create(name="Rings"),
         "Chains": ProductCategory.objects.filter(name="Chains").first() or ProductCategory.objects.create(name="Chains"),
@@ -634,13 +653,15 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Heritage Gold House",
             "category": "Wholesale",
-            "tier": Company.Tier.PREMIUM,
+            "tier_slug": "prime-signature",
+            "admin_priority": 90,
             "city": "Thrissur",
             "state": "Kerala",
             "about": "High-volume manufacturing for regional retailers and premium bridal houses.",
             "daily_capacity": "15kg",
             "specialization": "Bridal gold and statement necklaces",
             "hero_image_url": hero_images["showroom"],
+            "admin_user_key": "member",
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 ("Rings", "Classic Gold Band", "10.00", "22K", "Traditional wedding band finished in warm gold.", product_images["ring"]),
@@ -650,7 +671,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Coastal Bullion Works",
             "category": "Manufacturer",
-            "tier": Company.Tier.PRO,
+            "tier_slug": "prime-premier",
+            "admin_priority": 72,
             "city": "Kochi",
             "state": "Kerala",
             "about": "Casting and finishing line focused on fast-moving daily wear collections.",
@@ -665,7 +687,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Metro Diamond Studio",
             "category": "Retail",
-            "tier": Company.Tier.PREMIUM,
+            "tier_slug": "prime-classic",
+            "admin_priority": 84,
             "city": "Chennai",
             "state": "Tamil Nadu",
             "about": "Premium retail showroom with bridal consultations and custom diamond work.",
@@ -681,7 +704,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Kaveri Ornament Hub",
             "category": "Wholesale",
-            "tier": Company.Tier.NORMAL,
+            "tier_slug": "prime-circle",
+            "admin_priority": 50,
             "city": "Coimbatore",
             "state": "Tamil Nadu",
             "about": "Regional wholesaler with fast replenishment for family jewellers.",
@@ -696,7 +720,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Chickpet Classic Chains",
             "category": "Manufacturer",
-            "tier": Company.Tier.PRO,
+            "tier_slug": "prime-premier",
+            "admin_priority": 68,
             "city": "Bengaluru",
             "state": "Karnataka",
             "about": "Bulk chain producer with strong daily wear assortments.",
@@ -711,7 +736,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Mysuru Heritage Crafts",
             "category": "Retail",
-            "tier": Company.Tier.NORMAL,
+            "tier_slug": "prime-circle",
+            "admin_priority": 42,
             "city": "Mysuru",
             "state": "Karnataka",
             "about": "Traditional handcrafted pieces for festive and temple collections.",
@@ -726,7 +752,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Regal Necklace Works",
             "category": "Manufacturer",
-            "tier": Company.Tier.PRO,
+            "tier_slug": "prime-elite",
+            "admin_priority": 66,
             "city": "Hyderabad",
             "state": "Telangana",
             "about": "Large-format necklace and bridal set workshop for high-volume retailers.",
@@ -741,7 +768,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Auric Ring Atelier",
             "category": "Retail",
-            "tier": Company.Tier.PRO,
+            "tier_slug": "prime-elite",
+            "admin_priority": 64,
             "city": "Mumbai",
             "state": "Maharashtra",
             "about": "Boutique atelier focused on premium rings and custom bridal commissions.",
@@ -756,7 +784,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "CoinCraft Mint",
             "category": "Wholesale",
-            "tier": Company.Tier.NORMAL,
+            "tier_slug": "prime-unique",
+            "admin_priority": 36,
             "city": "Jaipur",
             "state": "Rajasthan",
             "about": "Specialist supplier of festive bullion coins and commemorative gifting pieces.",
@@ -771,7 +800,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Diamond Light House",
             "category": "Retail",
-            "tier": Company.Tier.NORMAL,
+            "tier_slug": "prime-circle",
+            "admin_priority": 34,
             "city": "Surat",
             "state": "Gujarat",
             "about": "Contemporary diamond studio supplying lightweight daily wear pieces.",
@@ -786,7 +816,8 @@ def _seed_directory(users: dict[str, object]) -> None:
         {
             "name": "Bangle Avenue",
             "category": "Manufacturer",
-            "tier": Company.Tier.NORMAL,
+            "tier_slug": "prime-unique",
+            "admin_priority": 32,
             "city": "Pune",
             "state": "Maharashtra",
             "about": "Mid-scale workshop producing stackable bangles for festive and bridal assortments.",
@@ -801,20 +832,35 @@ def _seed_directory(users: dict[str, object]) -> None:
     ]
 
     for company_spec in companies:
+        tier = tier_by_slug[company_spec["tier_slug"]]
         company = _upsert(
             Company,
             {"name": company_spec["name"]},
             {
                 "category": company_spec["category"],
-                "tier": company_spec["tier"],
+                "tier_ref": tier,
                 "city": company_spec["city"],
                 "state": company_spec["state"],
                 "about": company_spec["about"],
                 "daily_capacity": company_spec["daily_capacity"],
                 "specialization": company_spec["specialization"],
+                "admin_priority": company_spec["admin_priority"],
+                "is_active": True,
+                "is_approved": True,
             },
         )
         _upsert(CompanyVerification, {"company": company}, company_spec["verification"])
+        if company_spec.get("admin_user_key"):
+            _upsert(
+                UserRole,
+                {
+                    "user": users[company_spec["admin_user_key"]],
+                    "role": UserRole.Role.COMPANY_ADMIN,
+                    "scope_type": UserRole.ScopeType.COMPANY,
+                    "scope_id": company.id,
+                },
+                {},
+            )
 
         for category_name, product_name, weight, purity, description, product_image_url in company_spec["products"]:
             category = categories[category_name]
@@ -826,18 +872,21 @@ def _seed_directory(users: dict[str, object]) -> None:
                     "weight_grams": weight,
                     "purity": purity,
                     "description": description,
+                    "is_active": True,
                 },
             )
-            product_asset = _seed_media_asset(
-                object_key=f"products/{company.id}/{product.name.lower().replace(' ', '-')}.jpg",
-                uploader=users["member"],
-                bucket_name="demo-public-media",
-                filename=f"{product.name.lower().replace(' ', '-')}.jpg",
-                visibility=MediaAsset.Visibility.PUBLIC,
-                moderation_status=MediaAsset.ModerationStatus.APPROVED,
-                public_url=product_image_url,
-            )
-            _upsert(ProductImage, {"product": product}, {"asset": product_asset})
+            product_slug = product.name.lower().replace(" ", "-")
+            for image_index in range(1, 4):
+                product_asset = _seed_media_asset(
+                    object_key=f"products/{company.id}/{product_slug}-{image_index}.jpg",
+                    uploader=users["member"],
+                    bucket_name="demo-public-media",
+                    filename=f"{product_slug}-{image_index}.jpg",
+                    visibility=MediaAsset.Visibility.PUBLIC,
+                    moderation_status=MediaAsset.ModerationStatus.APPROVED,
+                    public_url=f"{product_image_url}?v={image_index}",
+                )
+                _upsert(ProductImage, {"product": product, "asset": product_asset}, {})
 
         company_asset = _seed_media_asset(
             object_key=f"companies/{company.id}/hero.jpg",
@@ -1039,6 +1088,56 @@ def _seed_services() -> None:
 
 def _seed_news() -> None:
     now = timezone.now().replace(microsecond=0, second=0)
+    kgsma = Association.objects.filter(name="KGSMA").first()
+
+    association_news = _upsert(
+        News,
+        {"title": "Association onboarding camp expands to new districts"},
+        {
+            "description": "Regional outreach and member support counters are opening across more association district units this month.",
+            "created_by": None,
+            "publisher_type": News.PublisherType.ASSOCIATION,
+            "publisher_id": kgsma.id if kgsma else None,
+            "status": News.Status.PUBLISHED,
+            "published_at": now - timedelta(hours=3),
+            "rejection_reason": "",
+        },
+    )
+    if kgsma:
+        _upsert(
+            NewsTarget,
+            {
+                "news": association_news,
+                "target_type": NewsTarget.TargetType.ASSOCIATION,
+                "target_id": kgsma.id,
+                "mode": NewsTarget.Mode.INCLUDE,
+            },
+            {},
+        )
+
+    urgent_news = _upsert(
+        News,
+        {"title": "GST update issued for bullion traders"},
+        {
+            "description": "Updated tax guidance is now available for member businesses.",
+            "created_by": None,
+            "publisher_type": News.PublisherType.PLATFORM,
+            "publisher_id": None,
+            "status": News.Status.PUBLISHED,
+            "published_at": now - timedelta(hours=1),
+            "rejection_reason": "",
+        },
+    )
+    _upsert(
+        NewsTarget,
+        {
+            "news": urgent_news,
+            "target_type": NewsTarget.TargetType.PLATFORM,
+            "target_id": None,
+            "mode": NewsTarget.Mode.INCLUDE,
+        },
+        {},
+    )
 
     _upsert(
         Alert,
@@ -1058,20 +1157,108 @@ def _seed_news() -> None:
         },
     )
 
-    for title, venue, days_ahead, calendar_url in [
-        ("Association Trade Meet", "Thrissur Trade Hall", 2, "https://calendar.google.com"),
-        ("Bullion Compliance Workshop", "Kochi Convention Centre", 5, "https://calendar.google.com"),
-        ("Retail Growth Forum", "Chennai Business Centre", 9, "https://calendar.google.com"),
-    ]:
-        _upsert(
-            MeetingEvent,
-            {"title": title},
+    super_admin = get_user_model().objects.filter(username="demo_super_admin").first()
+    association_admin = get_user_model().objects.filter(username="demo_kgsma_admin").first()
+    meeting_specs = [
+        {
+            "title": "Association Trade Meet",
+            "description": "Quarterly association trade meet covering procurement planning and festive sales coordination.",
+            "created_by": association_admin,
+            "organizer_type": Meeting.OrganizerType.ASSOCIATION,
+            "organizer_id": kgsma.id if kgsma else None,
+            "start_datetime": now + timedelta(days=2),
+            "end_datetime": now + timedelta(days=2, hours=3),
+            "venue_name": "Thrissur Trade Hall",
+            "venue_address": "Round North, Thrissur, Kerala",
+            "google_maps_link": "https://maps.google.com/?q=Thrissur+Trade+Hall",
+            "meeting_mode": Meeting.MeetingMode.PHYSICAL,
+            "online_meeting_link": "",
+            "status": Meeting.Status.PUBLISHED,
+            "include_targets": [
+                {
+                    "target_type": MeetingTarget.TargetType.ASSOCIATION,
+                    "target_id": kgsma.id if kgsma else None,
+                }
+            ],
+            "exclude_targets": [],
+        },
+        {
+            "title": "Bullion Compliance Workshop",
+            "description": "Platform-level online workshop for current bullion compliance, invoicing, and record checks.",
+            "created_by": super_admin,
+            "organizer_type": Meeting.OrganizerType.PLATFORM,
+            "organizer_id": None,
+            "start_datetime": now + timedelta(days=5),
+            "end_datetime": now + timedelta(days=5, hours=2),
+            "venue_name": "Virtual Session",
+            "venue_address": "",
+            "google_maps_link": "",
+            "meeting_mode": Meeting.MeetingMode.ONLINE,
+            "online_meeting_link": "https://meet.google.com/demo-bullion-workshop",
+            "status": Meeting.Status.PUBLISHED,
+            "include_targets": [{"target_type": MeetingTarget.TargetType.PLATFORM, "target_id": None}],
+            "exclude_targets": [],
+        },
+        {
+            "title": "Retail Growth Forum",
+            "description": "Hybrid planning session on inventory turns, bridal campaigns, and high-margin assortment strategy.",
+            "created_by": super_admin,
+            "organizer_type": Meeting.OrganizerType.PLATFORM,
+            "organizer_id": None,
+            "start_datetime": now + timedelta(days=9),
+            "end_datetime": now + timedelta(days=9, hours=4),
+            "venue_name": "Chennai Business Centre",
+            "venue_address": "T Nagar, Chennai, Tamil Nadu",
+            "google_maps_link": "https://maps.google.com/?q=Chennai+Business+Centre",
+            "meeting_mode": Meeting.MeetingMode.HYBRID,
+            "online_meeting_link": "https://meet.google.com/demo-retail-growth",
+            "status": Meeting.Status.PUBLISHED,
+            "include_targets": [{"target_type": MeetingTarget.TargetType.PLATFORM, "target_id": None}],
+            "exclude_targets": [],
+        },
+    ]
+
+    for spec in meeting_specs:
+        meeting = _upsert(
+            Meeting,
+            {"title": spec["title"]},
             {
-                "venue": venue,
-                "starts_at": now + timedelta(days=days_ahead),
-                "calendar_url": calendar_url,
+                "description": spec["description"],
+                "created_by": spec["created_by"],
+                "organizer_type": spec["organizer_type"],
+                "organizer_id": spec["organizer_id"],
+                "start_datetime": spec["start_datetime"],
+                "end_datetime": spec["end_datetime"],
+                "venue_name": spec["venue_name"],
+                "venue_address": spec["venue_address"],
+                "google_maps_link": spec["google_maps_link"],
+                "meeting_mode": spec["meeting_mode"],
+                "online_meeting_link": spec["online_meeting_link"],
+                "status": spec["status"],
             },
         )
+        for target in spec["include_targets"]:
+            _upsert(
+                MeetingTarget,
+                {
+                    "meeting": meeting,
+                    "target_type": target["target_type"],
+                    "target_id": target["target_id"],
+                    "mode": MeetingTarget.Mode.INCLUDE,
+                },
+                {},
+            )
+        for target in spec["exclude_targets"]:
+            _upsert(
+                MeetingTarget,
+                {
+                    "meeting": meeting,
+                    "target_type": target["target_type"],
+                    "target_id": target["target_id"],
+                    "mode": MeetingTarget.Mode.EXCLUDE,
+                },
+                {},
+            )
 
 
 def _seed_ads(users: dict[str, object], hierarchy: dict[str, dict[str, object]]) -> None:
