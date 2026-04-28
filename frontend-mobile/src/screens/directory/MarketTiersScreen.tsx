@@ -54,8 +54,10 @@ export function MarketTiersScreen() {
   }, []);
 
   const featuredCardWidth = Math.min(width * 0.85, 360);
-  const proGroupWidth = Math.min(width * 0.78, 320);
+  const baseProGroupWidth = Math.min(width * 0.78, 320);
+  const proGroupWidth = Math.max(baseProGroupWidth * 0.7, width < 390 ? 162 : 180);
   const productCardWidth = Math.max((width - 64) / 2, 150);
+  const proCardGap = width < 390 ? 10 : 12;
 
   const groupedProCompanies = useMemo(() => groupIntoPairs(marketFeed?.pro_companies ?? []), [marketFeed?.pro_companies]);
 
@@ -130,11 +132,11 @@ export function MarketTiersScreen() {
                 keyExtractor={(_, index) => `pro-group-${index}`}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.proList}
-                snapToInterval={proGroupWidth + 16}
+                contentContainerStyle={[styles.proList, { gap: proCardGap }]}
+                snapToInterval={proGroupWidth + proCardGap}
                 decelerationRate="fast"
                 renderItem={({ item }) => (
-                  <View style={[styles.proGroup, { width: proGroupWidth }]}>
+                  <View style={[styles.proGroup, { width: proGroupWidth, gap: proCardGap }]}>
                     {item.map((company) => (
                       <ProCompanyCard
                         key={company.company_id}
@@ -489,14 +491,13 @@ const styles = StyleSheet.create({
   },
   proList: {
     paddingHorizontal: spacing.lg,
-    gap: spacing.md,
     paddingBottom: 8,
   },
   proGroup: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   proCard: {
-    width: 160,
+    width: "100%",
     backgroundColor: colors.surface,
     borderRadius: 8,
     overflow: "hidden",
