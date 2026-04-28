@@ -58,17 +58,67 @@ class CompanyVerification(models.Model):
 
 class ProductCategory(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    icon_key = models.CharField(max_length=50, default="diamond")
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "name", "id"]
 
     def __str__(self) -> str:
         return self.name
 
 
+class ProductSubCategory(models.Model):
+    category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, related_name="subcategories")
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120)
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["category", "slug"], name="uniq_product_subcategory_slug_per_category"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.category.name} / {self.name}"
+
+
+class ProductAttributeDefinition(models.Model):
+    class AttributeType(models.TextChoices):
+        SELECT = "select", "Select"
+        RANGE = "range", "Range"
+        NUMBER = "number", "Number"
+
+    category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, related_name="attribute_definitions")
+    key = models.CharField(max_length=100)
+    label = models.CharField(max_length=120)
+    type = models.CharField(max_length=20, choices=AttributeType.choices, default=AttributeType.SELECT)
+    options_json = models.JSONField(default=list, blank=True)
+    is_required = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["category", "key"], name="uniq_product_attribute_key_per_category"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.category.name} / {self.label}"
+
+
 class Product(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="products")
     category = models.ForeignKey(ProductCategory, on_delete=models.PROTECT, related_name="products")
+    subcategory = models.ForeignKey(ProductSubCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name="products")
     name = models.CharField(max_length=255)
     weight_grams = models.DecimalField(max_digits=8, decimal_places=2)
     purity = models.CharField(max_length=20)
+    price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -119,6 +169,21 @@ class CompanyImage(models.Model):
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
     asset = models.OneToOneField(MediaAsset, on_delete=models.CASCADE, related_name="product_image")
+
+
+class ProductAttributeValue(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="attribute_values")
+    attribute_definition = models.ForeignKey(ProductAttributeDefinition, on_delete=models.CASCADE, related_name="values")
+    value = models.CharField(max_length=255)
+
+    class Meta:
+        ordering = ["attribute_definition__display_order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["product", "attribute_definition"], name="uniq_product_attribute_value"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product.name} / {self.attribute_definition.label}: {self.value}"
 
 
 class Enquiry(models.Model):

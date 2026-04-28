@@ -23,6 +23,7 @@ urlpatterns = [
     path("api/regions/", include("apps.regions.urls")),
     path("api/dashboard/", include("apps.rates.urls")),
     path("api/directory/", include("apps.directory.urls")),
+    path("api/products/", include("apps.directory.product_urls")),
     path("api/reverse-search/", include("apps.reverse_search.urls")),
     path("api/services/", include("apps.services_app.urls")),
     path("api/news/", include("apps.news.urls")),

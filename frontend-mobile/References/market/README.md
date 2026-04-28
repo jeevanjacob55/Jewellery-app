@@ -5,18 +5,6 @@
 
 Implement the Market screen exactly based on the HTML reference designs placed in:
 
-frontend/references/market/
-
-Expected reference files:
-
-- market_home.html
-- market_results.html
-- market_empty.html
-- market_filter.html
-
-These HTML files are the visual source of truth. Follow their layout, spacing, typography, card structure, colors, and screen behavior as closely as possible.
-
----
 
 # 1. Market Screen Has 3 Main States
 

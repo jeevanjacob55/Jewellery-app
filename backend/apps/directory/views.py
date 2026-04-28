@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404
+from django.utils.text import slugify
 from rest_framework import permissions, status
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
@@ -11,7 +12,19 @@ from apps.admin_ops.permissions import IsSuperAdmin
 
 from config.storage import build_mock_signed_upload
 
-from .models import Company, CompanyImage, CompanyTier, Enquiry, MediaAsset, Product, ProductCategory, ProductImage
+from .models import (
+    Company,
+    CompanyImage,
+    CompanyTier,
+    Enquiry,
+    MediaAsset,
+    Product,
+    ProductAttributeDefinition,
+    ProductAttributeValue,
+    ProductCategory,
+    ProductImage,
+    ProductSubCategory,
+)
 from .serializers import (
     CompanySerializer,
     CompanyTierAssignmentConfirmSerializer,
@@ -20,8 +33,10 @@ from .serializers import (
     CompanyTierWriteSerializer,
     EnquirySerializer,
     MarketFeedSerializer,
+    ProductFilterCategorySerializer,
     ProductImageAttachSerializer,
     ProductImageUploadSessionSerializer,
+    ProductSearchResultSerializer,
     ProductSerializer,
     ProductWriteSerializer,
 )
@@ -29,8 +44,9 @@ from .services import TierValidationError, apply_tier_change_with_selected_produ
 
 
 def get_public_company_queryset():
-    active_product_queryset = Product.objects.filter(is_active=True).select_related("category").prefetch_related(
-        Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id"))
+    active_product_queryset = Product.objects.filter(is_active=True).select_related("category", "subcategory").prefetch_related(
+        Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
+        Prefetch("attribute_values", queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by("attribute_definition__display_order", "id")),
     )
     return Company.objects.filter(is_active=True, is_approved=True).select_related("verification", "tier_ref").prefetch_related(
         Prefetch("products", queryset=active_product_queryset),
@@ -38,29 +54,57 @@ def get_public_company_queryset():
     )
 
 
-def build_market_feed_payload() -> dict:
-    company_queryset = get_public_company_queryset()
-    product_queryset = Product.objects.filter(
+def get_public_product_queryset():
+    return Product.objects.filter(
         is_active=True,
         company__is_active=True,
         company__is_approved=True,
-    ).select_related("company", "category", "company__tier_ref").prefetch_related(
+    ).select_related("company", "category", "subcategory", "company__tier_ref").prefetch_related(
         Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
+        Prefetch("attribute_values", queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by("attribute_definition__display_order", "id")),
     )
 
+
+def resolve_category_param(param: str | None) -> ProductCategory | None:
+    if not param:
+        return None
+    normalized = param.strip().lower()
+    for category in ProductCategory.objects.filter(is_active=True):
+        if category.name.lower() == normalized or slugify(category.name) == normalized:
+            return category
+    return None
+
+
+def resolve_subcategory_param(param: str | None, *, category: ProductCategory | None = None) -> ProductSubCategory | None:
+    if not param:
+        return None
+    queryset = ProductSubCategory.objects.filter(is_active=True)
+    if category is not None:
+        queryset = queryset.filter(category=category)
+    normalized = param.strip().lower()
+    for subcategory in queryset:
+        if subcategory.name.lower() == normalized or subcategory.slug == normalized:
+            return subcategory
+    return None
+
+
+def build_market_feed_payload() -> dict:
+    company_queryset = get_public_company_queryset()
+    product_queryset = get_public_product_queryset()
+
     company_ordering = ["tier_ref__display_priority", "-admin_priority", "-created_at", "name"]
-    featured_companies = company_queryset.filter(tier_ref__visibility_type=CompanyTier.VisibilityType.FEATURED).order_by(*company_ordering)
-    pro_companies = company_queryset.filter(tier_ref__visibility_type=CompanyTier.VisibilityType.PRO).order_by(*company_ordering)
-    normal_companies = company_queryset.filter(tier_ref__visibility_type=CompanyTier.VisibilityType.NORMAL).order_by(*company_ordering)
+    featured_companies = company_queryset.filter(tier_ref__visibility_type=CompanyTier.VisibilityType.FEATURED).order_by(*company_ordering)[:3]
+    pro_companies = company_queryset.filter(tier_ref__visibility_type=CompanyTier.VisibilityType.PRO).order_by("-admin_priority", "name")[:6]
+    normal_companies = company_queryset.filter(tier_ref__visibility_type=CompanyTier.VisibilityType.NORMAL).order_by("-admin_priority", "name")[:3]
     categories = (
-        ProductCategory.objects.annotate(
+        ProductCategory.objects.filter(is_active=True).annotate(
             product_count=Count(
                 "products",
                 filter=Q(products__is_active=True, products__company__is_active=True, products__company__is_approved=True),
             )
         )
         .filter(product_count__gt=0)
-        .order_by("name")
+        .order_by("display_order", "name")
     )
     latest_products = product_queryset.order_by("-created_at", "-id")[:6]
 
@@ -94,6 +138,96 @@ class MarketFeedView(APIView):
     def get(self, request):
         payload = build_market_feed_payload()
         return Response(MarketFeedSerializer(payload).data)
+
+
+class ProductFilterConfigView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        categories = ProductCategory.objects.filter(is_active=True).prefetch_related(
+            Prefetch("subcategories", queryset=ProductSubCategory.objects.filter(is_active=True).order_by("display_order", "name")),
+            Prefetch("attribute_definitions", queryset=ProductAttributeDefinition.objects.filter(is_active=True).order_by("display_order", "id")),
+        ).order_by("display_order", "name")
+        purity_options = list(
+            get_public_product_queryset()
+            .order_by()
+            .values_list("purity", flat=True)
+            .distinct()
+        )
+        preferred_order = {"18K": 0, "22K": 1, "24K": 2, "999.9": 3}
+        purity_options.sort(key=lambda value: (preferred_order.get(value, 99), value))
+        return Response(
+            {
+                "categories": ProductFilterCategorySerializer(categories, many=True).data,
+                "purity_options": purity_options,
+            }
+        )
+
+
+class ProductSearchView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        queryset = get_public_product_queryset()
+        search = request.query_params.get("search", "").strip()
+        category = resolve_category_param(request.query_params.get("category"))
+        subcategory = resolve_subcategory_param(request.query_params.get("subcategory"), category=category)
+        purity = request.query_params.get("purity", "").strip()
+        company_id = request.query_params.get("company")
+        product_id = request.query_params.get("product_id")
+        sort = request.query_params.get("sort", "popularity").strip().lower() or "popularity"
+
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search)
+                | Q(company__name__icontains=search)
+                | Q(category__name__icontains=search)
+                | Q(subcategory__name__icontains=search)
+            )
+
+        if category is not None:
+            queryset = queryset.filter(category=category)
+
+        if subcategory is not None:
+            queryset = queryset.filter(subcategory=subcategory)
+
+        if purity:
+            queryset = queryset.filter(purity__iexact=purity)
+
+        if company_id:
+            queryset = queryset.filter(company_id=company_id)
+
+        if product_id:
+            queryset = queryset.filter(id=product_id)
+
+        excluded_keys = {"search", "category", "subcategory", "purity", "sort", "company", "product_id"}
+        dynamic_filters = {
+            key: value
+            for key, value in request.query_params.items()
+            if key not in excluded_keys and value.strip()
+        }
+
+        for key, value in dynamic_filters.items():
+            matching_product_ids = ProductAttributeValue.objects.filter(
+                attribute_definition__key=key,
+                value__iexact=value,
+            ).values_list("product_id", flat=True)
+            queryset = queryset.filter(id__in=matching_product_ids)
+
+        if sort == "price_low_to_high":
+            queryset = queryset.order_by("price", "-created_at", "-id")
+        elif sort == "price_high_to_low":
+            queryset = queryset.order_by("-price", "-created_at", "-id")
+        elif sort == "newest":
+            queryset = queryset.order_by("-created_at", "-id")
+        else:
+            queryset = queryset.order_by("-company__admin_priority", "-created_at", "-id")
+
+        count = queryset.distinct().count()
+        results = ProductSearchResultSerializer(queryset.distinct(), many=True).data
+        return Response({"count": count, "results": results, "sort": sort})
 
 
 class EnquiryCreateView(APIView):

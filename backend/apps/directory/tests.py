@@ -6,7 +6,20 @@ from rest_framework.test import APITestCase
 
 from apps.accounts.models import UserRole
 
-from .models import Company, CompanyImage, CompanyTier, CompanyVerification, Enquiry, MediaAsset, Product, ProductCategory, ProductImage
+from .models import (
+    Company,
+    CompanyImage,
+    CompanyTier,
+    CompanyVerification,
+    Enquiry,
+    MediaAsset,
+    Product,
+    ProductAttributeDefinition,
+    ProductAttributeValue,
+    ProductCategory,
+    ProductImage,
+    ProductSubCategory,
+)
 
 
 class DirectoryApiTests(APITestCase):
@@ -33,6 +46,7 @@ class DirectoryApiTests(APITestCase):
             max_photos_per_product=4,
             max_companies_allowed=2,
             display_priority=10,
+            visibility_type=CompanyTier.VisibilityType.FEATURED,
         )
         self.pro_tier = self._configure_tier(
             "prime-premier",
@@ -40,6 +54,7 @@ class DirectoryApiTests(APITestCase):
             min_photos_per_product=2,
             max_photos_per_product=4,
             display_priority=20,
+            visibility_type=CompanyTier.VisibilityType.PRO,
         )
         self.normal_tier = self._configure_tier(
             "prime-circle",
@@ -47,6 +62,7 @@ class DirectoryApiTests(APITestCase):
             min_photos_per_product=1,
             max_photos_per_product=2,
             display_priority=30,
+            visibility_type=CompanyTier.VisibilityType.NORMAL,
         )
         self.company = Company.objects.create(
             name="Heritage Gold House",
@@ -73,7 +89,22 @@ class DirectoryApiTests(APITestCase):
             bis_hallmarked=True,
             export_licensed=False,
         )
-        category = ProductCategory.objects.create(name="Rings")
+        category = ProductCategory.objects.create(name="Rings", icon_key="rings", display_order=1)
+        self.chain_category = ProductCategory.objects.create(name="Chains", icon_key="chains", display_order=2)
+        self.chain_subcategory = ProductSubCategory.objects.create(
+            category=self.chain_category,
+            name="Link Chain",
+            slug="link-chain",
+            display_order=1,
+        )
+        self.chain_length_attribute = ProductAttributeDefinition.objects.create(
+            category=self.chain_category,
+            key="length",
+            label="Chain Length",
+            type=ProductAttributeDefinition.AttributeType.RANGE,
+            options_json=["16 inch", "18 inch", "20 inch", "22 inch"],
+            display_order=1,
+        )
         self.product = Product.objects.create(
             company=self.company,
             category=category,
@@ -85,6 +116,22 @@ class DirectoryApiTests(APITestCase):
         self._attach_company_image(self.company, is_logo=False, public_url="https://example.com/company-hero.jpg")
         self._attach_company_image(self.company, is_logo=True, public_url="https://example.com/company-logo.jpg")
         self._attach_product_image(self.product, public_url="https://example.com/product.jpg")
+        self.chain_product = Product.objects.create(
+            company=self.company,
+            category=self.chain_category,
+            subcategory=self.chain_subcategory,
+            name="Curb Link Chain",
+            weight_grams="42.50",
+            purity="22K",
+            price="2840.00",
+            description="Premium curb chain.",
+        )
+        ProductAttributeValue.objects.create(
+            product=self.chain_product,
+            attribute_definition=self.chain_length_attribute,
+            value="18 inch",
+        )
+        self._attach_product_image(self.chain_product, public_url="https://example.com/curb-link-chain.jpg")
 
     def _configure_tier(self, slug: str, **updates) -> CompanyTier:
         tier = CompanyTier.objects.get(slug=slug)
@@ -169,18 +216,18 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data[0]["name"], "Heritage Gold House")
         self.assertTrue(response.data[0]["verification"]["gst_registered"])
-        self.assertEqual(response.data[0]["products"][0]["name"], "Lakshmi Kasu Mala")
+        self.assertEqual({product["name"] for product in response.data[0]["products"]}, {"Lakshmi Kasu Mala", "Curb Link Chain"})
         self.assertEqual(response.data[0]["hero_image_url"], "https://example.com/company-hero.jpg")
         self.assertEqual(response.data[0]["logo_image_url"], "https://example.com/company-logo.jpg")
-        self.assertEqual(response.data[0]["products"][0]["image_url"], "https://example.com/product.jpg")
+        self.assertTrue(all(product["image_url"] for product in response.data[0]["products"]))
 
     def test_company_detail_returns_company_payload(self):
         response = self.client.get(reverse("company_detail", args=[self.company.id]))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["city"], "Thrissur")
-        self.assertEqual(len(response.data["products"]), 1)
-        self.assertEqual(response.data["products"][0]["category_name"], "Rings")
+        self.assertEqual(len(response.data["products"]), 2)
+        self.assertEqual({product["category_name"] for product in response.data["products"]}, {"Rings", "Chains"})
 
     def test_market_feed_returns_sectioned_payload(self):
         self._create_company_with_product(
@@ -244,6 +291,58 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(latest_product_ids, sorted(latest_product_ids, reverse=True))
         self.assertTrue(all(item["image_url"] for item in response.data["latest_products"]))
         self.assertNotIn("Inactive House", [item["name"] for item in response.data["featured_companies"]])
+
+    def test_product_filter_config_returns_dynamic_market_filters(self):
+        response = self.client.get(reverse("product_filter_config"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        categories = {item["slug"]: item for item in response.data["categories"]}
+        self.assertIn("chains", categories)
+        self.assertEqual(categories["chains"]["subcategories"][0]["slug"], "link-chain")
+        self.assertEqual(categories["chains"]["attributes"][0]["key"], "length")
+        self.assertIn("22K", response.data["purity_options"])
+
+    def test_product_search_supports_category_purity_and_dynamic_attribute_filters(self):
+        rope_subcategory = ProductSubCategory.objects.create(
+            category=self.chain_category,
+            name="Rope Chain",
+            slug="rope-chain",
+            display_order=2,
+        )
+        rope_product = Product.objects.create(
+            company=self.company,
+            category=self.chain_category,
+            subcategory=rope_subcategory,
+            name="Pure Rope Chain",
+            weight_grams="38.20",
+            purity="24K",
+            price="3120.00",
+            description="Premium rope chain.",
+        )
+        ProductAttributeValue.objects.create(
+            product=rope_product,
+            attribute_definition=self.chain_length_attribute,
+            value="20 inch",
+        )
+        self._attach_product_image(rope_product, public_url="https://example.com/pure-rope-chain.jpg")
+
+        response = self.client.get(
+            reverse("product_search"),
+            {"category": "chains", "purity": "22K", "length": "18 inch"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["title"], "Curb Link Chain")
+        self.assertEqual(response.data["results"][0]["attribute_value"], "18 inch")
+        self.assertEqual(response.data["results"][0]["price"], "2840.00")
+
+    def test_product_search_returns_empty_list_for_non_matching_query(self):
+        response = self.client.get(reverse("product_search"), {"search": "Rare Pink Argyle Diamond"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 0)
+        self.assertEqual(response.data["results"], [])
 
     def test_enquiry_create_persists_record(self):
         response = self.client.post(
@@ -337,6 +436,8 @@ class DirectoryApiTests(APITestCase):
         self.company.save(update_fields=["tier_ref"])
         self.product.is_active = False
         self.product.save(update_fields=["is_active"])
+        self.chain_product.is_active = False
+        self.chain_product.save(update_fields=["is_active"])
         self.client.force_authenticate(user=self.company_admin)
         asset_ids = [
             self._create_media_asset(

@@ -205,10 +205,21 @@ export interface Product {
   name: string;
   weight_grams: string;
   purity: string;
+  price?: string | null;
   description: string;
   category_name: string;
+  category_slug?: string;
+  subcategory_name?: string | null;
+  subcategory_slug?: string | null;
   image_url: string | null;
+  attributes?: ProductAttributeEntry[];
   is_active?: boolean;
+}
+
+export interface ProductAttributeEntry {
+  key: string;
+  label: string;
+  value: string;
 }
 
 export interface Company {
@@ -252,6 +263,7 @@ export interface MarketCompanyCard {
 export interface MarketCategory {
   id: number;
   name: string;
+  slug: string;
   icon_key: string;
   product_count: number;
 }
@@ -265,6 +277,7 @@ export interface MarketProductCard {
   weight_grams: string;
   image_url: string | null;
   category_name: string;
+  category_slug: string;
 }
 
 export interface MarketFeedData {
@@ -273,6 +286,61 @@ export interface MarketFeedData {
   normal_companies: MarketCompanyCard[];
   categories: MarketCategory[];
   latest_products: MarketProductCard[];
+}
+
+export type ProductFilterAttributeType = "select" | "range" | "number";
+
+export interface ProductFilterAttributeDefinition {
+  id: number;
+  key: string;
+  label: string;
+  type: ProductFilterAttributeType;
+  options: Array<string | Record<string, unknown>>;
+  is_required: boolean;
+}
+
+export interface ProductFilterSubCategory {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface ProductFilterCategory {
+  id: number;
+  name: string;
+  slug: string;
+  icon_key: string;
+  subcategories: ProductFilterSubCategory[];
+  attributes: ProductFilterAttributeDefinition[];
+}
+
+export interface ProductFilterConfigResponse {
+  categories: ProductFilterCategory[];
+  purity_options: string[];
+}
+
+export interface ProductSearchResult {
+  id: number;
+  company_id: number;
+  company_name: string;
+  title: string;
+  category_name: string;
+  category_slug: string;
+  subcategory_name: string | null;
+  subcategory_slug: string | null;
+  purity: string;
+  weight_grams: string;
+  price: string | null;
+  image_url: string | null;
+  attribute_label: string | null;
+  attribute_value: string | null;
+  attributes: ProductAttributeEntry[];
+}
+
+export interface ProductSearchResponse {
+  count: number;
+  results: ProductSearchResult[];
+  sort: string;
 }
 
 export type AdvertisementPlacement = "dashboard_hero" | "market_banner" | "news_inline";

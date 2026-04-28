@@ -6,6 +6,7 @@ from urllib.parse import quote_plus
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
+from django.utils.text import slugify
 
 from apps.accounts.models import AdminScopeAssignment, MemberProfile, NotificationPreference, UserRole
 from apps.ads.models import AdApproval, AdAsset, AdClick, AdImpression, AdTargeting, Advertisement
@@ -16,8 +17,11 @@ from apps.directory.models import (
     CompanyVerification,
     MediaAsset,
     Product,
+    ProductAttributeDefinition,
+    ProductAttributeValue,
     ProductCategory,
     ProductImage,
+    ProductSubCategory,
 )
 from apps.news.models import Alert, Meeting, MeetingEvent, MeetingResponse, MeetingTarget, News, NewsItem, NewsTarget
 from apps.rates.models import AssociationRate, ExternalMarketRate, GlobalTrendSnapshot
@@ -117,7 +121,10 @@ def reset_demo_data() -> None:
     CompanyImage.objects.all().delete()
     ProductImage.objects.all().delete()
     MediaAsset.objects.all().delete()
+    ProductAttributeValue.objects.all().delete()
     Product.objects.all().delete()
+    ProductAttributeDefinition.objects.all().delete()
+    ProductSubCategory.objects.all().delete()
     ProductCategory.objects.all().delete()
     CompanyVerification.objects.all().delete()
     Company.objects.all().delete()
@@ -627,14 +634,120 @@ def _seed_directory(users: dict[str, object]) -> None:
             ]
         )
     }
-    categories = {
-        "Rings": ProductCategory.objects.filter(name="Rings").first() or ProductCategory.objects.create(name="Rings"),
-        "Chains": ProductCategory.objects.filter(name="Chains").first() or ProductCategory.objects.create(name="Chains"),
-        "Bangles": ProductCategory.objects.filter(name="Bangles").first() or ProductCategory.objects.create(name="Bangles"),
-        "Necklaces": ProductCategory.objects.filter(name="Necklaces").first() or ProductCategory.objects.create(name="Necklaces"),
-        "Coins": ProductCategory.objects.filter(name="Coins").first() or ProductCategory.objects.create(name="Coins"),
-        "Diamonds": ProductCategory.objects.filter(name="Diamonds").first() or ProductCategory.objects.create(name="Diamonds"),
-    }
+    category_specs = [
+        {"name": "Rings", "icon_key": "rings", "display_order": 1},
+        {"name": "Chains", "icon_key": "chains", "display_order": 2},
+        {"name": "Bangles", "icon_key": "bangles", "display_order": 3},
+        {"name": "Necklaces", "icon_key": "necklaces", "display_order": 4},
+        {"name": "Coins", "icon_key": "coins", "display_order": 5},
+        {"name": "Pure Gold", "icon_key": "diamond", "display_order": 6},
+    ]
+    categories: dict[str, ProductCategory] = {}
+    for spec in category_specs:
+        categories[spec["name"]] = _upsert(
+            ProductCategory,
+            {"name": spec["name"]},
+            {
+                "icon_key": spec["icon_key"],
+                "is_active": True,
+                "display_order": spec["display_order"],
+            },
+        )
+
+    chain_subcategory_specs = [
+        ("Link Chain", 1),
+        ("Rope Chain", 2),
+        ("Box Chain", 3),
+        ("Figaro", 4),
+        ("Snake Chain", 5),
+    ]
+    chain_subcategories: dict[str, ProductSubCategory] = {}
+    for name, display_order in chain_subcategory_specs:
+        chain_subcategories[name] = _upsert(
+            ProductSubCategory,
+            {"category": categories["Chains"], "slug": slugify(name)},
+            {
+                "name": name,
+                "is_active": True,
+                "display_order": display_order,
+            },
+        )
+
+    attribute_definitions: dict[tuple[str, str], ProductAttributeDefinition] = {}
+
+    def upsert_attribute(
+        *,
+        category_name: str,
+        key: str,
+        label: str,
+        type_value: str,
+        options: list[str],
+        display_order: int,
+        is_required: bool = False,
+    ) -> ProductAttributeDefinition:
+        definition = _upsert(
+            ProductAttributeDefinition,
+            {"category": categories[category_name], "key": key},
+            {
+                "label": label,
+                "type": type_value,
+                "options_json": options,
+                "is_required": is_required,
+                "is_active": True,
+                "display_order": display_order,
+            },
+        )
+        attribute_definitions[(category_name, key)] = definition
+        return definition
+
+    upsert_attribute(
+        category_name="Chains",
+        key="length",
+        label="Chain Length",
+        type_value=ProductAttributeDefinition.AttributeType.RANGE,
+        options=["16 inch", "18 inch", "20 inch", "22 inch"],
+        display_order=1,
+    )
+    upsert_attribute(
+        category_name="Rings",
+        key="ring_size",
+        label="Ring Size",
+        type_value=ProductAttributeDefinition.AttributeType.SELECT,
+        options=["6", "7", "8", "9", "10"],
+        display_order=1,
+    )
+    upsert_attribute(
+        category_name="Bangles",
+        key="bangle_size",
+        label="Bangle Size",
+        type_value=ProductAttributeDefinition.AttributeType.SELECT,
+        options=["2.4", "2.6", "2.8", "2.10"],
+        display_order=1,
+    )
+    upsert_attribute(
+        category_name="Necklaces",
+        key="style",
+        label="Necklace Style",
+        type_value=ProductAttributeDefinition.AttributeType.SELECT,
+        options=["Pendant", "Bridal Set", "Temple", "Daily Wear"],
+        display_order=1,
+    )
+    upsert_attribute(
+        category_name="Coins",
+        key="coin_weight",
+        label="Coin Weight",
+        type_value=ProductAttributeDefinition.AttributeType.SELECT,
+        options=["5 g", "10 g", "20 g", "1 oz"],
+        display_order=1,
+    )
+    upsert_attribute(
+        category_name="Pure Gold",
+        key="form",
+        label="Form",
+        type_value=ProductAttributeDefinition.AttributeType.SELECT,
+        options=["Coin", "Bar", "Biscuit"],
+        display_order=1,
+    )
 
     hero_images = {
         "showroom": "https://lh3.googleusercontent.com/aida-public/AB6AXuBhKhZ6QWTOhfsnu7EONIw7ioQpcrbrF3dDFycVfnRkB8q-dkt9aFkfVW9PayZdi61IuQYMo1mFG_zih9iXsnei_5YbFMT9gqF97pZkB0pbAMYthV9A0S5CGdpbWuHMpryUV5U_WbjrMpTV1ovHm56lQj2gyvu8uo_c_YShipov5d3-0JSz7RCkhz-l0vznMvJl70a1rrXsR9rIouU4ixcVhQHJgr-WE_wE-2_sUXoubojfQOOZZ4X8kC0JD7GWXRisUmgxiUaLKI",
@@ -645,6 +758,7 @@ def _seed_directory(users: dict[str, object]) -> None:
         "warehouse": "https://lh3.googleusercontent.com/aida-public/AB6AXuA2vpKKRhToiBVjzTqh6SQgDeIMf3AcJ6Fd5MXb_wjKxrCIq8FymO2G2u96IS4WGrbSFq66dEeQP6MPXdYYM9GnaTnsYM5rVkBjCFgYJ6OfAEtVgwsrmjMyzMIaUU0pTTn-J73lrDt_3as-BYvukeUfprNlfM7SMYegICBZXkx71FliAGKaCgi4-kNwIAzbJVI66XPlDETGLW1G4OZJICJzn5Gje_hsZC0b9QFfxm593FH25A56SBsbbAKR-1wSXtL_NVJ284ro40E",
     }
     product_images = {
+        "chain": "https://lh3.googleusercontent.com/aida-public/AB6AXuAKWqhteoPvs0utL8qIcq6M7Iqs561p6YsXpdDvoevBtu8CW9LT8HMnKKY977CCkVI8QfuRPAXlGVPN8aPYcRRaMugvYgdRcIHWKQy_RYIRNyGFyUdcg1gt3QRFQ68448DOfkKmJUXuy9Va2jxYeOX-ROXtVzyhOwED07OwYDXY49ggZD1ta72KiHJNb5cm4L-tjR_Uxd1Q4zBsWcdxE9Gd0RiThv6q4LeVr6I7QyTewhSeKOGBhoMmqx18xczhX4W9XccpRV22vF4",
         "ring": "https://lh3.googleusercontent.com/aida-public/AB6AXuANt8p_GJVDNA4aZ14ixudXMJTwzuzNk3t7brf-VrGQ0ZdQxDUseJytgXpFqceT2rUOMuhv1VwtT_b7ufw7Cm6GtzT24ij5auYZb4qxi-YRTyww6FMIXIPzTtfnTe3d_nCQ8HX_FZwY92ZBvPjgYxH3Bz6PXq9p43QipByIiCz7L7utMh-lbgcOi7W4eQNgv-FOg2rULEbXtllTw7Dnj-4Jtjcxk7AsLnHR96T4WqGJgWnAGFbPM4LRedBtpJaObHbPzem19kjDN90",
         "diamond": "https://lh3.googleusercontent.com/aida-public/AB6AXuCiYaKWjmLGuN-o4f8RODBgknBEkEXWelqvhQ7rxTkNPa71WldiLKAK_57Uw8rVJ7u-K7IcMJCukigKR_yidqVuOcAKn-qQIWL-tyYrRAjYzzq8h4sdgdaNphB4ttwJqVGshg4ojzGpCv-nvSzz_dKTwD4AZ5sfwu6bLTHuZdTzkhn58PEXlJ9_56_GhVdpvpMdE50hrEPvXnHkplEBbG1eUZUlINuD1llQ_hVcDMElVduW7BG72GgtX8fKFKaDIdck6uryxAMTUKY",
         "bangle": "https://lh3.googleusercontent.com/aida-public/AB6AXuA8fAYStmIyeNEeegaEu2AKcbzyKX6D5_A11AZ1VDgXMCFDIAoygODPcvBJvsAxz6tWyhozXQAaU5I3Tc2CcM3rHLkdXnJWa_mVUMwWVYqu6NtemuQWgAG_2AOsduAV8Eum7tdrqNPkm33iQiolWSAQWotNIO5slODNTjT1397GFjDhhOHUkq8ADjgAUYLp5npKQndIXdCPCm0XUnXDS3QGZL-8ZZgODF67rm9mmT0m8e9HfyQm3j28t7ovJWKOJtsO_VWPOvtBabM",
@@ -653,10 +767,173 @@ def _seed_directory(users: dict[str, object]) -> None:
 
     companies = [
         {
-            "name": "Heritage Gold House",
+            "name": "Aurum Collective",
+            "category": "Premium Retail",
+            "tier_slug": "prime-signature",
+            "admin_priority": 120,
+            "city": "Thrissur",
+            "state": "Kerala",
+            "about": "Flagship luxury showroom known for premium bridal rings and statement gold pieces.",
+            "daily_capacity": "15kg",
+            "specialization": "Bridal rings and premium gold",
+            "hero_image_url": hero_images["showroom"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
+            "products": [
+                {
+                    "category": "Rings",
+                    "name": "Classic Gold Band",
+                    "weight": "10.00",
+                    "purity": "22K",
+                    "price": "1490.00",
+                    "description": "Traditional wedding band finished in warm gold.",
+                    "image_url": product_images["ring"],
+                    "attributes": {"ring_size": "7"},
+                },
+                {
+                    "category": "Chains",
+                    "subcategory": "Link Chain",
+                    "name": "Curb Link Chain",
+                    "weight": "42.50",
+                    "purity": "22K",
+                    "price": "2840.00",
+                    "description": "High-polish curb chain made for premium daily wear.",
+                    "image_url": product_images["chain"],
+                    "attributes": {"length": "18 inch"},
+                },
+            ],
+        },
+        {
+            "name": "Diamond Reserve",
+            "category": "Retail",
+            "tier_slug": "prime-signature",
+            "admin_priority": 112,
+            "city": "Chennai",
+            "state": "Tamil Nadu",
+            "about": "Curated diamond-led showcase with collectible pendants and anniversary pieces.",
+            "daily_capacity": "4kg",
+            "specialization": "Diamond jewellery",
+            "hero_image_url": hero_images["diamond"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
+            "products": [
+                {
+                    "category": "Necklaces",
+                    "name": "Etoile Pendant",
+                    "weight": "2.00",
+                    "purity": "18K",
+                    "price": "2240.00",
+                    "description": "Diamond pendant for premium occasion wear.",
+                    "image_url": product_images["diamond"],
+                    "attributes": {"style": "Pendant"},
+                },
+            ],
+        },
+        {
+            "name": "Elite Bullion",
             "category": "Wholesale",
             "tier_slug": "prime-signature",
-            "admin_priority": 90,
+            "admin_priority": 104,
+            "city": "Bengaluru",
+            "state": "Karnataka",
+            "about": "Investment-grade bullion desk supplying premium vault inventory and gifting bars.",
+            "daily_capacity": "7kg",
+            "specialization": "Pure gold and bullion",
+            "hero_image_url": hero_images["bullion"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
+            "products": [
+                {
+                    "category": "Pure Gold",
+                    "name": "Legacy Bullion",
+                    "weight": "31.10",
+                    "purity": "999.9",
+                    "price": "4450.00",
+                    "description": "Premium bullion bar aimed at investment-focused buyers.",
+                    "image_url": product_images["coin"],
+                    "attributes": {"form": "Bar"},
+                },
+            ],
+        },
+        {
+            "name": "Vanguard Gems",
+            "category": "Retail",
+            "tier_slug": "prime-premier",
+            "admin_priority": 96,
+            "city": "Coimbatore",
+            "state": "Tamil Nadu",
+            "about": "Established retail house for bridal bangles and heirloom-inspired collections.",
+            "daily_capacity": "5kg",
+            "specialization": "Bangles",
+            "hero_image_url": hero_images["artisan"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
+            "products": [
+                {
+                    "category": "Bangles",
+                    "name": "Antiquity Bangles",
+                    "weight": "45.00",
+                    "purity": "22K",
+                    "price": "3860.00",
+                    "description": "Stacked bridal bangles with antique detailing and warm finish.",
+                    "image_url": product_images["bangle"],
+                    "attributes": {"bangle_size": "2.6"},
+                },
+            ],
+        },
+        {
+            "name": "Royal Carats",
+            "category": "Retail",
+            "tier_slug": "prime-premier",
+            "admin_priority": 88,
+            "city": "Hyderabad",
+            "state": "Telangana",
+            "about": "Refined chain specialist with premium bridal and gifting edits.",
+            "daily_capacity": "8kg",
+            "specialization": "Premium chains",
+            "hero_image_url": hero_images["diamond"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
+            "products": [
+                {
+                    "category": "Chains",
+                    "subcategory": "Rope Chain",
+                    "name": "Pure Rope Chain",
+                    "weight": "38.20",
+                    "purity": "24K",
+                    "price": "3120.00",
+                    "description": "Pure rope chain with high-shine finish for formal showcases.",
+                    "image_url": product_images["chain"],
+                    "attributes": {"length": "20 inch"},
+                },
+            ],
+        },
+        {
+            "name": "Coastal Bullion Works",
+            "category": "Manufacturer",
+            "tier_slug": "prime-premier",
+            "admin_priority": 82,
+            "city": "Kochi",
+            "state": "Kerala",
+            "about": "Casting and finishing line focused on fast-moving daily wear collections.",
+            "daily_capacity": "9kg",
+            "specialization": "Lightweight chains",
+            "hero_image_url": hero_images["bullion"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": True},
+            "products": [
+                {
+                    "category": "Chains",
+                    "subcategory": "Box Chain",
+                    "name": "Singapore Twist Chain",
+                    "weight": "14.25",
+                    "purity": "22K",
+                    "price": "1280.00",
+                    "description": "Daily wear Singapore twist chain with fast-moving showroom appeal.",
+                    "image_url": product_images["chain"],
+                    "attributes": {"length": "18 inch"},
+                },
+            ],
+        },
+        {
+            "name": "Heritage Gold House",
+            "category": "Wholesale",
+            "tier_slug": "prime-premier",
+            "admin_priority": 78,
             "city": "Thrissur",
             "state": "Kerala",
             "about": "High-volume manufacturing for regional retailers and premium bridal houses.",
@@ -666,96 +943,34 @@ def _seed_directory(users: dict[str, object]) -> None:
             "admin_user_key": "member",
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
-                ("Rings", "Classic Gold Band", "10.00", "22K", "Traditional wedding band finished in warm gold.", product_images["ring"]),
-                ("Necklaces", "Bridal Mango Haram", "62.00", "22K", "Layered mango-motif bridal haram.", product_images["diamond"]),
-            ],
-        },
-        {
-            "name": "Coastal Bullion Works",
-            "category": "Manufacturer",
-            "tier_slug": "prime-premier",
-            "admin_priority": 72,
-            "city": "Kochi",
-            "state": "Kerala",
-            "about": "Casting and finishing line focused on fast-moving daily wear collections.",
-            "daily_capacity": "9kg",
-            "specialization": "Lightweight chains",
-            "hero_image_url": hero_images["bullion"],
-            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": True},
-            "products": [
-                ("Chains", "Singapore Twist Chain", "14.25", "22K", "Daily wear Singapore twist chain.", product_images["ring"]),
-            ],
-        },
-        {
-            "name": "Metro Diamond Studio",
-            "category": "Retail",
-            "tier_slug": "prime-classic",
-            "admin_priority": 84,
-            "city": "Chennai",
-            "state": "Tamil Nadu",
-            "about": "Premium retail showroom with bridal consultations and custom diamond work.",
-            "daily_capacity": "4kg",
-            "specialization": "Diamond jewellery",
-            "hero_image_url": hero_images["diamond"],
-            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
-            "products": [
-                ("Diamonds", "Etoile Pendant", "2.00", "18K", "Diamond pendant for premium occasion wear.", product_images["diamond"]),
-                ("Rings", "Solitaire Halo Ring", "6.40", "18K", "Halo-set solitaire ring for bridal collections.", product_images["ring"]),
-            ],
-        },
-        {
-            "name": "Kaveri Ornament Hub",
-            "category": "Wholesale",
-            "tier_slug": "prime-circle",
-            "admin_priority": 50,
-            "city": "Coimbatore",
-            "state": "Tamil Nadu",
-            "about": "Regional wholesaler with fast replenishment for family jewellers.",
-            "daily_capacity": "6kg",
-            "specialization": "Bangles",
-            "hero_image_url": hero_images["artisan"],
-            "verification": {"gst_registered": True, "bis_hallmarked": False, "export_licensed": False},
-            "products": [
-                ("Bangles", "Antiquity Bangles", "45.00", "22K", "Stacked bridal bangles with antique finish.", product_images["bangle"]),
-            ],
-        },
-        {
-            "name": "Chickpet Classic Chains",
-            "category": "Manufacturer",
-            "tier_slug": "prime-premier",
-            "admin_priority": 68,
-            "city": "Bengaluru",
-            "state": "Karnataka",
-            "about": "Bulk chain producer with strong daily wear assortments.",
-            "daily_capacity": "11kg",
-            "specialization": "Machine chains",
-            "hero_image_url": hero_images["studio"],
-            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
-            "products": [
-                ("Chains", "Box Link Chain", "10.10", "22K", "Popular box-link chain for urban storefronts.", product_images["ring"]),
-            ],
-        },
-        {
-            "name": "Mysuru Heritage Crafts",
-            "category": "Retail",
-            "tier_slug": "prime-circle",
-            "admin_priority": 42,
-            "city": "Mysuru",
-            "state": "Karnataka",
-            "about": "Traditional handcrafted pieces for festive and temple collections.",
-            "daily_capacity": "3kg",
-            "specialization": "Coins and antique finish work",
-            "hero_image_url": hero_images["warehouse"],
-            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
-            "products": [
-                ("Coins", "Legacy Bullion Coin", "31.10", "999.9", "Premium bullion coin with heritage motif.", product_images["coin"]),
+                {
+                    "category": "Chains",
+                    "subcategory": "Box Chain",
+                    "name": "Box Link Chain",
+                    "weight": "18.75",
+                    "purity": "22K",
+                    "price": "1680.00",
+                    "description": "Polished box-link chain for daily storefront rotations.",
+                    "image_url": product_images["chain"],
+                    "attributes": {"length": "18 inch"},
+                },
+                {
+                    "category": "Necklaces",
+                    "name": "Bridal Mango Haram",
+                    "weight": "62.00",
+                    "purity": "22K",
+                    "price": "5240.00",
+                    "description": "Layered mango-motif bridal haram.",
+                    "image_url": product_images["diamond"],
+                    "attributes": {"style": "Bridal Set"},
+                },
             ],
         },
         {
             "name": "Regal Necklace Works",
             "category": "Manufacturer",
-            "tier_slug": "prime-elite",
-            "admin_priority": 66,
+            "tier_slug": "prime-premier",
+            "admin_priority": 74,
             "city": "Hyderabad",
             "state": "Telangana",
             "about": "Large-format necklace and bridal set workshop for high-volume retailers.",
@@ -764,71 +979,129 @@ def _seed_directory(users: dict[str, object]) -> None:
             "hero_image_url": hero_images["showroom"],
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
-                ("Necklaces", "Temple Cascade Necklace", "54.50", "22K", "Layered bridal necklace with peacock detailing.", product_images["diamond"]),
+                {
+                    "category": "Necklaces",
+                    "name": "Temple Cascade Necklace",
+                    "weight": "54.50",
+                    "purity": "22K",
+                    "price": "4280.00",
+                    "description": "Layered bridal necklace with peacock detailing.",
+                    "image_url": product_images["diamond"],
+                    "attributes": {"style": "Temple"},
+                },
             ],
         },
         {
-            "name": "Auric Ring Atelier",
+            "name": "Metro Diamond Studio",
             "category": "Retail",
-            "tier_slug": "prime-elite",
-            "admin_priority": 64,
-            "city": "Mumbai",
-            "state": "Maharashtra",
-            "about": "Boutique atelier focused on premium rings and custom bridal commissions.",
-            "daily_capacity": "2kg",
-            "specialization": "Custom rings",
+            "tier_slug": "prime-premier",
+            "admin_priority": 70,
+            "city": "Chennai",
+            "state": "Tamil Nadu",
+            "about": "Premium retail showroom with bridal consultations and custom diamond work.",
+            "daily_capacity": "4kg",
+            "specialization": "Diamond jewellery",
             "hero_image_url": hero_images["diamond"],
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
-                ("Rings", "Solitaire Stack Ring", "5.80", "18K", "Stackable diamond-accent bridal ring.", product_images["ring"]),
+                {
+                    "category": "Rings",
+                    "name": "Solitaire Halo Ring",
+                    "weight": "6.40",
+                    "purity": "18K",
+                    "price": "2760.00",
+                    "description": "Halo-set solitaire ring for bridal collections.",
+                    "image_url": product_images["ring"],
+                    "attributes": {"ring_size": "8"},
+                },
             ],
         },
         {
-            "name": "CoinCraft Mint",
-            "category": "Wholesale",
-            "tier_slug": "prime-unique",
-            "admin_priority": 36,
+            "name": "Artisan Guild",
+            "category": "Workshop",
+            "tier_slug": "prime-circle",
+            "admin_priority": 68,
             "city": "Jaipur",
             "state": "Rajasthan",
-            "about": "Specialist supplier of festive bullion coins and commemorative gifting pieces.",
-            "daily_capacity": "7kg",
-            "specialization": "Gold coins",
-            "hero_image_url": hero_images["bullion"],
+            "about": "Independent craft workshop with strong textured chain finishes and custom work.",
+            "daily_capacity": "4kg",
+            "specialization": "Hand-finished chains",
+            "hero_image_url": hero_images["artisan"],
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
-                ("Coins", "Lakshmi Gold Coin", "8.00", "24K", "Festival-ready gold coin with embossed motif.", product_images["coin"]),
+                {
+                    "category": "Chains",
+                    "subcategory": "Link Chain",
+                    "name": "Cuban Heavy Link Chain",
+                    "weight": "85.00",
+                    "purity": "22K",
+                    "price": "5680.00",
+                    "description": "Heavy link chain crafted for statement inventory.",
+                    "image_url": product_images["chain"],
+                    "attributes": {"length": "22 inch"},
+                },
             ],
         },
         {
-            "name": "Diamond Light House",
-            "category": "Retail",
+            "name": "Lustre Studio",
+            "category": "Design Studio",
             "tier_slug": "prime-circle",
-            "admin_priority": 34,
+            "admin_priority": 64,
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "about": "Modern studio focused on sleek silhouettes and polished presentation.",
+            "daily_capacity": "3kg",
+            "specialization": "Minimal chains",
+            "hero_image_url": hero_images["studio"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
+            "products": [
+                {
+                    "category": "Chains",
+                    "subcategory": "Snake Chain",
+                    "name": "Snake Skin Chain",
+                    "weight": "22.10",
+                    "purity": "18K",
+                    "price": "1450.00",
+                    "description": "Sleek snake chain styled for modern premium looks.",
+                    "image_url": product_images["chain"],
+                    "attributes": {"length": "16 inch"},
+                },
+            ],
+        },
+        {
+            "name": "Supply Co.",
+            "category": "Trade Supply",
+            "tier_slug": "prime-circle",
+            "admin_priority": 60,
             "city": "Surat",
             "state": "Gujarat",
-            "about": "Contemporary diamond studio supplying lightweight daily wear pieces.",
-            "daily_capacity": "5kg",
-            "specialization": "Diamond pendants",
-            "hero_image_url": hero_images["studio"],
+            "about": "Reliable trade supplier with ready-to-ship chain and coin inventory.",
+            "daily_capacity": "10kg",
+            "specialization": "Trade-ready chains and coins",
+            "hero_image_url": hero_images["warehouse"],
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": True},
             "products": [
-                ("Diamonds", "Petal Diamond Pendant", "3.25", "18K", "Lightweight pendant for premium daily wear.", product_images["diamond"]),
-            ],
-        },
-        {
-            "name": "Bangle Avenue",
-            "category": "Manufacturer",
-            "tier_slug": "prime-unique",
-            "admin_priority": 32,
-            "city": "Pune",
-            "state": "Maharashtra",
-            "about": "Mid-scale workshop producing stackable bangles for festive and bridal assortments.",
-            "daily_capacity": "6kg",
-            "specialization": "Bangles",
-            "hero_image_url": hero_images["artisan"],
-            "verification": {"gst_registered": True, "bis_hallmarked": False, "export_licensed": False},
-            "products": [
-                ("Bangles", "Petal Edge Bangles", "22.50", "22K", "Polished bridal bangles with floral edges.", product_images["bangle"]),
+                {
+                    "category": "Coins",
+                    "name": "Festival Gold Coin",
+                    "weight": "10.00",
+                    "purity": "24K",
+                    "price": "940.00",
+                    "description": "Premium embossed coin for festive gifting programs.",
+                    "image_url": product_images["coin"],
+                    "attributes": {"coin_weight": "10 g"},
+                },
+                {
+                    "category": "Chains",
+                    "subcategory": "Figaro",
+                    "name": "Figaro Trade Chain",
+                    "weight": "28.50",
+                    "purity": "22K",
+                    "price": "1980.00",
+                    "description": "Fast-moving Figaro chain for mixed retail assortments.",
+                    "image_url": product_images["chain"],
+                    "attributes": {"length": "18 inch"},
+                },
             ],
         },
     ]
@@ -864,19 +1137,36 @@ def _seed_directory(users: dict[str, object]) -> None:
                 {},
             )
 
-        for category_name, product_name, weight, purity, description, product_image_url in company_spec["products"]:
-            category = categories[category_name]
+        for product_spec in company_spec["products"]:
+            category = categories[product_spec["category"]]
+            subcategory = None
+            subcategory_name = product_spec.get("subcategory")
+            if subcategory_name:
+                subcategory = chain_subcategories[subcategory_name]
             product = _upsert(
                 Product,
-                {"company": company, "name": product_name},
+                {"company": company, "name": product_spec["name"]},
                 {
                     "category": category,
-                    "weight_grams": weight,
-                    "purity": purity,
-                    "description": description,
+                    "subcategory": subcategory,
+                    "weight_grams": product_spec["weight"],
+                    "purity": product_spec["purity"],
+                    "price": product_spec["price"],
+                    "description": product_spec["description"],
                     "is_active": True,
                 },
             )
+            seen_attribute_definition_ids: list[int] = []
+            for attribute_key, attribute_value in product_spec.get("attributes", {}).items():
+                definition = attribute_definitions[(product_spec["category"], attribute_key)]
+                ProductAttributeValue.objects.update_or_create(
+                    product=product,
+                    attribute_definition=definition,
+                    defaults={"value": attribute_value},
+                )
+                seen_attribute_definition_ids.append(definition.id)
+            if seen_attribute_definition_ids:
+                product.attribute_values.exclude(attribute_definition_id__in=seen_attribute_definition_ids).delete()
             product_slug = product.name.lower().replace(" ", "-")
             for image_index in range(1, 4):
                 product_asset = _seed_media_asset(
@@ -886,7 +1176,7 @@ def _seed_directory(users: dict[str, object]) -> None:
                     filename=f"{product_slug}-{image_index}.jpg",
                     visibility=MediaAsset.Visibility.PUBLIC,
                     moderation_status=MediaAsset.ModerationStatus.APPROVED,
-                    public_url=f"{product_image_url}?v={image_index}",
+                    public_url=f"{product_spec['image_url']}?v={image_index}",
                 )
                 _upsert(ProductImage, {"product": product, "asset": product_asset}, {})
 
