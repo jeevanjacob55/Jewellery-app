@@ -14,7 +14,6 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getMarketFeed, getMarketFilterConfig, searchMarketProducts } from "../../api/market";
@@ -363,7 +362,9 @@ export function MarketTiersScreen() {
         <View style={styles.searchHeader}>
           <View style={styles.searchRow}>
             <View style={styles.searchShell}>
-              <MaterialIcons name="search" size={20} color={ICON_MUTED} style={styles.searchIcon} />
+              <View style={styles.searchIcon}>
+                <SearchGlyph color={ICON_MUTED} />
+              </View>
               <TextInput
                 value={searchInput}
                 onChangeText={setSearchInput}
@@ -375,7 +376,7 @@ export function MarketTiersScreen() {
               />
             </View>
             <Pressable style={styles.filterButton} onPress={() => setIsFilterOpen(true)}>
-              <MaterialIcons name="tune" size={20} color={colors.surface} />
+              <TuneGlyph color={colors.surface} />
             </Pressable>
           </View>
 
@@ -428,7 +429,7 @@ export function MarketTiersScreen() {
                 <Text style={styles.resultsCount}>{`${resultCount} ${resultCount === 1 ? "Result" : "Results"}`}</Text>
                 <Pressable style={styles.sortButton} onPress={handleSortPress}>
                   <Text style={styles.sortLabel}>{`SORT BY: ${SORT_OPTIONS.find((option) => option.key === sort)?.label ?? "POPULARITY"}`}</Text>
-                  <MaterialIcons name="expand-more" size={14} color={SECTION_MUTED} />
+                  <ChevronDownGlyph color={SECTION_MUTED} />
                 </Pressable>
               </View>
 
@@ -627,7 +628,7 @@ function EstablishedCompanyCard({ item, onPress }: { item: MarketCompanyCard; on
         <Text style={styles.establishedCardTitle} numberOfLines={1}>
           {item.name}
         </Text>
-        {item.is_verified ? <MaterialIcons name="verified" size={14} color={colors.accentGold} /> : null}
+        {item.is_verified ? <VerifiedGlyph /> : null}
       </View>
     </Pressable>
   );
@@ -700,14 +701,14 @@ function MarketResultProductCard({
 
         <View style={styles.resultMetaRow}>
           <Text style={styles.resultMetaText}>{buildProductMeta(item)}</Text>
-          <MaterialIcons name="bookmark-border" size={18} color="#C7C7C7" />
+          <BookmarkGlyph color="#C7C7C7" />
         </View>
 
         {item.price ? (
           <View style={styles.resultPriceRow}>
             <Text style={styles.resultPrice}>{formatPrice(item.price)}</Text>
             <Pressable style={styles.plusButton}>
-              <MaterialIcons name="add" size={16} color={colors.text} />
+              <AddGlyph color={colors.text} />
             </Pressable>
           </View>
         ) : null}
@@ -739,8 +740,10 @@ function MarketEmptyState({
           <View style={styles.emptyBackLineNarrow} />
         </View>
         <View style={styles.emptyFrontCard}>
-          <MaterialIcons name="inventory" size={56} color="#D9D3D1" />
-          <MaterialIcons name="search-off" size={30} color={colors.accentGold} style={styles.emptyFrontIcon} />
+          <InventoryGlyph color="#D9D3D1" />
+          <View style={styles.emptyFrontIcon}>
+            <SearchOffGlyph color={colors.accentGold} />
+          </View>
         </View>
       </View>
 
@@ -849,7 +852,7 @@ function MarketFilterBottomSheet({
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Refine Search</Text>
             <Pressable style={styles.modalCloseButton} onPress={onClose}>
-              <MaterialIcons name="close" size={22} color="#6B7280" />
+              <CloseGlyph color="#6B7280" size={14} />
             </Pressable>
           </View>
 
@@ -1011,8 +1014,93 @@ function SelectedChipPill({ chip, onRemove }: { chip: SelectedFilterChip; onRemo
     <View style={[styles.selectedChip, chip.kind === "category" && styles.selectedChipGold]}>
       <Text style={styles.selectedChipText}>{chip.label}</Text>
       <Pressable onPress={onRemove} hitSlop={8}>
-        <MaterialIcons name="close" size={14} color={colors.surface} />
+        <CloseGlyph color={colors.surface} size={10} />
       </Pressable>
+    </View>
+  );
+}
+
+function SearchGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.searchGlyph}>
+      <View style={[styles.searchGlyphCircle, { borderColor: color }]} />
+      <View style={[styles.searchGlyphHandle, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+function TuneGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.tuneGlyph}>
+      <View style={[styles.tuneLineTop, { backgroundColor: color }]} />
+      <View style={[styles.tuneKnobTop, { backgroundColor: color }]} />
+      <View style={[styles.tuneLineMiddle, { backgroundColor: color }]} />
+      <View style={[styles.tuneKnobMiddle, { backgroundColor: color }]} />
+      <View style={[styles.tuneLineBottom, { backgroundColor: color }]} />
+      <View style={[styles.tuneKnobBottom, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+function ChevronDownGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.chevronGlyph}>
+      <View style={[styles.chevronLeft, { backgroundColor: color }]} />
+      <View style={[styles.chevronRight, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+function VerifiedGlyph() {
+  return (
+    <View style={styles.verifiedGlyph}>
+      <Text style={styles.verifiedGlyphText}>V</Text>
+    </View>
+  );
+}
+
+function BookmarkGlyph({ color }: { color: string }) {
+  return (
+    <View style={[styles.bookmarkGlyph, { borderColor: color }]}>
+      <View style={[styles.bookmarkNotchLeft, { backgroundColor: color }]} />
+      <View style={[styles.bookmarkNotchRight, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+function AddGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.addGlyph}>
+      <View style={[styles.addGlyphHorizontal, { backgroundColor: color }]} />
+      <View style={[styles.addGlyphVertical, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+function InventoryGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.inventoryGlyph}>
+      <View style={[styles.inventoryBox, { borderColor: color }]} />
+      <View style={[styles.inventoryLid, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+function SearchOffGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.searchOffGlyph}>
+      <View style={[styles.searchOffCircle, { borderColor: color }]} />
+      <View style={[styles.searchOffHandle, { backgroundColor: color }]} />
+      <View style={[styles.searchOffSlash, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+function CloseGlyph({ color, size }: { color: string; size: number }) {
+  return (
+    <View style={[styles.closeGlyph, { width: size, height: size }]}>
+      <View style={[styles.closeGlyphLine, { backgroundColor: color, width: size, transform: [{ rotate: "45deg" }] }]} />
+      <View style={[styles.closeGlyphLine, { backgroundColor: color, width: size, transform: [{ rotate: "-45deg" }] }]} />
     </View>
   );
 }
@@ -1416,7 +1504,7 @@ const styles = StyleSheet.create({
   homeProductGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.md,
+    justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
   },
   previewCard: {
@@ -1430,6 +1518,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+    marginBottom: spacing.md,
   },
   previewImage: {
     width: "100%",
@@ -1462,7 +1551,7 @@ const styles = StyleSheet.create({
   resultsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.md,
+    justifyContent: "space-between",
   },
   resultsHeader: {
     flexDirection: "row",
@@ -1498,6 +1587,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+    marginBottom: spacing.md,
   },
   resultImageWrap: {
     aspectRatio: 1,
@@ -1785,6 +1875,222 @@ const styles = StyleSheet.create({
   },
   optionChipTextSelected: {
     color: colors.surface,
+  },
+  searchGlyph: {
+    width: 14,
+    height: 14,
+    position: "relative",
+  },
+  searchGlyphCircle: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    borderWidth: 1.6,
+  },
+  searchGlyphHandle: {
+    position: "absolute",
+    right: 0,
+    bottom: 1,
+    width: 6,
+    height: 1.6,
+    borderRadius: 999,
+    transform: [{ rotate: "45deg" }],
+  },
+  tuneGlyph: {
+    width: 18,
+    height: 18,
+    position: "relative",
+  },
+  tuneLineTop: {
+    position: "absolute",
+    top: 3,
+    left: 1,
+    right: 1,
+    height: 1.8,
+    borderRadius: 999,
+  },
+  tuneKnobTop: {
+    position: "absolute",
+    top: 0,
+    left: 10,
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+  },
+  tuneLineMiddle: {
+    position: "absolute",
+    top: 8,
+    left: 1,
+    right: 1,
+    height: 1.8,
+    borderRadius: 999,
+  },
+  tuneKnobMiddle: {
+    position: "absolute",
+    top: 5,
+    left: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+  },
+  tuneLineBottom: {
+    position: "absolute",
+    top: 13,
+    left: 1,
+    right: 1,
+    height: 1.8,
+    borderRadius: 999,
+  },
+  tuneKnobBottom: {
+    position: "absolute",
+    top: 10,
+    left: 12,
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+  },
+  chevronGlyph: {
+    width: 10,
+    height: 6,
+    position: "relative",
+    marginTop: 2,
+  },
+  chevronLeft: {
+    position: "absolute",
+    left: 0,
+    top: 2,
+    width: 6,
+    height: 1.6,
+    borderRadius: 999,
+    transform: [{ rotate: "35deg" }],
+  },
+  chevronRight: {
+    position: "absolute",
+    right: 0,
+    top: 2,
+    width: 6,
+    height: 1.6,
+    borderRadius: 999,
+    transform: [{ rotate: "-35deg" }],
+  },
+  verifiedGlyph: {
+    width: 16,
+    height: 16,
+    borderRadius: 999,
+    backgroundColor: colors.accentGold,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  verifiedGlyphText: {
+    color: colors.surface,
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  bookmarkGlyph: {
+    width: 13,
+    height: 16,
+    borderWidth: 1.6,
+    borderBottomWidth: 0,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+    position: "relative",
+    overflow: "hidden",
+  },
+  bookmarkNotchLeft: {
+    position: "absolute",
+    bottom: -1,
+    left: -1,
+    width: 7,
+    height: 1.6,
+    transform: [{ rotate: "35deg" }],
+  },
+  bookmarkNotchRight: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    width: 7,
+    height: 1.6,
+    transform: [{ rotate: "-35deg" }],
+  },
+  addGlyph: {
+    width: 16,
+    height: 16,
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addGlyphHorizontal: {
+    width: 10,
+    height: 1.8,
+    borderRadius: 999,
+  },
+  addGlyphVertical: {
+    position: "absolute",
+    width: 1.8,
+    height: 10,
+    borderRadius: 999,
+  },
+  inventoryGlyph: {
+    width: 64,
+    height: 64,
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inventoryBox: {
+    width: 38,
+    height: 28,
+    borderWidth: 2.4,
+    borderRadius: 6,
+  },
+  inventoryLid: {
+    position: "absolute",
+    top: 14,
+    width: 28,
+    height: 2.4,
+    borderRadius: 999,
+  },
+  searchOffGlyph: {
+    width: 28,
+    height: 28,
+    position: "relative",
+  },
+  searchOffCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 999,
+    borderWidth: 2,
+    position: "absolute",
+    left: 2,
+    top: 2,
+  },
+  searchOffHandle: {
+    position: "absolute",
+    right: 4,
+    bottom: 6,
+    width: 8,
+    height: 2,
+    borderRadius: 999,
+    transform: [{ rotate: "45deg" }],
+  },
+  searchOffSlash: {
+    position: "absolute",
+    left: 4,
+    top: 13,
+    width: 18,
+    height: 2.2,
+    borderRadius: 999,
+    transform: [{ rotate: "-35deg" }],
+  },
+  closeGlyph: {
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  closeGlyphLine: {
+    position: "absolute",
+    height: 1.8,
+    borderRadius: 999,
   },
   purityGrid: {
     flexDirection: "row",
