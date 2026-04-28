@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
+import { getAdvertisements, recordAdClick, recordAdImpression } from "../../api/ads";
 import { getJson } from "../../api/client";
+import { AdvertisementCarousel } from "../../components/AdvertisementCarousel";
 import { AppHeader } from "../../components/AppHeader";
 import { AppScreen } from "../../components/AppScreen";
 import { ScreenState } from "../../components/ScreenState";
 import { useSession } from "../../session/SessionProvider";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
-import { DashboardData, NewsData } from "../../types/api";
+import { AdvertisementItem, DashboardData, NewsData } from "../../types/api";
+import { executeAdvertisementAction } from "../../utils/advertisements";
 import { formatCompactNumber, formatCurrency, formatDateTimeLabel } from "../../utils/format";
 
 type DashboardUpdate = {
@@ -25,10 +28,11 @@ export function HomeDashboardScreen() {
   const { guestSession, status, user } = useSession();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [newsData, setNewsData] = useState<NewsData | null>(null);
+  const [advertisements, setAdvertisements] = useState<AdvertisementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeDot, setActiveDot] = useState(0);
+  const viewedAdvertisementIdsRef = useRef<Set<number>>(new Set());
 
   async function loadDashboard(isRefresh = false) {
     if (isRefresh) {
@@ -38,12 +42,15 @@ export function HomeDashboardScreen() {
     }
 
     try {
-      const [nextDashboard, nextNews] = await Promise.all([
+      const [nextDashboard, nextNews, nextAdvertisements] = await Promise.all([
         getJson<DashboardData>("/dashboard/", status === "authenticated"),
         getJson<NewsData>("/news/", status === "authenticated"),
+        getAdvertisements("dashboard_hero").catch(() => ({ results: [] })),
       ]);
       setDashboard(nextDashboard);
       setNewsData(nextNews);
+      setAdvertisements(nextAdvertisements.results);
+      viewedAdvertisementIdsRef.current = new Set();
       setError(null);
     } catch {
       setError("Unable to load the dashboard right now.");
@@ -133,9 +140,28 @@ export function HomeDashboardScreen() {
       onPress: () => navigation.navigate("StateRates"),
     },
   ];
-  const bannerTag = newsData?.urgent_alert.title === "No active alerts" ? "FEATURED OFFER" : "ADVERTISEMENT";
-  const bannerTitle = newsData?.urgent_alert.title ?? "New Membership Perks";
-  const bannerBody = newsData?.urgent_alert.summary || "Exclusive access to trade analysis tools starting this month.";
+
+  async function handleAdvertisementVisible(advertisement: AdvertisementItem) {
+    if (viewedAdvertisementIdsRef.current.has(advertisement.id)) {
+      return;
+    }
+
+    viewedAdvertisementIdsRef.current.add(advertisement.id);
+    try {
+      await recordAdImpression(advertisement.id, { placement: "dashboard_hero" });
+    } catch {
+      // Impression tracking is best-effort and should never disrupt the dashboard.
+    }
+  }
+
+  async function handleAdvertisementPress(advertisement: AdvertisementItem) {
+    try {
+      await recordAdClick(advertisement.id, { placement: "dashboard_hero" });
+    } catch {
+      // Click tracking is best-effort and should never block navigation.
+    }
+    await executeAdvertisementAction(advertisement, navigation);
+  }
 
   return (
     <AppScreen
@@ -226,17 +252,7 @@ export function HomeDashboardScreen() {
         ))}
       </View>
 
-      <Pressable style={styles.bannerCard} onPress={() => navigation.navigate("News")}>
-        <View style={styles.bannerGlow} />
-        <Text style={styles.bannerTag}>{bannerTag}</Text>
-        <Text style={styles.bannerTitle}>{bannerTitle}</Text>
-        <Text style={styles.bannerText}>{bannerBody}</Text>
-        <View style={styles.dotRow}>
-          {[0, 1, 2].map((index) => (
-            <Pressable key={index} onPress={() => setActiveDot(index)} style={[styles.dot, index === activeDot && styles.activeDot]} />
-          ))}
-        </View>
-      </Pressable>
+      <AdvertisementCarousel advertisements={advertisements} onPress={handleAdvertisementPress} onVisible={handleAdvertisementVisible} />
 
       <View style={styles.globalCard}>
         <Text style={styles.sectionEyebrow}>GLOBAL TRENDS</Text>
@@ -549,66 +565,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 18,
     flex: 1,
-  },
-  bannerCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    minHeight: 150,
-    borderRadius: 14,
-    padding: 20,
-    overflow: "hidden",
-    backgroundColor: "#92400E",
-    justifyContent: "flex-end",
-  },
-  bannerGlow: {
-    position: "absolute",
-    top: 0,
-    right: -10,
-    width: 180,
-    height: 180,
-    borderRadius: 180,
-    backgroundColor: "rgba(251,191,36,0.18)",
-  },
-  bannerTag: {
-    alignSelf: "flex-start",
-    backgroundColor: "#D97706",
-    color: colors.surface,
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  bannerTitle: {
-    color: colors.surface,
-    fontSize: 20,
-    fontWeight: "800",
-    marginTop: 8,
-    lineHeight: 24,
-  },
-  bannerText: {
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 6,
-    maxWidth: 250,
-  },
-  dotRow: {
-    flexDirection: "row",
-    gap: 5,
-    marginTop: 16,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.4)",
-  },
-  activeDot: {
-    width: 16,
-    backgroundColor: colors.surface,
   },
   globalCard: {
     marginHorizontal: 16,

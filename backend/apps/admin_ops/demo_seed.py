@@ -8,7 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import AdminScopeAssignment, MemberProfile, NotificationPreference, UserRole
-from apps.ads.models import AdApproval, AdAsset, AdTargeting, Advertisement
+from apps.ads.models import AdApproval, AdAsset, AdClick, AdImpression, AdTargeting, Advertisement
 from apps.directory.models import (
     Company,
     CompanyImage,
@@ -108,6 +108,8 @@ def reset_demo_data() -> None:
     ReverseSearchAttachment.objects.all().delete()
     ReverseSearchResponse.objects.all().delete()
     ReverseSearchRequest.objects.all().delete()
+    AdClick.objects.all().delete()
+    AdImpression.objects.all().delete()
     AdApproval.objects.all().delete()
     AdAsset.objects.all().delete()
     AdTargeting.objects.all().delete()
@@ -1262,51 +1264,122 @@ def _seed_news() -> None:
 
 
 def _seed_ads(users: dict[str, object], hierarchy: dict[str, dict[str, object]]) -> None:
-    advertisement = _upsert(
-        Advertisement,
-        {"advertiser": users["advertiser"], "title": "Akshaya Tritiya Launch Banner"},
+    current_time = timezone.now()
+    campaign_specs = [
         {
-            "reach": "state",
-            "status": "approved",
-            "starts_at": timezone.localdate(),
-            "ends_at": timezone.localdate() + timedelta(days=14),
-        },
-    )
-    _upsert(
-        AdTargeting,
-        {"advertisement": advertisement},
-        {
-            "state": hierarchy["states"]["Kerala"],
-            "association": hierarchy["associations"]["KGSMA"],
-            "district_operational_unit": hierarchy["district_units"]["Ernakulam District Unit"],
-            "unit": hierarchy["units"]["Kadavanthra Unit"],
-        },
-    )
-    ad_asset = _seed_media_asset(
-        object_key=f"ads/{users['advertiser'].id}/akshaya-tritiya-launch-banner.jpg",
-        uploader=users["advertiser"],
-        bucket_name="demo-private-media",
-        filename="akshaya-tritiya-launch-banner.jpg",
-        visibility=MediaAsset.Visibility.PRIVATE,
-        moderation_status=MediaAsset.ModerationStatus.APPROVED,
-    )
-    _upsert(
-        AdAsset,
-        {"advertisement": advertisement},
-        {
-            "asset": ad_asset,
-            "placement": "dashboard_hero",
-        },
-    )
-    _upsert(
-        AdApproval,
-        {"advertisement": advertisement},
-        {
-            "approved_by": users["admin"],
+            "title": "Akshaya Tritiya Launch Banner",
+            "description": "Preview festive collection drops and early member-only offers before the seasonal rush.",
+            "background_color": "#92400E",
+            "priority": 120,
+            "filename": "akshaya-tritiya-launch-banner.jpg",
+            "public_url": "https://placehold.co/1200x675/92400E/FFF7ED?text=Akshaya+Tritiya+Launch",
+            "action_type": Advertisement.ActionType.EXTERNAL_URL,
+            "action_payload": {"url": "https://example.com/akshaya-tritiya"},
             "notes": "Creative approved for premium dashboard placement.",
-            "approved_at": timezone.now(),
         },
-    )
+        {
+            "title": "Temple Cascade Necklace Spotlight",
+            "description": "Jump directly to a bestselling bridal product from Regal Necklace Works.",
+            "background_color": "#1F3A5F",
+            "priority": 95,
+            "filename": "temple-cascade-necklace.jpg",
+            "public_url": "https://placehold.co/1200x675/1F3A5F/F8FAFC?text=Temple+Cascade+Necklace",
+            "action_type": Advertisement.ActionType.PRODUCT,
+            "action_payload": {"product_id": Product.objects.get(name="Temple Cascade Necklace").id, "company_id": Company.objects.get(name="Regal Necklace Works").id},
+            "notes": "Approved product spotlight for dashboard rotation.",
+        },
+        {
+            "title": "Explore Coastal Bullion Works",
+            "description": "Open the company profile to browse verification and active product listings.",
+            "background_color": "#0F766E",
+            "priority": 88,
+            "filename": "coastal-bullion-works.jpg",
+            "public_url": "https://placehold.co/1200x675/0F766E/ECFEFF?text=Coastal+Bullion+Works",
+            "action_type": Advertisement.ActionType.COMPANY,
+            "action_payload": {"company_id": Company.objects.get(name="Coastal Bullion Works").id},
+            "notes": "Approved company showcase for dashboard rotation.",
+        },
+        {
+            "title": "Browse Ring Collections",
+            "description": "Take shoppers to the product search flow filtered to rings.",
+            "background_color": "#7C3AED",
+            "priority": 74,
+            "filename": "browse-ring-collections.jpg",
+            "public_url": "https://placehold.co/1200x675/7C3AED/F5F3FF?text=Browse+Ring+Collections",
+            "action_type": Advertisement.ActionType.CATEGORY,
+            "action_payload": {"category": "Rings"},
+            "notes": "Approved category campaign for dashboard rotation.",
+        },
+        {
+            "title": "Open the Market Directory",
+            "description": "Navigate members to the live market feed from a dashboard promotion.",
+            "background_color": "#B45309",
+            "priority": 60,
+            "filename": "open-market-directory.jpg",
+            "public_url": "https://placehold.co/1200x675/B45309/FFFBEB?text=Open+the+Market+Directory",
+            "action_type": Advertisement.ActionType.INTERNAL_SCREEN,
+            "action_payload": {"screen": "Market", "params": {}},
+            "notes": "Approved internal navigation campaign.",
+        },
+    ]
+
+    for spec in campaign_specs:
+        advertisement = _upsert(
+            Advertisement,
+            {"advertiser": users["advertiser"], "title": spec["title"]},
+            {
+                "description": spec["description"],
+                "label_text": "ADVERTISEMENT",
+                "background_color": spec["background_color"],
+                "placement": Advertisement.Placement.DASHBOARD_HERO,
+                "action_type": spec["action_type"],
+                "action_payload": spec["action_payload"],
+                "priority": spec["priority"],
+                "is_active": True,
+                "reach": "state",
+                "status": Advertisement.Status.APPROVED,
+                "start_date": current_time - timedelta(days=1),
+                "end_date": current_time + timedelta(days=21),
+                "approved_by": users["admin"],
+                "approved_at": current_time,
+            },
+        )
+        _upsert(
+            AdTargeting,
+            {"advertisement": advertisement},
+            {
+                "state": hierarchy["states"]["Kerala"],
+                "association": hierarchy["associations"]["KGSMA"],
+                "district_operational_unit": hierarchy["district_units"]["Ernakulam District Unit"],
+                "unit": hierarchy["units"]["Kadavanthra Unit"],
+            },
+        )
+        ad_asset = _seed_media_asset(
+            object_key=f"ads/{users['advertiser'].id}/{spec['filename']}",
+            uploader=users["advertiser"],
+            bucket_name="demo-public-media",
+            filename=spec["filename"],
+            visibility=MediaAsset.Visibility.PUBLIC,
+            moderation_status=MediaAsset.ModerationStatus.APPROVED,
+            public_url=spec["public_url"],
+        )
+        _upsert(
+            AdAsset,
+            {"advertisement": advertisement},
+            {
+                "asset": ad_asset,
+                "placement": Advertisement.Placement.DASHBOARD_HERO,
+            },
+        )
+        _upsert(
+            AdApproval,
+            {"advertisement": advertisement},
+            {
+                "approved_by": users["admin"],
+                "notes": spec["notes"],
+                "approved_at": current_time,
+            },
+        )
 
 
 def _seed_reverse_search(users: dict[str, object]) -> None:

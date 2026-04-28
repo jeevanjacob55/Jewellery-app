@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-container": "#747676",
+                        "surface-container": "#f1edec",
+                        "tertiary-container": "#ffffff",
+                        "surface-container-low": "#f6f3f2",
+                        "primary-container": "#ffffff",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "on-primary-fixed-variant": "#454747",
+                        "surface-container-high": "#ebe7e7",
+                        "surface-tint": "#5d5f5f",
+                        "secondary-container": "#dcdddd",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "error": "#ba1a1a",
+                        "secondary-fixed": "#e2e2e2",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "inverse-surface": "#313030",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e5e2e1",
+                        "tertiary": "#5d5f5f",
+                        "primary": "#5d5f5f",
+                        "inverse-primary": "#c6c6c7",
+                        "on-secondary-container": "#5f6161",
+                        "error-container": "#ffdad6",
+                        "secondary": "#5d5f5f",
+                        "on-primary-container": "#747676",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1c1b1b",
+                        "outline-variant": "#c4c7c8",
+                        "on-error-container": "#93000a",
+                        "surface-variant": "#e5e2e1",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "outline": "#747878",
+                        "on-surface-variant": "#444748",
+                        "on-background": "#1c1b1b",
+                        "surface-dim": "#ddd9d9",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "inverse-on-surface": "#f4f0ef",
+                        "surface-bright": "#fcf8f8",
+                        "on-secondary-fixed-variant": "#454747",
+                        "background": "#fcf8f8",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "surface": "#fcf8f8",
+                        "primary-fixed": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "base": "8px",
+                        "container-margin": "24px",
+                        "xl": "48px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "h1": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "data-tabular": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "h2": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                        "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-white dark:bg-zinc-950 border-b border-zinc-100 dark:border-zinc-800 shadow-[0px_4px_20px_rgba(26,26,26,0.05)] font-inter antialiased tracking-tight">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-zinc-900 dark:text-zinc-50 cursor-pointer active:opacity-80 transition-opacity">menu</span>
+<span class="text-lg font-bold uppercase tracking-widest text-zinc-900 dark:text-zinc-50">Jewellery Association</span>
+</div>
+<div class="w-10 h-10 rounded-full overflow-hidden bg-zinc-200 active:opacity-80 transition-opacity">
+<img alt="user_profile_photo" class="w-full h-full object-cover" data-alt="professional headshot of a middle-aged corporate executive with a clean background and neutral lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4UiCHVM-2KwoQtksc0iAjgt7feXGsbCA1IHbnCpraRdP5zNQRnZCadcK7v7d-tjHzolZOaXfdcRN3zIozjdvM_DCullyjpxfhfKh1JhctgOPTsW-w5IehXnztLBRbWXrz-YG-A2hNKVr8MjlHkQ7Tq6yFjWIBxtX6yPMPCkzCyo4-7ZRREzad2q7BVltexguoVYwHpomblN-3PKKgy7UrkqKJdiGPbDyV4WwZMXhoUoXXd03WRPTKtuadYsh8TxakVnyDufIdVVE"/>
+</div>
+</header>
+<!-- Side Navigation Drawer (Hidden on Mobile) -->
+<aside class="fixed left-0 top-0 h-full hidden md:flex flex-col p-4 z-40 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 w-72 pt-20">
+<div class="flex items-center gap-3 px-4 mb-8">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-zinc-200 shadow-sm border-2 border-white">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="close up profile photo of a male professional in a suit for a corporate profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0uocIp5j1oM_QqsCZ5WjgT6_v2HTsxyYNetd2P7gpmKZtTJlmuSJybYPJ76innHO3-5KW5-K4-v8iCsJC9DfoyCJbQu-HQg-BBNuHM16KgJsfrCpdX0p5p6gxQ51AKxdsZjuKYhRRMigtsI0g91AQEtRLYNGoJ3XP_4yiAaSyyUDx4dCV2T0y1j-TG9ud807TckNvrNYVs90qVIeRSlFfQwoM37XSyzbBhnZZZy68UBm-fjd2dbZwR8WJiYWZ9hbzIQSHLNpMb_Y"/>
+</div>
+<div>
+<h4 class="text-zinc-900 dark:text-zinc-50 font-inter text-sm font-bold">Association Member</h4>
+<p class="text-zinc-600 dark:text-zinc-400 font-inter text-xs">Premium Tier</p>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400 border-r-4 border-amber-500 shadow-sm font-inter text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 font-inter text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">business</span>
+<span>Company Profile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 font-inter text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-amber-600" data-weight="fill" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+<span>Membership Plans</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 font-inter text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span>Trade Data</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 font-inter text-sm font-medium transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Canvas -->
+<main class="pt-24 pb-20 md:pb-8 px-container-margin md:ml-72 min-h-screen">
+<div class="max-w-6xl mx-auto space-y-lg">
+<!-- Profile Header Section -->
+<section class="flex flex-col md:flex-row md:items-center justify-between gap-md mb-xl">
+<div class="flex items-center gap-lg">
+<div class="relative">
+<div class="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-white shadow-xl">
+<img alt="Jeevan Jacob" class="w-full h-full object-cover" data-alt="close up profile photo of a male professional in a suit for a corporate profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXZoSWlM_p1o6iVpeGbzhLQA5pJok9oiLXoItOq3veYifJ4_o7xc1qQ5ZP0R4pCQ19ZtEOARLa-t2YJ76aIIQhtQj02s-UQL2Ts_T6oLipkp4jH72AWmnYx_vtLZ-B4EJEg3WUUFud-UohHHP6L1t629ja1d8JbEaWY1wIjzw7ztSBna6UTLbTDp-LenJmnnGlltnX3LKznmVXS1F7ncfmNGG9qVSbuDtJQ70v93AN0-eueSnRvCf9Lhkt1tH1yCqVy3FVCyhOlNI"/>
+</div>
+<div class="absolute bottom-1 right-1 bg-amber-500 text-white p-1 rounded-full border-2 border-white flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<div>
+<h1 class="font-h1 text-h1 text-on-background">Jeevan Jacob</h1>
+<div class="flex flex-wrap items-center gap-3 mt-1">
+<span class="font-body-sm text-body-sm bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">Company Admin</span>
+<span class="flex items-center gap-1 font-body-sm text-body-sm text-on-tertiary-container">
+<span class="material-symbols-outlined text-[16px]">location_on</span>
+                                Thrissur, India
+                            </span>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- Company Card (Primary Focus) -->
+<div class="md:col-span-8 bg-white shadow-[0px_4px_20px_rgba(26,26,26,0.05)] p-lg flex flex-col justify-between min-h-[280px]">
+<div class="flex justify-between items-start">
+<div>
+<span class="font-label-caps text-label-caps text-on-tertiary-container uppercase">Organisation</span>
+<h2 class="font-h2 text-h2 mt-1">ABC Jewellers</h2>
+</div>
+<div class="bg-amber-50 px-3 py-1 rounded flex items-center gap-2 border border-amber-100">
+<span class="material-symbols-outlined text-amber-600 text-[18px]" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+<span class="font-data-tabular text-amber-700 text-data-tabular">Prime Elite Plan</span>
+</div>
+</div>
+<div class="my-lg">
+<div class="flex justify-between items-end mb-2">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Product Usage Capacity</span>
+<span class="font-data-tabular text-data-tabular text-on-surface">5 / 7 Items</span>
+</div>
+<div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+<div class="bg-zinc-900 h-full w-[71.4%]"></div>
+</div>
+</div>
+<div class="flex flex-wrap gap-md mt-auto">
+<button class="bg-zinc-900 text-white px-6 py-2.5 font-data-tabular text-data-tabular rounded-lg shadow-sm active:scale-95 transition-transform">Manage Products</button>
+<button class="bg-white border border-zinc-200 text-zinc-900 px-6 py-2.5 font-data-tabular text-data-tabular rounded-lg hover:bg-zinc-50 active:scale-95 transition-transform">View Plan</button>
+</div>
+</div>
+<!-- Association Card -->
+<div class="md:col-span-4 bg-white shadow-[0px_4px_20px_rgba(26,26,26,0.05)] p-lg flex flex-col">
+<span class="font-label-caps text-label-caps text-on-tertiary-container uppercase">Association</span>
+<div class="mt-4 flex flex-col items-center text-center space-y-md">
+<div class="w-20 h-20 rounded-xl bg-surface-container-low flex items-center justify-center border border-surface-container-high overflow-hidden">
+<img alt="AKGSMA logo" class="w-16 h-16 object-contain mix-blend-multiply" data-alt="minimalist circular logo emblem for a gold association on a clean background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnGXeBAQPsw3bVI0NWESZCtRB912uy2BQ9noAg0wq0vQ3aanMO1LyJ6FLg0zY708dMxKGioYTp1PThj8QfnPWDLFW00AlHj_W036Q6Pjqcya0BLv-8yhuMeolafrohCdnCd7JcdBU4pTyKaIZt9XZcEgej1icOrxtCNs3D7MRSZRVBL3Xs5R3KpqRNDkWr6al4pTjhZB8itgJdNJBEAoqbPELkd_LoOfRnpit2ZecGAsGSH7JRPoq5Ps9ONnbyHDwoB_C-kiHV7sA"/>
+</div>
+<div>
+<h3 class="font-h3 text-h3">AKGSMA</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Thrissur Unit</p>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full border border-green-100">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-[12px] font-bold">Verified Member</span>
+</div>
+</div>
+</div>
+<!-- Quick Actions Bento Item -->
+<div class="md:col-span-6 bg-surface-container-low p-lg border border-surface-container-high">
+<h3 class="font-h3 text-h3 mb-md">Quick Actions</h3>
+<div class="grid grid-cols-3 gap-md">
+<button class="bg-white p-4 rounded-xl shadow-sm border border-transparent hover:border-amber-500 transition-colors flex flex-col items-center gap-2 group">
+<div class="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-600 group-hover:text-amber-600">
+<span class="material-symbols-outlined">inventory_2</span>
+</div>
+<span class="font-body-sm text-body-sm font-medium">Products</span>
+</button>
+<button class="bg-white p-4 rounded-xl shadow-sm border border-transparent hover:border-amber-500 transition-colors flex flex-col items-center gap-2 group">
+<div class="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-600 group-hover:text-amber-600">
+<span class="material-symbols-outlined">groups</span>
+</div>
+<span class="font-body-sm text-body-sm font-medium">Meetings</span>
+</button>
+<button class="bg-white p-4 rounded-xl shadow-sm border border-transparent hover:border-amber-500 transition-colors flex flex-col items-center gap-2 group">
+<div class="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-600 group-hover:text-amber-600">
+<span class="material-symbols-outlined">newspaper</span>
+</div>
+<span class="font-body-sm text-body-sm font-medium">News</span>
+</button>
+</div>
+</div>
+<!-- Admin Control Card -->
+<div class="md:col-span-6 bg-zinc-900 text-white p-lg flex items-center justify-between shadow-xl">
+<div class="flex items-center gap-lg">
+<div class="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700">
+<span class="material-symbols-outlined text-amber-500" style="font-variation-settings: 'FILL' 1;">admin_panel_settings</span>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-white">Association Admin</h3>
+<p class="text-zinc-400 text-body-sm">Global governance access</p>
+</div>
+</div>
+<button class="bg-white text-zinc-900 px-4 py-2 font-data-tabular text-data-tabular rounded hover:bg-zinc-100 flex items-center gap-2 transition-colors">
+                        Open Admin Panel
+                        <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Market Tickers Section (Contextual Utility) -->
+<section class="mt-xl pt-lg border-t border-surface-container-high">
+<h3 class="font-label-caps text-label-caps text-on-tertiary-container mb-md uppercase">Live Market Indicators</h3>
+<div class="flex overflow-x-auto gap-gutter pb-4 no-scrollbar">
+<div class="flex-shrink-0 bg-white p-4 min-w-[180px] shadow-sm flex flex-col gap-1">
+<span class="text-zinc-500 text-[12px] font-medium">Gold (24K/10g)</span>
+<div class="flex items-center gap-2">
+<span class="font-data-tabular text-lg">₹62,450</span>
+<div class="flex items-center text-green-600 text-[12px] font-bold">
+<span class="material-symbols-outlined text-[14px]">arrow_drop_up</span>
+                                0.4%
+                            </div>
+</div>
+</div>
+<div class="flex-shrink-0 bg-white p-4 min-w-[180px] shadow-sm flex flex-col gap-1">
+<span class="text-zinc-500 text-[12px] font-medium">Silver (1kg)</span>
+<div class="flex items-center gap-2">
+<span class="font-data-tabular text-lg">₹74,200</span>
+<div class="flex items-center text-red-600 text-[12px] font-bold">
+<span class="material-symbols-outlined text-[14px]">arrow_drop_down</span>
+                                0.1%
+                            </div>
+</div>
+</div>
+<div class="flex-shrink-0 bg-white p-4 min-w-[180px] shadow-sm flex flex-col gap-1">
+<span class="text-zinc-500 text-[12px] font-medium">Platinum (1g)</span>
+<div class="flex items-center gap-2">
+<span class="font-data-tabular text-lg">₹2,845</span>
+<div class="flex items-center text-green-600 text-[12px] font-bold">
+<span class="material-symbols-outlined text-[14px]">arrow_drop_up</span>
+                                1.2%
+                            </div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 px-4 md:hidden bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-t border-zinc-100 dark:border-zinc-800 shadow-[0_-4px_20px_rgba(26,26,26,0.05)]">
+<a class="flex flex-col items-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter">Home</span>
+</a>
+<a class="flex flex-col items-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">currency_exchange</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter">Market</span>
+</a>
+<a class="flex flex-col items-center text-amber-600 dark:text-amber-400 scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter">Account</span>
+</a>
+<a class="flex flex-col items-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">help_center</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter">Support</span>
+</a>
+</nav>
+</body></html>

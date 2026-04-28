@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Company Plan Details</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-container": "#747676",
+                    "surface-container": "#f1edec",
+                    "tertiary-container": "#ffffff",
+                    "surface-container-low": "#f6f3f2",
+                    "primary-container": "#ffffff",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "on-primary-fixed-variant": "#454747",
+                    "surface-container-high": "#ebe7e7",
+                    "surface-tint": "#5d5f5f",
+                    "secondary-container": "#dcdddd",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "error": "#ba1a1a",
+                    "secondary-fixed": "#e2e2e2",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "inverse-surface": "#313030",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-highest": "#e5e2e1",
+                    "tertiary": "#5d5f5f",
+                    "primary": "#5d5f5f",
+                    "inverse-primary": "#c6c6c7",
+                    "on-secondary-container": "#5f6161",
+                    "error-container": "#ffdad6",
+                    "secondary": "#5d5f5f",
+                    "on-primary-container": "#747676",
+                    "on-secondary": "#ffffff",
+                    "on-surface": "#1c1b1b",
+                    "outline-variant": "#c4c7c8",
+                    "on-error-container": "#93000a",
+                    "surface-variant": "#e5e2e1",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "tertiary-fixed": "#e2e2e2",
+                    "on-tertiary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "outline": "#747878",
+                    "on-surface-variant": "#444748",
+                    "on-background": "#1c1b1b",
+                    "surface-dim": "#ddd9d9",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "inverse-on-surface": "#f4f0ef",
+                    "surface-bright": "#fcf8f8",
+                    "on-secondary-fixed-variant": "#454747",
+                    "background": "#fcf8f8",
+                    "on-primary-fixed": "#1a1c1c",
+                    "on-primary": "#ffffff",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "surface": "#fcf8f8",
+                    "primary-fixed": "#e2e2e2",
+                    "gold-accent": "#D4AF37"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "md": "16px",
+                    "xs": "4px",
+                    "lg": "24px",
+                    "base": "8px",
+                    "container-margin": "24px",
+                    "xl": "48px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "h3": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "h1": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "data-tabular": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "h2": ["Inter"]
+            },
+            "fontSize": {
+                    "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                    "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                    "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fcf8f8;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-white dark:bg-zinc-950 font-inter antialiased tracking-tight shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border-b border-zinc-100">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-zinc-900 active:opacity-80 transition-opacity">menu</button>
+<span class="text-lg font-bold uppercase tracking-widest text-zinc-900">Jewellery Association</span>
+</div>
+<div class="h-10 w-10 rounded-full overflow-hidden border border-zinc-200">
+<img alt="user_profile_photo" data-alt="professional portrait of a corporate executive in a suit with neutral background and clean lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpFIywiYg1rJ_VO007XzuYD6dNvkQrw2c-foXSX70duPutvPLe6s7Jy_mO76TluqRGVAc4rcrZBRFbRgXGwL3CGDJ07CVQJArRcBcUhYo4Dq8NEBWJzh5rTsf7vnjutGOPHGqNsOEXn5L7YFm2x_xuPI_i-Qsuu7fUDTxaHNr6F55m8ef3MrmyBYg9JqOCZwKEZsd3RjEDl2XmS10sq9xB3t427Fn9Zt0yQw4ZzBBW6b8z1kDrGqs-K5lSV4JhUTjlIXjWYbptIfI"/>
+</div>
+</header>
+<!-- NavigationDrawer (Desktop Only) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col p-4 z-40 bg-zinc-50 border-r border-zinc-200 w-72 hidden md:flex pt-20">
+<div class="flex flex-col gap-1 mb-8 px-2">
+<div class="flex items-center gap-3 mb-4">
+<div class="h-12 w-12 rounded-lg bg-white shadow-sm flex items-center justify-center border border-zinc-100">
+<span class="material-symbols-outlined text-amber-600" style="font-variation-settings: 'FILL' 1;">business</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-zinc-900">Association Member</h4>
+<p class="text-xs text-zinc-500">Premium Tier</p>
+</div>
+</div>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-600 font-inter text-sm font-medium hover:bg-zinc-100 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span> Dashboard
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white text-amber-600 font-inter text-sm font-medium border-r-4 border-amber-500 shadow-sm transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="business" style="font-variation-settings: 'FILL' 1;">business</span> Company Profile
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-600 font-inter text-sm font-medium hover:bg-zinc-100 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="workspace_premium">workspace_premium</span> Membership Plans
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-600 font-inter text-sm font-medium hover:bg-zinc-100 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span> Trade Data
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-600 font-inter text-sm font-medium hover:bg-zinc-100 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span> Settings
+            </a>
+</nav>
+</aside>
+<!-- Main Canvas -->
+<main class="md:ml-72 pt-24 pb-24 px-6 md:px-12">
+<div class="max-w-6xl mx-auto">
+<!-- Header Section -->
+<div class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<span class="font-label-caps text-label-caps text-on-tertiary-container mb-2 block">ACCOUNT MANAGEMENT</span>
+<h1 class="font-h1 text-h1 text-on-surface">Company Plan Details</h1>
+</div>
+<div class="flex gap-4">
+<button class="px-6 py-3 border border-zinc-200 text-on-background font-medium rounded-lg hover:bg-zinc-50 transition-colors">
+                        View Plan History
+                    </button>
+<button class="px-6 py-3 bg-zinc-900 text-white font-medium rounded-lg hover:bg-zinc-800 transition-colors">
+                        Manage Billing
+                    </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- Active Plan Card -->
+<div class="md:col-span-8 bg-white p-lg rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-transparent">
+<div class="flex items-start justify-between mb-8">
+<div>
+<span class="text-xs font-bold text-amber-600 uppercase tracking-widest mb-1 block">Active Plan</span>
+<h2 class="font-h2 text-h2 text-on-surface">Prime Elite</h2>
+</div>
+<div class="px-3 py-1 bg-zinc-900 text-white text-[10px] font-bold uppercase rounded-full">Annual Billing</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8">
+<div>
+<p class="font-label-caps text-label-caps text-on-tertiary-container mb-1">VISIBILITY STATUS</p>
+<div class="flex items-center gap-2">
+<span class="font-h3 text-h3 text-on-surface">Pro/Medium</span>
+<span class="material-symbols-outlined text-green-600 text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-on-tertiary-container mb-1">NEXT BILLING DATE</p>
+<p class="font-h3 text-h3 text-on-surface">October 24, 2024</p>
+</div>
+</div>
+<div class="pt-8 border-t border-zinc-100">
+<div class="flex justify-between items-end mb-4">
+<div>
+<p class="font-label-caps text-label-caps text-on-tertiary-container mb-1">PRODUCT USAGE</p>
+<p class="font-data-tabular text-data-tabular text-on-surface">5 of 7 Products Listed</p>
+</div>
+<span class="text-xs font-bold text-on-surface">72%</span>
+</div>
+<div class="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
+<div class="h-full bg-amber-500 rounded-full" style="width: 72%;"></div>
+</div>
+</div>
+</div>
+<!-- Limits Card -->
+<div class="md:col-span-4 bg-zinc-50 p-lg rounded-xl border border-zinc-100">
+<h3 class="font-h3 text-h3 text-on-surface mb-6">Plan Limits</h3>
+<ul class="space-y-6">
+<li class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-zinc-500">inventory_2</span>
+<span class="font-body-sm text-body-sm text-on-surface">Max Products</span>
+</div>
+<span class="font-data-tabular text-data-tabular text-on-surface font-bold">7</span>
+</li>
+<li class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-zinc-500">image</span>
+<span class="font-body-sm text-body-sm text-on-surface">Photos per product</span>
+</div>
+<span class="font-data-tabular text-data-tabular text-on-surface font-bold">3-5</span>
+</li>
+<li class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-zinc-500">group</span>
+<span class="font-body-sm text-body-sm text-on-surface">Team Seats</span>
+</div>
+<span class="font-data-tabular text-data-tabular text-on-surface font-bold">12</span>
+</li>
+<li class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-zinc-500">public</span>
+<span class="font-body-sm text-body-sm text-on-surface">Global Reach</span>
+</div>
+<span class="material-symbols-outlined text-green-600" style="font-variation-settings: 'FILL' 1;">check</span>
+</li>
+</ul>
+<button class="w-full mt-8 py-3 bg-white border border-zinc-200 text-zinc-900 font-bold text-xs uppercase tracking-widest rounded-lg hover:border-amber-500 transition-colors">
+                        Upgrade Limits
+                    </button>
+</div>
+<!-- Feature Cards -->
+<div class="md:col-span-6 bg-white p-lg rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] flex gap-6 items-start">
+<div class="h-14 w-14 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-blue-600" style="font-variation-settings: 'FILL' 1;">shield_with_heart</span>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface mb-2">Trade Protection</h3>
+<p class="font-body-sm text-body-sm text-on-tertiary-container mb-4">Secured escrow and authentication services for all association transactions. Active and monitored.</p>
+<a class="text-xs font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1 hover:underline" href="#">
+                            View Policy <span class="material-symbols-outlined text-xs">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="md:col-span-6 bg-white p-lg rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] flex gap-6 items-start">
+<div class="h-14 w-14 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-amber-600" style="font-variation-settings: 'FILL' 1;">analytics</span>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-on-surface mb-2">Market Analytics</h3>
+<p class="font-body-sm text-body-sm text-on-tertiary-container mb-4">Deep insights into precious metal pricing and diamond market trends. Real-time data feed active.</p>
+<a class="text-xs font-bold text-amber-600 uppercase tracking-widest flex items-center gap-1 hover:underline" href="#">
+                            Open Dashboard <span class="material-symbols-outlined text-xs">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Image Section - Aesthetic Decorative -->
+<div class="md:col-span-12 h-64 rounded-xl overflow-hidden relative group">
+<img class="w-full h-full object-cover grayscale opacity-20 group-hover:opacity-30 transition-opacity duration-700" data-alt="extreme close-up of polished gold bar surfaces reflecting soft ambient light in a luxury corporate setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJ2U_yb9Ri6C4z1zRJ-7PZu7uRO-AVMkUmGXdMpEddK5sroSp206yrsljxoVBRZrPfsy9p6dKLDoZXzIl6nSHc8POBcUNbN5ViSCbKepJ3kX2pGG5sa-iP75Km-LEqRTz1Oa0_Q3rN5J9qvS9z0zgQudpKgnrrXHkg1pYagYhVTE39KmK6C1ADmoiK7ALndlEgtR4k-KPQwHhYToE8TKn2syd_ZggMKWQR2OicGSddeeBrBGEJ7fd7odDl6BArZQxsiMjoW1oi2eE"/>
+<div class="absolute inset-0 bg-gradient-to-r from-zinc-900/10 to-transparent flex items-center px-12">
+<div class="max-w-md">
+<h4 class="text-white font-h2 text-h2 mb-2">Professional Growth</h4>
+<p class="text-zinc-400 font-body-sm text-body-sm">Your Prime Elite status grants you priority access to the upcoming International Jewellery Summit.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 px-4 md:hidden bg-white/90 backdrop-blur-md border-t border-zinc-100 shadow-[0_-4px_20px_rgba(26,26,26,0.05)]">
+<a class="flex flex-col items-center text-zinc-400" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center text-zinc-400" href="#">
+<span class="material-symbols-outlined" data-icon="currency_exchange">currency_exchange</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter mt-1">Market</span>
+</a>
+<a class="flex flex-col items-center text-amber-600" href="#">
+<span class="material-symbols-outlined" data-icon="person" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter mt-1">Account</span>
+</a>
+<a class="flex flex-col items-center text-zinc-400" href="#">
+<span class="material-symbols-outlined" data-icon="help_center">help_center</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter mt-1">Support</span>
+</a>
+</nav>
+</body></html>

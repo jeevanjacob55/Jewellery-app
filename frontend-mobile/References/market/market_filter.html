@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#fcf8f8",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-surface": "#1c1b1b",
+                        "on-primary-fixed-variant": "#454747",
+                        "surface-container": "#f1edec",
+                        "on-error": "#ffffff",
+                        "surface-bright": "#fcf8f8",
+                        "tertiary-container": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-container": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#444748",
+                        "error": "#ba1a1a",
+                        "surface-variant": "#e5e2e1",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "surface-container-low": "#f6f3f2",
+                        "surface-tint": "#5d5f5f",
+                        "inverse-primary": "#c6c6c7",
+                        "outline-variant": "#c4c7c8",
+                        "primary": "#5d5f5f",
+                        "inverse-surface": "#313030",
+                        "background": "#fcf8f8",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "on-secondary-container": "#5f6161",
+                        "on-background": "#1c1b1b",
+                        "secondary-container": "#dcdddd",
+                        "surface-container-highest": "#e5e2e1",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "primary-fixed": "#e2e2e2",
+                        "on-primary-container": "#747676",
+                        "outline": "#747878",
+                        "on-secondary-fixed-variant": "#454747",
+                        "surface-container-high": "#ebe7e7",
+                        "inverse-on-surface": "#f4f0ef",
+                        "tertiary": "#5d5f5f",
+                        "surface-dim": "#ddd9d9",
+                        "secondary": "#5d5f5f",
+                        "on-tertiary-container": "#747676",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "brand-gold": "#D4AF37"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-margin": "24px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "xl": "48px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "h1": ["Inter"],
+                        "h3": ["Inter"],
+                        "h2": ["Inter"],
+                        "data-tabular": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .gold-focus-shadow {
+            box-shadow: 0px 4px 20px rgba(212, 175, 55, 0.15);
+        }
+        .custom-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #e2e2e2;
+            outline: none;
+            border-radius: 2px;
+        }
+        .custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #1a1c1c;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #D4AF37;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-lg overflow-hidden">
+<!-- Background Content: Market Screen (Dimmed/Blurred) -->
+<div class="fixed inset-0 z-0 blur-[2px] brightness-75 transition-all duration-300">
+<!-- TopAppBar Placeholder -->
+<header class="bg-white border-b border-stone-100 flex justify-between items-center w-full px-6 py-4 shadow-[0px_4px_20px_rgba(26,26,26,0.05)]">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-neutral-900">menu</span>
+<h1 class="font-['Inter'] text-sm font-semibold tracking-wide uppercase text-neutral-900">Market</h1>
+</div>
+<span class="material-symbols-outlined text-neutral-900">search</span>
+</header>
+<!-- Product Search Results -->
+<main class="p-container-margin space-y-md">
+<div class="flex items-center justify-between">
+<h2 class="font-h2 text-h2">Results for "Gold Chain"</h2>
+<span class="font-body-sm text-on-surface-variant">124 Results</span>
+</div>
+<!-- Bento Grid of Results -->
+<div class="grid grid-cols-2 gap-md">
+<!-- Product Card 1 -->
+<div class="bg-[#F5F5F5] rounded-lg p-md space-y-sm shadow-[0px_4px_20px_rgba(26,26,26,0.05)]">
+<div class="aspect-square bg-stone-200 rounded relative overflow-hidden">
+<img class="object-cover w-full h-full" data-alt="High-end 22K gold cuban link chain displayed on a professional velvet jewelry stand with dramatic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtWbpBWUW_0aLtEfHNFH9uDNFvisjynYdOmR01P-xoqgdvYTEvsWQ0Yx-6A3PP53HtMiSHYaeYRV0RANUpqY8JYmloh0-UpYMtwRE7GULZ9FF9LAiHg8S9qNN2zzp-8XGy_09HC0hA718pLWgZ6d98duYblWZMWyw-9pkjF-nMFfUCcnBFCanH8nod9U5MBsY7mtQ7eDfKi6-nXt4-CgP8jCTULHFDikKuZ2GqFfSu63zMBKpPaszqHDVqgYI9XbnjVwv81KaqWMg"/>
+</div>
+<div class="space-y-xs">
+<p class="font-label-caps text-label-caps text-brand-gold">22K GOLD</p>
+<p class="font-h3 text-h3">Classic Link Chain</p>
+<div class="flex items-center gap-2">
+<span class="font-data-tabular text-data-tabular">$1,450.00</span>
+<span class="material-symbols-outlined text-green-600 text-sm">trending_up</span>
+</div>
+</div>
+</div>
+<!-- Product Card 2 -->
+<div class="bg-[#F5F5F5] rounded-lg p-md space-y-sm shadow-[0px_4px_20px_rgba(26,26,26,0.05)]">
+<div class="aspect-square bg-stone-200 rounded relative overflow-hidden">
+<img class="object-cover w-full h-full" data-alt="Minimalist 18K rope chain necklace photographed in studio light with soft shadows on a white marble surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1y40vE2fJegLcnFkpxIpD_JVV_90qXhmjM7jygKK-3PBhMo-8sFuWDT5pgBQkTkp7s1QBXHxBsZc8lObkrqs3604C0QJ71Un7X0-aMjlnOm_wn00E-ZZxxSB3KjMpHncwlYfLmx29uPx1kjF20RTrwidhjk1bq9Uml7njnuOOuQ5pSKTdtBm_-WFdDo4ZxJ8tGUSnmS55ISX0Te-ut66WNWIu92l3ncZvWsjrNcG4fD3lOV7cEupe6C5d9PYyZWR_ACdfLo2Hbv0"/>
+</div>
+<div class="space-y-xs">
+<p class="font-label-caps text-label-caps text-stone-500">18K GOLD</p>
+<p class="font-h3 text-h3">Slim Rope Chain</p>
+<div class="flex items-center gap-2">
+<span class="font-data-tabular text-data-tabular">$890.00</span>
+<span class="material-symbols-outlined text-red-600 text-sm">trending_down</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Bottom Sheet Overlay (Scrim) -->
+<div class="fixed inset-0 bg-neutral-900/40 z-40 backdrop-blur-sm"></div>
+<!-- Bottom Sheet Container -->
+<div class="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[32px] shadow-[0px_-8px_40px_rgba(0,0,0,0.12)] flex flex-col max-h-[813px]">
+<!-- Handle -->
+<div class="flex justify-center py-4">
+<div class="w-12 h-1.5 bg-stone-200 rounded-full"></div>
+</div>
+<!-- Header -->
+<div class="px-container-margin pb-4 flex justify-between items-center">
+<h2 class="font-h2 text-h2 text-on-surface">Refine Search</h2>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-stone-50 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-stone-500" data-icon="close">close</span>
+</button>
+</div>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto px-container-margin space-y-xl pb-32">
+<!-- Section 1: Category -->
+<section class="space-y-md">
+<h3 class="font-label-caps text-label-caps text-stone-500">CATEGORY</h3>
+<div class="flex flex-wrap gap-sm">
+<button class="px-md py-sm rounded-full bg-on-surface text-white font-body-sm active:scale-95 transition-transform border border-on-surface">Chain</button>
+<button class="px-md py-sm rounded-full bg-white text-on-surface font-body-sm border border-stone-200 hover:border-stone-400 active:scale-95 transition-transform">Ring</button>
+<button class="px-md py-sm rounded-full bg-white text-on-surface font-body-sm border border-stone-200 hover:border-stone-400 active:scale-95 transition-transform">Bracelet</button>
+<button class="px-md py-sm rounded-full bg-white text-on-surface font-body-sm border border-stone-200 hover:border-stone-400 active:scale-95 transition-transform">Pendant</button>
+<button class="px-md py-sm rounded-full bg-white text-on-surface font-body-sm border border-stone-200 hover:border-stone-400 active:scale-95 transition-transform">Earrings</button>
+</div>
+</section>
+<!-- Section 2: Subcategory -->
+<section class="space-y-md">
+<h3 class="font-label-caps text-label-caps text-stone-500">SUBCATEGORY</h3>
+<div class="flex flex-wrap gap-sm">
+<button class="px-md py-sm rounded-full bg-on-surface text-white font-body-sm active:scale-95 transition-transform">Link Chain</button>
+<button class="px-md py-sm rounded-full bg-white text-on-surface font-body-sm border border-stone-200 hover:border-stone-400 active:scale-95 transition-transform">Rope Chain</button>
+<button class="px-md py-sm rounded-full bg-white text-on-surface font-body-sm border border-stone-200 hover:border-stone-400 active:scale-95 transition-transform">Box Chain</button>
+<button class="px-md py-sm rounded-full bg-white text-on-surface font-body-sm border border-stone-200 hover:border-stone-400 active:scale-95 transition-transform">Figaro</button>
+<button class="px-md py-sm rounded-full bg-white text-on-surface font-body-sm border border-stone-200 hover:border-stone-400 active:scale-95 transition-transform">Snake Chain</button>
+</div>
+</section>
+<!-- Section 3: Metal Purity -->
+<section class="space-y-md">
+<h3 class="font-label-caps text-label-caps text-stone-500">METAL PURITY</h3>
+<div class="grid grid-cols-3 gap-md">
+<!-- Option 1 -->
+<div class="relative flex flex-col items-center justify-center p-md border-2 border-stone-100 rounded-xl hover:border-stone-200 cursor-pointer transition-colors group">
+<span class="font-h3 text-h3 text-stone-400 group-hover:text-stone-600">18K</span>
+<span class="font-label-caps text-[10px] text-stone-400 mt-1">75.0% GOLD</span>
+</div>
+<!-- Option 2 (Selected) -->
+<div class="relative flex flex-col items-center justify-center p-md border-2 border-brand-gold bg-stone-50 rounded-xl gold-focus-shadow">
+<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-gold text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm whitespace-nowrap">
+                            GOLD FOCUS
+                        </div>
+<span class="font-h3 text-h3 text-on-surface">22K</span>
+<span class="font-label-caps text-[10px] text-brand-gold mt-1">91.6% GOLD</span>
+</div>
+<!-- Option 3 -->
+<div class="relative flex flex-col items-center justify-center p-md border-2 border-stone-100 rounded-xl hover:border-stone-200 cursor-pointer transition-colors group">
+<span class="font-h3 text-h3 text-stone-400 group-hover:text-stone-600">24K</span>
+<span class="font-label-caps text-[10px] text-stone-400 mt-1">99.9% GOLD</span>
+</div>
+</div>
+</section>
+<!-- Section 4: Chain Length -->
+<section class="space-y-md">
+<div class="flex justify-between items-center">
+<h3 class="font-label-caps text-label-caps text-stone-500">CHAIN LENGTH</h3>
+<span class="font-data-tabular text-data-tabular text-brand-gold">20 INCH</span>
+</div>
+<div class="py-4 px-2">
+<input class="custom-slider" max="30" min="14" type="range" value="20"/>
+<div class="flex justify-between mt-4">
+<div class="flex flex-col items-center">
+<div class="w-px h-2 bg-stone-200"></div>
+<span class="font-label-caps text-[10px] text-stone-400 mt-1">14 INCH</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-px h-2 bg-brand-gold"></div>
+<span class="font-label-caps text-[10px] text-on-surface font-bold mt-1">20 INCH</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-px h-2 bg-stone-200"></div>
+<span class="font-label-caps text-[10px] text-stone-400 mt-1">30 INCH</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Sticky Footer Actions -->
+<div class="absolute bottom-0 left-0 right-0 p-container-margin bg-white border-t border-stone-100 flex gap-md items-center">
+<button class="flex-1 py-4 border border-stone-200 rounded-lg font-h3 text-h3 hover:bg-stone-50 active:scale-[0.98] transition-all">
+                Clear All
+            </button>
+<button class="flex-[2] py-4 bg-on-surface text-white rounded-lg font-h3 text-h3 hover:bg-stone-800 active:scale-[0.98] transition-all shadow-lg">
+                Apply Filters (124 Results)
+            </button>
+</div>
+</div>
+<!-- Shared BottomNavBar (Fixed) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center bg-white border-t border-stone-100 px-4 pb-safe z-30 pointer-events-none opacity-50">
+<div class="flex flex-col items-center justify-center text-stone-400 pt-2 pb-3">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-tight">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-neutral-900 border-t-2 border-stone-900 pt-2 pb-3">
+<span class="material-symbols-outlined" data-icon="storefront">storefront</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-tight">Market</span>
+</div>
+<div class="flex flex-col items-center justify-center text-stone-400 pt-2 pb-3">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-tight">Rates</span>
+</div>
+<div class="flex flex-col items-center justify-center text-stone-400 pt-2 pb-3">
+<span class="material-symbols-outlined" data-icon="handshake">handshake</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-tight">Trade</span>
+</div>
+<div class="flex flex-col items-center justify-center text-stone-400 pt-2 pb-3">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-tight">Profile</span>
+</div>
+</nav>
+</body></html>

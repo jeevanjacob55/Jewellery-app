@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-container": "#747676",
+                        "surface-container": "#f1edec",
+                        "tertiary-container": "#ffffff",
+                        "surface-container-low": "#f6f3f2",
+                        "primary-container": "#ffffff",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "on-primary-fixed-variant": "#454747",
+                        "surface-container-high": "#ebe7e7",
+                        "surface-tint": "#5d5f5f",
+                        "secondary-container": "#dcdddd",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "error": "#ba1a1a",
+                        "secondary-fixed": "#e2e2e2",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "inverse-surface": "#313030",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e5e2e1",
+                        "tertiary": "#5d5f5f",
+                        "primary": "#5d5f5f",
+                        "inverse-primary": "#c6c6c7",
+                        "on-secondary-container": "#5f6161",
+                        "error-container": "#ffdad6",
+                        "secondary": "#5d5f5f",
+                        "on-primary-container": "#747676",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#1c1b1b",
+                        "outline-variant": "#c4c7c8",
+                        "on-error-container": "#93000a",
+                        "surface-variant": "#e5e2e1",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "outline": "#747878",
+                        "on-surface-variant": "#444748",
+                        "on-background": "#1c1b1b",
+                        "surface-dim": "#ddd9d9",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "inverse-on-surface": "#f4f0ef",
+                        "surface-bright": "#fcf8f8",
+                        "on-secondary-fixed-variant": "#454747",
+                        "background": "#fcf8f8",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "surface": "#fcf8f8",
+                        "primary-fixed": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "base": "8px",
+                        "container-margin": "24px",
+                        "xl": "48px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "h1": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "data-tabular": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "h2": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                        "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-white dark:bg-zinc-950 font-inter antialiased tracking-tight shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border-b border-zinc-100 dark:border-zinc-800">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-zinc-900 dark:text-zinc-50 active:opacity-80 transition-opacity">menu</button>
+<span class="text-lg font-bold uppercase tracking-widest text-zinc-900 dark:text-zinc-50">Jewellery Association</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex gap-6 mr-6">
+<a class="font-body-sm text-amber-600 dark:text-amber-400 font-semibold transition-colors" href="#">Dashboard</a>
+<a class="font-body-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors px-2 rounded" href="#">Market</a>
+<a class="font-body-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors px-2 rounded" href="#">Network</a>
+</div>
+<img alt="user_profile_photo" class="w-10 h-10 rounded-full border border-zinc-200" data-alt="professional portrait of a middle-aged man in a dark tailored suit with neutral background, corporate leadership style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAa5OCXum39hJUJ-Pz-oxU98B1u939TP_MnsLwKSbxC8b57D8F2-4R8MqtoFxdy0AkNMU-9vl4-zfRjq0YL-mKSK7YG-uZHvaKs8sOGUgFsjkVj2yPnmOxS1Sv3MUZV_VziCJKakE80GF4gWTnRkGaYsYB2cIU30Hjf_CgFtq9HVFmvwMIu0B8bYk_1aHo4j0QsHuOINUurcZKjHBIvyeBoUJ_R-nZdcalRUrnyJoG-IR6RPG9KayhX4quIwrJC-nwkdE1dgxf2knc"/>
+</div>
+</header>
+<div class="flex pt-16 h-screen overflow-hidden">
+<!-- Navigation Drawer (Side Sidebar) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col p-4 z-40 bg-zinc-50 dark:bg-zinc-900 w-72 border-r border-zinc-200 dark:border-zinc-800 transition-all duration-200 ease-in-out">
+<!-- Profile Header -->
+<div class="mt-16 mb-8 px-4 flex flex-col items-start">
+<img alt="User Avatar" class="w-16 h-16 rounded-full border-2 border-amber-500 mb-4" data-alt="professional headshot of Alexander Sterling, executive male in corporate attire, high-end business portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuoBua6KQkvS8bP05UyfCEtFvHJxa5LJ1nxcy0dD-nnL_YxlgDeJUyeNQvDW9vuf7D69eGTRc00xyq9Iaa-ch5wf67FjSjaxdx4WTjVxMgFk5jSqHW_a4TS2JHVrTpXqLN9YLU7VglU-LcZ3DH0MQedSNM10J_w2PFRCfPfpCThpRuwOAtud4ws5k6uO_fGpTAB02GwSeaTkg37-irHThcWhgvW-Et8oPAvW0lYVOvixvAlsFYUYZ0sPWwRxbI3mk5MJohHOTpDrQ"/>
+<div class="flex flex-col">
+<h3 class="font-h3 text-zinc-900 dark:text-zinc-50">Alexander Sterling</h3>
+<p class="font-body-sm text-amber-600 dark:text-amber-500 font-medium">Corporate Member</p>
+<p class="text-[11px] text-zinc-500 uppercase tracking-widest mt-1">Premium Tier</p>
+</div>
+</div>
+<!-- Main Navigation Sections -->
+<nav class="flex-1 space-y-8 overflow-y-auto px-2">
+<!-- MAIN SECTION -->
+<div>
+<h4 class="font-label-caps text-zinc-400 mb-3 px-2">Main</h4>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 font-inter text-sm font-medium transition-all duration-200 ease-in-out text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 font-inter text-sm font-medium transition-all duration-200 ease-in-out bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400 border-r-4 border-amber-500 shadow-sm" href="#">
+<span class="material-symbols-outlined" data-icon="business">business</span>
+<span>Company Profile</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 font-inter text-sm font-medium transition-all duration-200 ease-in-out text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="workspace_premium">workspace_premium</span>
+<span>Membership Plans</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 font-inter text-sm font-medium transition-all duration-200 ease-in-out text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+<span>Trade Data</span>
+</a>
+</div>
+</div>
+<!-- SECURITY & UTILITY -->
+<div>
+<h4 class="font-label-caps text-zinc-400 mb-3 px-2">Security &amp; Utility</h4>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 font-inter text-sm font-medium transition-all duration-200 ease-in-out text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+<span>Account Security</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 font-inter text-sm font-medium transition-all duration-200 ease-in-out text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="help_center">help_center</span>
+<span>Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 font-inter text-sm font-medium transition-all duration-200 ease-in-out text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Bottom Action -->
+<div class="mt-auto border-t border-zinc-200 dark:border-zinc-800 pt-4 px-2">
+<button class="w-full flex items-center gap-3 px-3 py-2.5 font-inter text-sm font-bold text-error hover:bg-error/5 transition-all rounded-lg">
+<span class="material-symbols-outlined">logout</span>
+<span>Logout Account</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-72 flex-1 p-8 overflow-y-auto bg-surface">
+<div class="max-w-6xl mx-auto space-y-8">
+<!-- Header Section -->
+<div class="flex justify-between items-end border-b border-surface-container-high pb-6">
+<div>
+<span class="font-label-caps text-on-tertiary-container">ACCOUNT OVERVIEW</span>
+<h1 class="font-h1 text-on-surface mt-2">Company Profile</h1>
+</div>
+<div class="flex gap-4">
+<button class="bg-surface-container-highest text-on-surface font-body-sm px-6 py-2 border border-outline-variant hover:bg-surface-container-high transition-colors">Export Docs</button>
+<button class="bg-zinc-900 text-white font-body-sm px-6 py-2 hover:opacity-90 transition-opacity">Edit Profile</button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Company Info Card -->
+<div class="col-span-8 bg-white shadow-[0px_4px_20px_rgba(26,26,26,0.05)] p-8 rounded-lg">
+<div class="flex justify-between items-start mb-8">
+<div class="flex gap-6 items-center">
+<div class="w-20 h-20 bg-surface-container flex items-center justify-center rounded-lg border border-surface-container-high">
+<span class="material-symbols-outlined text-4xl text-amber-600">diamond</span>
+</div>
+<div>
+<h2 class="font-h2 text-on-surface">Sterling Fine Gems &amp; Jewellery</h2>
+<p class="font-body-sm text-on-surface-variant italic">Authorized Wholesale Partner since 2012</p>
+</div>
+</div>
+<span class="bg-green-50 text-green-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-green-200">Verified</span>
+</div>
+<div class="grid grid-cols-2 gap-y-6 border-t border-zinc-50 pt-8">
+<div>
+<p class="font-label-caps text-on-tertiary-container mb-1">REGISTRATION NO.</p>
+<p class="font-data-tabular text-on-surface">JA-99283-XLS</p>
+</div>
+<div>
+<p class="font-label-caps text-on-tertiary-container mb-1">MEMBER LEVEL</p>
+<p class="font-data-tabular text-on-surface">Corporate Executive</p>
+</div>
+<div>
+<p class="font-label-caps text-on-tertiary-container mb-1">HEADQUARTERS</p>
+<p class="font-data-tabular text-on-surface">London, United Kingdom</p>
+</div>
+<div>
+<p class="font-label-caps text-on-tertiary-container mb-1">TAX IDENTIFIER</p>
+<p class="font-data-tabular text-on-surface">GB 221 4453 00</p>
+</div>
+</div>
+</div>
+<!-- Membership Status Card -->
+<div class="col-span-4 bg-[#F5F5F5] p-8 rounded-lg flex flex-col justify-between">
+<div>
+<span class="material-symbols-outlined text-amber-600 text-3xl mb-4">stars</span>
+<h3 class="font-h3 text-on-surface mb-2">Membership Status</h3>
+<p class="font-body-sm text-on-surface-variant">Your corporate license is active until December 2024.</p>
+</div>
+<div class="mt-8">
+<div class="flex justify-between font-label-caps mb-2">
+<span>RENEWAL PROGRESS</span>
+<span>80%</span>
+</div>
+<div class="w-full bg-zinc-200 h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full w-[80%]"></div>
+</div>
+<button class="w-full mt-6 py-3 border border-amber-500 text-amber-600 font-bold font-label-caps hover:bg-amber-50 transition-colors uppercase">Renew Early</button>
+</div>
+</div>
+<!-- Trade Documents (High Density Table) -->
+<div class="col-span-12 bg-white shadow-[0px_4px_20px_rgba(26,26,26,0.05)] rounded-lg overflow-hidden">
+<div class="px-8 py-6 border-b border-zinc-50 flex justify-between items-center">
+<h3 class="font-h3">Recent Trade Documents</h3>
+<button class="text-zinc-500 font-body-sm hover:text-zinc-900 transition-colors">View All Archive</button>
+</div>
+<table class="w-full text-left">
+<thead class="bg-zinc-50">
+<tr>
+<th class="px-8 py-4 font-label-caps text-on-tertiary-container">Document ID</th>
+<th class="px-8 py-4 font-label-caps text-on-tertiary-container">Type</th>
+<th class="px-8 py-4 font-label-caps text-on-tertiary-container">Issued Date</th>
+<th class="px-8 py-4 font-label-caps text-on-tertiary-container text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-zinc-50">
+<tr class="hover:bg-zinc-50 transition-colors group">
+<td class="px-8 py-5 font-data-tabular">DOC-441-2023</td>
+<td class="px-8 py-5 font-body-sm">Customs Clearance Certificate</td>
+<td class="px-8 py-5 font-body-sm text-zinc-500">Oct 24, 2023</td>
+<td class="px-8 py-5 text-right">
+<button class="material-symbols-outlined text-zinc-400 group-hover:text-amber-600">download</button>
+</td>
+</tr>
+<tr class="hover:bg-zinc-50 transition-colors group">
+<td class="px-8 py-5 font-data-tabular">TR-990-CERT</td>
+<td class="px-8 py-5 font-body-sm">Ethical Sourcing Verification</td>
+<td class="px-8 py-5 font-body-sm text-zinc-500">Oct 12, 2023</td>
+<td class="px-8 py-5 text-right">
+<button class="material-symbols-outlined text-zinc-400 group-hover:text-amber-600">download</button>
+</td>
+</tr>
+<tr class="hover:bg-zinc-50 transition-colors group">
+<td class="px-8 py-5 font-data-tabular">TX-8821-INV</td>
+<td class="px-8 py-5 font-body-sm">Quarterly Association Fee</td>
+<td class="px-8 py-5 font-body-sm text-zinc-500">Sep 30, 2023</td>
+<td class="px-8 py-5 text-right">
+<button class="material-symbols-outlined text-zinc-400 group-hover:text-amber-600">download</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Mobile Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 px-4 md:hidden bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-t border-zinc-100 dark:border-zinc-800 shadow-[0_-4px_20px_rgba(26,26,26,0.05)] rounded-t-xl">
+<button class="flex flex-col items-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter">Home</span>
+</button>
+<button class="flex flex-col items-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">currency_exchange</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter">Market</span>
+</button>
+<button class="flex flex-col items-center text-amber-600 dark:text-amber-400 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter">Account</span>
+</button>
+<button class="flex flex-col items-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">help_center</span>
+<span class="text-[10px] font-semibold uppercase tracking-tighter">Support</span>
+</button>
+</nav>
+</body></html>

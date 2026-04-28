@@ -275,6 +275,34 @@ export interface MarketFeedData {
   latest_products: MarketProductCard[];
 }
 
+export type AdvertisementPlacement = "dashboard_hero" | "market_banner" | "news_inline";
+
+export type AdvertisementActionType = "external_url" | "internal_screen" | "product" | "company" | "category";
+
+export interface AdvertisementActionPayload {
+  url?: string;
+  screen?: string;
+  params?: Record<string, unknown>;
+  product_id?: number;
+  company_id?: number;
+  category?: string;
+}
+
+export interface AdvertisementItem {
+  id: number;
+  label: string;
+  title: string;
+  description: string;
+  image_url: string | null;
+  background_color: string;
+  action_type: AdvertisementActionType;
+  action_payload: AdvertisementActionPayload;
+}
+
+export interface AdvertisementListResponse {
+  results: AdvertisementItem[];
+}
+
 export interface ServicesData {
   overview: Array<{
     title: string;
