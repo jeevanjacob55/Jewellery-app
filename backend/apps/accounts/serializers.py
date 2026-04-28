@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference, User
+from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference, User, UserRole
 
 
 class HierarchyReferenceSerializer(serializers.Serializer):
@@ -53,6 +53,12 @@ class MemberProfileSerializer(serializers.ModelSerializer):
             "unit",
             "membership_tier",
         ]
+
+
+class UserRoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserRole
+        fields = ["role", "scope_type", "scope_id"]
 
 
 class UpdateNotificationPreferenceSerializer(serializers.ModelSerializer):
@@ -147,6 +153,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     member_profile = MemberProfileSerializer(read_only=True)
     notification_preferences = NotificationPreferenceSerializer(read_only=True)
+    roles = UserRoleSerializer(source="scoped_roles", many=True, read_only=True)
 
     class Meta:
         model = User
@@ -163,6 +170,7 @@ class UserSerializer(serializers.ModelSerializer):
             "onboarding_completed",
             "member_profile",
             "notification_preferences",
+            "roles",
         ]
 
 

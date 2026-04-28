@@ -6,7 +6,7 @@ from rest_framework.test import APITestCase
 
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference
+from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference, UserRole
 
 
 class AccountsApiTests(APITestCase):
@@ -153,6 +153,12 @@ class AccountsApiTests(APITestCase):
 
     def test_me_returns_nested_profile_for_authenticated_user(self):
         self.client.force_authenticate(user=self.user)
+        UserRole.objects.create(
+            user=self.user,
+            role=UserRole.Role.COMPANY_ADMIN,
+            scope_type=UserRole.ScopeType.COMPANY,
+            scope_id=44,
+        )
 
         response = self.client.get(reverse("me"))
 
@@ -162,6 +168,9 @@ class AccountsApiTests(APITestCase):
         self.assertEqual(response.data["member_profile"]["state"]["name"], "Kerala")
         self.assertEqual(response.data["member_profile"]["association"]["name"], "KGSMA")
         self.assertTrue(response.data["notification_preferences"]["rate_alerts"])
+        self.assertEqual(response.data["roles"][0]["role"], "company_admin")
+        self.assertEqual(response.data["roles"][0]["scope_type"], "company")
+        self.assertEqual(response.data["roles"][0]["scope_id"], 44)
 
     def test_me_patch_requires_authentication(self):
         response = self.client.patch(reverse("me"), {"first_name": "Updated"}, format="json")
@@ -323,6 +332,28 @@ class AccountsApiTests(APITestCase):
 
     def test_admin_scope_assignment_rejects_non_admin_user(self):
         assignment = AdminScopeAssignment(user=self.user, association=self.association)
+
+        with self.assertRaises(ValidationError):
+            assignment.full_clean()
+
+    def test_user_role_requires_matching_scope_type(self):
+        assignment = UserRole(
+            user=self.user,
+            role=UserRole.Role.ASSOCIATION_ADMIN,
+            scope_type=UserRole.ScopeType.UNIT,
+            scope_id=self.unit.id,
+        )
+
+        with self.assertRaises(ValidationError):
+            assignment.full_clean()
+
+    def test_user_role_requires_existing_scope_record(self):
+        assignment = UserRole(
+            user=self.user,
+            role=UserRole.Role.COMPANY_ADMIN,
+            scope_type=UserRole.ScopeType.COMPANY,
+            scope_id=999999,
+        )
 
         with self.assertRaises(ValidationError):
             assignment.full_clean()

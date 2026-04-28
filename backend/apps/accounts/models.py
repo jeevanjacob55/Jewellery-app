@@ -1,3 +1,4 @@
+from django.apps import apps as django_apps
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -19,6 +20,37 @@ class User(AbstractUser):
     jeweller_id = models.CharField(max_length=64, blank=True)
     is_verified_member = models.BooleanField(default=False)
     onboarding_completed = models.BooleanField(default=False)
+
+    def has_scoped_role(self, role: str, *, scope_type: str | None = None, scope_id: int | None = None) -> bool:
+        queryset = self.scoped_roles.filter(role=role)
+        if scope_type is not None:
+            queryset = queryset.filter(scope_type=scope_type)
+        if scope_id is not None:
+            queryset = queryset.filter(scope_id=scope_id)
+        elif scope_type == UserRole.ScopeType.PLATFORM:
+            queryset = queryset.filter(scope_id__isnull=True)
+        if queryset.exists():
+            return True
+        if role == UserRole.Role.SUPER_ADMIN and getattr(self, "role", None) == User.Role.SUPER_ADMIN:
+            return True
+        return False
+
+    def has_any_scoped_role(self, roles: list[str] | tuple[str, ...] | set[str]) -> bool:
+        if self.scoped_roles.filter(role__in=roles).exists():
+            return True
+        return UserRole.Role.SUPER_ADMIN in roles and getattr(self, "role", None) == User.Role.SUPER_ADMIN
+
+    @property
+    def is_super_admin_user(self) -> bool:
+        return bool(self.is_superuser or self.has_scoped_role(UserRole.Role.SUPER_ADMIN, scope_type=UserRole.ScopeType.PLATFORM))
+
+    @property
+    def has_admin_console_access(self) -> bool:
+        return bool(self.is_superuser or self.is_staff or self.has_any_scoped_role(UserRole.admin_roles()))
+
+    @property
+    def has_scoped_admin_access(self) -> bool:
+        return bool(self.is_superuser or self.has_any_scoped_role(UserRole.admin_roles()))
 
 
 class MemberProfile(models.Model):
@@ -94,6 +126,78 @@ class MemberAccessRequest(models.Model):
         return f"{self.full_name} access request"
 
 
+class UserRole(models.Model):
+    class Role(models.TextChoices):
+        SUPER_ADMIN = "super_admin", "Super Admin"
+        STATE_ADMIN = "state_admin", "State Admin"
+        ASSOCIATION_ADMIN = "association_admin", "Association Admin"
+        DISTRICT_ADMIN = "district_admin", "District Admin"
+        UNIT_ADMIN = "unit_admin", "Unit Admin"
+        COMPANY_ADMIN = "company_admin", "Company Admin"
+
+    class ScopeType(models.TextChoices):
+        PLATFORM = "platform", "Platform"
+        STATE = "state", "State"
+        ASSOCIATION = "association", "Association"
+        DISTRICT_OPERATIONAL_UNIT = "district_operational_unit", "District Operational Unit"
+        UNIT = "unit", "Unit"
+        COMPANY = "company", "Company"
+
+    ROLE_SCOPE_MAP = {
+        Role.SUPER_ADMIN: ScopeType.PLATFORM,
+        Role.STATE_ADMIN: ScopeType.STATE,
+        Role.ASSOCIATION_ADMIN: ScopeType.ASSOCIATION,
+        Role.DISTRICT_ADMIN: ScopeType.DISTRICT_OPERATIONAL_UNIT,
+        Role.UNIT_ADMIN: ScopeType.UNIT,
+        Role.COMPANY_ADMIN: ScopeType.COMPANY,
+    }
+    SCOPE_MODEL_MAP = {
+        ScopeType.STATE: ("regions", "RegionState"),
+        ScopeType.ASSOCIATION: ("regions", "Association"),
+        ScopeType.DISTRICT_OPERATIONAL_UNIT: ("regions", "DistrictOperationalUnit"),
+        ScopeType.UNIT: ("regions", "Unit"),
+        ScopeType.COMPANY: ("directory", "Company"),
+    }
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="scoped_roles")
+    role = models.CharField(max_length=40, choices=Role.choices)
+    scope_type = models.CharField(max_length=40, choices=ScopeType.choices)
+    scope_id = models.PositiveBigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "role", "scope_type", "scope_id"], name="uniq_user_role_scope_assignment"),
+        ]
+
+    @classmethod
+    def admin_roles(cls) -> tuple[str, ...]:
+        return tuple(cls.Role.values)
+
+    def clean(self):
+        expected_scope_type = self.ROLE_SCOPE_MAP[self.role]
+        if self.scope_type != expected_scope_type:
+            raise ValidationError({"scope_type": f"{self.get_role_display()} requires a {expected_scope_type} scope."})
+
+        if self.scope_type == self.ScopeType.PLATFORM:
+            if self.scope_id is not None:
+                raise ValidationError({"scope_id": "Platform-scoped roles must not define a scope id."})
+            return
+
+        if self.scope_id is None:
+            raise ValidationError({"scope_id": "A scope id is required for non-platform roles."})
+
+        app_label, model_name = self.SCOPE_MODEL_MAP[self.scope_type]
+        model_class = django_apps.get_model(app_label, model_name)
+        if not model_class.objects.filter(pk=self.scope_id).exists():
+            raise ValidationError({"scope_id": f"Selected {self.scope_type} scope does not exist."})
+
+    def __str__(self) -> str:
+        if self.scope_type == self.ScopeType.PLATFORM:
+            return f"{self.user.username} -> {self.role}:platform"
+        return f"{self.user.username} -> {self.role}:{self.scope_type}:{self.scope_id}"
+
+
 class AdminScopeAssignment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="admin_scope_assignments")
     association = models.ForeignKey(Association, on_delete=models.CASCADE, null=True, blank=True, related_name="admin_assignments")
@@ -110,7 +214,7 @@ class AdminScopeAssignment(models.Model):
         selected_scopes = [scope for scope in [self.association, self.district_operational_unit, self.unit] if scope is not None]
         if len(selected_scopes) != 1:
             raise ValidationError("Exactly one admin scope must be assigned.")
-        if self.user.role != User.Role.ADMIN:
+        if not self.user.has_scoped_admin_access and self.user.role != User.Role.ADMIN:
             raise ValidationError({"user": "Admin scope assignments can only be attached to admin users."})
 
     def __str__(self) -> str:

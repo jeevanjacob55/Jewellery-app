@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
-from apps.accounts.models import AdminScopeAssignment, MemberProfile, NotificationPreference
+from apps.accounts.models import AdminScopeAssignment, MemberProfile, NotificationPreference, UserRole
 from apps.ads.models import AdApproval, AdAsset, AdTargeting, Advertisement
 from apps.directory.models import (
     Company,
@@ -129,6 +129,7 @@ def reset_demo_data() -> None:
     AssociationRate.objects.all().delete()
     AuditLog.objects.all().delete()
     AdminScopeAssignment.objects.all().delete()
+    UserRole.objects.all().delete()
     Unit.objects.all().delete()
     DistrictOperationalUnit.objects.all().delete()
     Association.objects.all().delete()
@@ -486,66 +487,67 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
         },
     )
     _upsert(
-        AdminScopeAssignment,
-        {"user": users["kgsma_admin"]},
+        UserRole,
+        {"user": users["super_admin"], "role": UserRole.Role.SUPER_ADMIN},
         {
-            "association": kgsma,
-            "district_operational_unit": None,
-            "unit": None,
+            "scope_type": UserRole.ScopeType.PLATFORM,
+            "scope_id": None,
         },
     )
     _upsert(
-        AdminScopeAssignment,
-        {"user": users["akgsma_admin"]},
+        UserRole,
+        {"user": users["kgsma_admin"], "role": UserRole.Role.ASSOCIATION_ADMIN},
         {
-            "association": akgsma,
-            "district_operational_unit": None,
-            "unit": None,
+            "scope_type": UserRole.ScopeType.ASSOCIATION,
+            "scope_id": kgsma.id,
         },
     )
     _upsert(
-        AdminScopeAssignment,
-        {"user": users["tnja_admin"]},
+        UserRole,
+        {"user": users["akgsma_admin"], "role": UserRole.Role.ASSOCIATION_ADMIN},
         {
-            "association": tnja,
-            "district_operational_unit": None,
-            "unit": None,
+            "scope_type": UserRole.ScopeType.ASSOCIATION,
+            "scope_id": akgsma.id,
         },
     )
     _upsert(
-        AdminScopeAssignment,
-        {"user": users["kgta_admin"]},
+        UserRole,
+        {"user": users["tnja_admin"], "role": UserRole.Role.ASSOCIATION_ADMIN},
         {
-            "association": kgta,
-            "district_operational_unit": None,
-            "unit": None,
+            "scope_type": UserRole.ScopeType.ASSOCIATION,
+            "scope_id": tnja.id,
         },
     )
     _upsert(
-        AdminScopeAssignment,
-        {"user": users["association_admin"]},
+        UserRole,
+        {"user": users["kgta_admin"], "role": UserRole.Role.ASSOCIATION_ADMIN},
         {
-            "association": kgsma,
-            "district_operational_unit": None,
-            "unit": None,
+            "scope_type": UserRole.ScopeType.ASSOCIATION,
+            "scope_id": kgta.id,
         },
     )
     _upsert(
-        AdminScopeAssignment,
-        {"user": users["district_admin"]},
+        UserRole,
+        {"user": users["association_admin"], "role": UserRole.Role.ASSOCIATION_ADMIN},
         {
-            "association": None,
-            "district_operational_unit": ernakulam_district_unit,
-            "unit": None,
+            "scope_type": UserRole.ScopeType.ASSOCIATION,
+            "scope_id": kgsma.id,
         },
     )
     _upsert(
-        AdminScopeAssignment,
-        {"user": users["unit_admin"]},
+        UserRole,
+        {"user": users["district_admin"], "role": UserRole.Role.DISTRICT_ADMIN},
         {
-            "association": None,
-            "district_operational_unit": None,
-            "unit": kadavanthra_unit,
+            "scope_type": UserRole.ScopeType.DISTRICT_OPERATIONAL_UNIT,
+            "scope_id": ernakulam_district_unit.id,
+        },
+    )
+    _upsert(
+        UserRole,
+        {"user": users["unit_admin"], "role": UserRole.Role.UNIT_ADMIN},
+        {
+            "scope_type": UserRole.ScopeType.UNIT,
+            "scope_id": kadavanthra_unit.id,
         },
     )
 

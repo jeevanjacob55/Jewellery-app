@@ -1,11 +1,10 @@
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .permissions import IsSuperAdmin
+from .permissions import HasAdminAccess, IsSuperAdmin
 from .serializers import (
     AssociationCreateSerializer,
     DistrictUnitBulkCreateSerializer,
@@ -18,7 +17,7 @@ from .serializers import (
 
 
 class AdminOverviewView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [HasAdminAccess]
 
     def get(self, request):
         return Response(

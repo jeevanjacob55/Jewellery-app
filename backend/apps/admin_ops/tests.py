@@ -3,6 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.accounts.models import UserRole
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 
@@ -14,6 +15,12 @@ class AdminOverviewTests(APITestCase):
             username="admin1",
             password="StrongPass123!",
             is_staff=True,
+        )
+        UserRole.objects.create(
+            user=self.admin_user,
+            role=UserRole.Role.ASSOCIATION_ADMIN,
+            scope_type=UserRole.ScopeType.ASSOCIATION,
+            scope_id=12,
         )
 
     def test_admin_overview_blocks_non_admin_users(self):
@@ -55,6 +62,18 @@ class HierarchyManagementApiTests(APITestCase):
         self.kgsma = Association.objects.create(state=self.kerala, name="KGSMA")
         self.ernakulam = DistrictOperationalUnit.objects.create(association=self.kgsma, name="Ernakulam District Unit")
         self.kadavanthra = Unit.objects.create(district_operational_unit=self.ernakulam, name="Kadavanthra Unit")
+        UserRole.objects.create(
+            user=self.admin_user,
+            role=UserRole.Role.ASSOCIATION_ADMIN,
+            scope_type=UserRole.ScopeType.ASSOCIATION,
+            scope_id=self.kgsma.id,
+        )
+        UserRole.objects.create(
+            user=self.super_admin,
+            role=UserRole.Role.SUPER_ADMIN,
+            scope_type=UserRole.ScopeType.PLATFORM,
+            scope_id=None,
+        )
 
     def test_hierarchy_management_requires_super_admin(self):
         self.client.force_authenticate(user=self.admin_user)

@@ -27,6 +27,12 @@ export interface MemberProfile {
   membership_tier: string;
 }
 
+export interface UserScopedRole {
+  role: string;
+  scope_type: string;
+  scope_id: number | null;
+}
+
 export interface MemberUser {
   id: number;
   username: string;
@@ -40,6 +46,7 @@ export interface MemberUser {
   onboarding_completed: boolean;
   member_profile: MemberProfile | null;
   notification_preferences: NotificationPreferences | null;
+  roles?: UserScopedRole[];
 }
 
 export interface UpdateMemberProfileValues {
