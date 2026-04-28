@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "error": "#ba1a1a",
+                    "tertiary": "#5d5f5f",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "on-primary-fixed": "#1a1c1c",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "tertiary-fixed": "#e2e2e2",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "on-surface": "#1c1b1b",
+                    "surface-bright": "#fcf8f8",
+                    "secondary-fixed": "#e2e2e2",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "secondary-container": "#dcdddd",
+                    "surface-container-low": "#f6f3f2",
+                    "inverse-surface": "#313030",
+                    "surface-dim": "#ddd9d9",
+                    "surface-tint": "#5d5f5f",
+                    "inverse-on-surface": "#f4f0ef",
+                    "on-secondary-fixed-variant": "#454747",
+                    "tertiary-container": "#ffffff",
+                    "surface": "#fcf8f8",
+                    "on-primary-fixed-variant": "#454747",
+                    "background": "#fcf8f8",
+                    "surface-variant": "#e5e2e1",
+                    "inverse-primary": "#c6c6c7",
+                    "on-error-container": "#93000a",
+                    "surface-container-highest": "#e5e2e1",
+                    "on-surface-variant": "#444748",
+                    "on-surface": "#1c1b1b",
+                    "on-primary": "#ffffff",
+                    "outline-variant": "#c4c7c8",
+                    "on-background": "#1c1b1b",
+                    "on-secondary": "#ffffff",
+                    "on-primary-container": "#747676",
+                    "surface-container": "#f1edec",
+                    "primary": "#5d5f5f",
+                    "on-secondary-fixed": "#1a1c1c",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "on-error": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed": "#e2e2e2",
+                    "on-tertiary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "outline": "#747878",
+                    "on-secondary-container": "#5f6161",
+                    "surface-container-high": "#ebe7e7",
+                    "secondary": "#5d5f5f",
+                    "on-tertiary-container": "#747676",
+                    "primary-container": "#ffffff",
+                    "gold": "#D4AF37",
+                    "app-bg": "#F7F7F7"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem",
+                    "search": "26px"
+            },
+            "spacing": {
+                    "xl": "48px",
+                    "md": "16px",
+                    "gutter": "16px",
+                    "xs": "4px",
+                    "container-margin": "24px",
+                    "sm": "8px",
+                    "base": "8px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "h1": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "h2": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "data-tabular": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "h3": ["Inter"]
+            },
+            "fontSize": {
+                    "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                    "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                    "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                    "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-app-bg text-on-surface font-body-lg">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-50 bg-white dark:bg-zinc-950 border-b border-zinc-100 dark:border-zinc-900 shadow-[0px_4px_20px_rgba(26,26,26,0.05)] mt-4">
+<!-- Sticky Search Bar -->
+<div class="px-6 pb-4 bg-white">
+<div class="relative flex items-center bg-white border border-secondary-container rounded-search h-12 shadow-sm focus-within:ring-1 focus-within:ring-gold transition-all">
+<span class="material-symbols-outlined absolute left-4 text-zinc-400">search</span>
+<input class="w-full h-full pl-12 pr-12 bg-transparent border-none focus:ring-0 text-body-sm font-body-sm placeholder:text-zinc-400" placeholder="Search products or companies..." type="text"/>
+</div>
+</div>
+</header>
+<main class="pb-24">
+<!-- Premium Carousel: FEATURED PARTNERS -->
+<section class="mt-8">
+<div class="px-6 mb-4">
+<h2 class="font-label-caps text-label-caps text-tertiary uppercase">FEATURED PARTNERS</h2>
+</div>
+<div class="flex overflow-x-auto no-scrollbar gap-4 px-6 snap-x snap-mandatory">
+<div class="flex-none w-[85%] h-[190px] relative rounded-xl overflow-hidden snap-center group">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="High-end jewellery showroom with warm spotlights and elegant glass display cases containing gold necklaces" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhKhZ6QWTOhfsnu7EONIw7ioQpcrbrF3dDFycVfnRkB8q-dkt9aFkfVW9PayZdi61IuQYMo1mFG_zih9iXsnei_5YbFMT9gqfD97pZkB0pbAMYthV9A0S5CGdpbWuHMpryUV5U_WbjrMpTV1ovHm56lQj2gyvu8uo_c_YShipov5d3-0JSz7RCkhz-l0vznMvJl70a1rrXsR9rIouU4ixcVhQHJgr-WE_wE-2_sUXoubojfQOOZZ4X8kC0JD7GWXRisUmgxiUaLKI"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-white rounded-full flex items-center justify-center p-1 shadow-md">
+<img class="w-full h-full object-contain" data-alt="Minimalist luxury jewellery brand logo on white circular background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNACKGCfgCH2Wlrg4_JZO8i4H1Mm7GlAHU6sHEANhtOsSt4Zdoi7y4xRioHUdXJLFbICyiL0c02RA0kGvenowrYkungckvB8aKQXDdny7Kz62xf3JUAPW4-7EhsOdnrOzpDp3Z15BISQ0EnzirtKXp7I3RgPgX2ePuCq2LdNBBvVlMd8qYcHzRpdUSDYJLsvXlU1koiRct_xBGHlswZK9WO1p18-AqR8qJiTXBAbIghLNfZN3dQPTEQ_tlv_Ctk7Sjckvp-jfxyVI"/>
+</div>
+<h3 class="font-h3 text-h3 text-white">Aurum Collective</h3>
+</div>
+<button class="bg-gold text-white font-label-caps text-[10px] py-2 px-6 rounded-full w-fit hover:brightness-110 active:scale-95 transition-all">EXPLORE</button>
+</div>
+</div>
+<div class="flex-none w-[85%] h-[190px] relative rounded-xl overflow-hidden snap-center">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="Close up of diamonds being inspected by a professional under studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHtNqSY_sV8-pOYCGl2q8jwhWY94AqGaqF2iDSxiKVSVUEp7pviX9LZbY5bEznvhJl1V6DBKP3zXw9ka-iViiHdeohep7LEWAbAUDhFxODAM0_pDmSPBSwkl9VenlJim29m3pFjED_SIw_7I_h2PFCxRAgUPIFwCk81uJkBTP5pbuvl5X6HkqRH120_bJhmO_1xEOm-s7ZL76LgsT4o75bqOmZ1E7PBItam3_mNgnLEjtXlK3VABYkjpUMUup57EFzWUgPTVs5oE4"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-white rounded-full flex items-center justify-center p-1 shadow-md">
+<img class="w-full h-full object-contain" data-alt="Modern corporate logo for a diamond trading company" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAspIJghbd68vbOcnNqZhxft--cpwkQ3Pz4P9pfYHYAAbzcfGM9TWGtZDHJLhRC2Abb_qHydWBUDeqbwc7S4uqko4siqEAFt44C-XcIhDS-9nC3n87kNhkr9XjPJoAvs-OMPMzfWuDGgVQ1eXRhvvBlOYgdeHV6WsyZ7kdbX8S1nu8HBcLa_woT7YQVM74c8EX-YsvF5jP8FTgiAEN7OtktqlM3HAKwbgG8aVRZXdAdNXxG3PlEsOLndqPybyyZZ1YPlFk1lpVwjEA"/>
+</div>
+<h3 class="font-h3 text-h3 text-white">Diamond Reserve</h3>
+</div>
+<button class="bg-gold text-white font-label-caps text-[10px] py-2 px-6 rounded-full w-fit">EXPLORE</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Pro Section: ESTABLISHED MEMBERS -->
+<section class="mt-xl">
+<div class="px-6 mb-4">
+<h2 class="font-label-caps text-label-caps text-tertiary uppercase">ESTABLISHED MEMBERS</h2>
+</div>
+<div class="flex overflow-x-auto no-scrollbar gap-x-4 px-6 snap-x snap-mandatory">
+<div class="flex flex-col gap-y-4">
+<!-- Member Group 1 (Vertical Column of 2) -->
+<div class="flex gap-4">
+<!-- Pro Card 1 -->
+<div class="flex-none w-[160px] bg-white rounded-lg shadow-sm overflow-hidden border border-surface-container flex flex-col snap-start">
+<div class="h-[80px] relative">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="Luxury workshop interior" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhKhZ6QWTOhfsnu7EONIw7ioQpcrbrF3dDFycVfnRkB8q-dkt9aFkfVW9PayZdi61IuQYMo1mFG_zih9iXsnei_5YbFMT9gqfD97pZkB0pbAMYthV9A0S5CGdpbWuHMpryUV5U_WbjrMpTV1ovHm56lQj2gyvu8uo_c_YShipov5d3-0JSz7RCkhz-l0vznMvJl70a1rrXsR9rIouU4ixcVhQHJgr-WE_wE-2_sUXoubojfQOOZZ4X8kC0JD7GWXRisUmgxiUaLKI"/>
+</div>
+<div class="p-2 flex items-center justify-between">
+<span class="font-body-sm text-[11px] font-medium text-on-surface truncate">Vanguard Gems</span>
+<span class="material-symbols-outlined text-gold text-[14px]">verified</span>
+</div>
+</div>
+<!-- Pro Card 2 -->
+<div class="flex-none w-[160px] bg-white rounded-lg shadow-sm overflow-hidden border border-surface-container flex flex-col snap-start">
+<div class="h-[80px] relative">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="Diamond inspection" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHtNqSY_sV8-pOYCGl2q8jwhWY94AqGaqF2iDSxiKVSVUEp7pviX9LZbY5bEznvhJl1V6DBKP3zXw9ka-iViiHdeohep7LEWAbAUDhFxODAM0_pDmSPBSwkl9VenlJim29m3pFjED_SIw_7I_h2PFCxRAgUPIFwCk81uJkBTP5pbuvl5X6HkqRH120_bJhmO_1xEOm-s7ZL76LgsT4o75bqOmZ1E7PBItam3_mNgnLEjtXlK3VABYkjpUMUup57EFzWUgPTVs5oE4"/>
+</div>
+<div class="p-2 flex items-center justify-between">
+<span class="font-body-sm text-[11px] font-medium text-on-surface truncate">Royal Carats</span>
+<span class="material-symbols-outlined text-gold text-[14px]">verified</span>
+</div>
+</div>
+<!-- Pro Card 3 -->
+<div class="flex-none w-[160px] bg-white rounded-lg shadow-sm overflow-hidden border border-surface-container flex flex-col snap-start">
+<div class="h-[80px] relative">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="Gold bullion refinery" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1Crsl-lI-Oa_W1EeE7wGWQx71fnNIlH94SpDdZQDc8jImZO6M_QAWvFNoGPFILfQWEpN7pvPbAYn6dMPRm8q6o9LCbmFoU-C-jvgnkUrxkl4PfeSj7W2qyRrdYRFlVRfSoMsVoxgrsQ4VwgRGGkgajWl1q_f8009T5ls6OXwPoZ0Ol62ftUWSzQhqMjLStNKvkB4eQTvtvFd3E4XrCYfn992xEeE2X87gpBM8r9CAWCEInzSmulUtykkiEwJs_gyBeoZTuzBhSQM"/>
+</div>
+<div class="p-2 flex items-center justify-between">
+<span class="font-body-sm text-[11px] font-medium text-on-surface truncate">Elite Bullion</span>
+<span class="material-symbols-outlined text-gold text-[14px]">verified</span>
+</div>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="flex gap-4">
+<!-- Pro Card 4 (Reuse Content) -->
+<div class="flex-none w-[160px] bg-white rounded-lg shadow-sm overflow-hidden border border-surface-container flex flex-col snap-start">
+<div class="h-[80px] relative">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="Artisan workshop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqdXPUc3pNXw4_d0Fl6H1Hnpa2hq-WKu0K_LERYofWcpYw-Li9k0B4cr9f8oZsBuvSWFc5k59yLhHBBYLmrnYUHAkSDnI3Qz-raj3mC5-yBSih6WK3z9t75RpYCAcUDbtx0luP2PRSQ8qDxJjEwfsMJQnF8BgQZy-emoDg5bct0aYNiZY86G4fQersFfT6Q_URza_fL--SfUBfi2rLUONZUxtPIXPDZwWwKBb9ULQ1sbaUUF6yNWOmvSNUWRGwO6yXF9tLfWCyjt4"/>
+</div>
+<div class="p-2 flex items-center justify-between">
+<span class="font-body-sm text-[11px] font-medium text-on-surface truncate">Artisan Guild</span>
+<span class="material-symbols-outlined text-gold text-[14px]">verified</span>
+</div>
+</div>
+<!-- Pro Card 5 (Reuse Content) -->
+<div class="flex-none w-[160px] bg-white rounded-lg shadow-sm overflow-hidden border border-surface-container flex flex-col snap-start">
+<div class="h-[80px] relative">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="Modern studio" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAmqHCc_jowb2sJvm0f95zOyeHlo9pNMUQ-Sv0Ebq4xzAV1OHwEN_m6icf6tOpV48YqrgUXxuSULZkqvNb-lIg6r3z3ykwx63o-hVHq2cEMTlbUhKEZ9FdqmISpx_taMtlpFsLh6dpg0qOlYCJoCYAHSa4qFvWvshkUb1iZue5_HgbyTB5xelOI79VEX1vjKxvmUA1GEqg1TSO5X3KuBk2PXxY5feDKStKW_YExE0iwBQ1J0VkuIwVA1NxK9nQv6NGopfEJWC9S58"/>
+</div>
+<div class="p-2 flex items-center justify-between">
+<span class="font-body-sm text-[11px] font-medium text-on-surface truncate">Lustre Studio</span>
+<span class="material-symbols-outlined text-gold text-[14px]">verified</span>
+</div>
+</div>
+<!-- Pro Card 6 (Reuse Content) -->
+<div class="flex-none w-[160px] bg-white rounded-lg shadow-sm overflow-hidden border border-surface-container flex flex-col snap-start">
+<div class="h-[80px] relative">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="Supply warehouse" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2vpKKRhToiBVjzTqh6SQgDeIMf3AcJ6Fd5MXb_wjKxrCIq8FymO2G2u96IS4WGrbSFq66dEeQP6MPXdYYM9GnaTnsYM5rVkBjCFgYJ6OfAEtVgwsrmjMyzMIaUU0pTTn-J73lrDt_3as-BYvukeUfprNlfM7SMYegICBZXkx71FliAGKaCgi4-kNwIAzbJVI66XPlDETGLW1G4OZJICJzn5Gje_hsZC0b9QFfxm593FH25A56SBsbbAKR-1wSXtL_NVJ284ro40E"/>
+</div>
+<div class="p-2 flex items-center justify-between">
+<span class="font-body-sm text-[11px] font-medium text-on-surface truncate">Supply Co.</span>
+<span class="material-symbols-outlined text-gold text-[14px]">verified</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Empty Spacer to handle 10-20% visibility of next set if there were more -->
+<div class="flex-none w-[20px]"></div>
+</div>
+</section>
+<!-- Normal Section: DIRECTORY -->
+<section class="mt-xl">
+<div class="px-6 mb-4">
+<h2 class="font-label-caps text-label-caps text-tertiary uppercase">DIRECTORY</h2>
+</div>
+<div class="flex overflow-x-auto no-scrollbar gap-3 px-6">
+<!-- Directory Cards -->
+<div class="flex-none w-[118px] h-[122px] bg-[#F5F5F5] rounded-xl flex flex-col items-center justify-center text-center p-3">
+<div class="w-[42px] h-[42px] rounded-full bg-white mb-2 overflow-hidden shadow-sm flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Simple logo for a craft jewellery workshop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqdXPUc3pNXw4_d0Fl6H1Hnpa2hq-WKu0K_LERYofWcpYw-Li9k0B4cr9f8oZsBuvSWFc5k59yLhHBBYLmrnYUHAkSDnI3Qz-raj3mC5-yBSih6WK3z9t75RpYCAcUDbtx0luP2PRSQ8qDxJjEwfsMJQnF8BgQZy-emoDg5bct0aYNiZY86G4fQersFfT6Q_URza_fL--SfUBfi2rLUONZUxtPIXPDZwWwKBb9ULQ1sbaUUF6yNWOmvSNUWRGwO6yXF9tLfWCyjt4"/>
+</div>
+<span class="font-label-caps text-[10px] text-zinc-900 line-clamp-2">Artisan Guild</span>
+</div>
+<div class="flex-none w-[118px] h-[122px] bg-[#F5F5F5] rounded-xl flex flex-col items-center justify-center text-center p-3">
+<div class="w-[42px] h-[42px] rounded-full bg-white mb-2 overflow-hidden shadow-sm flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Elegant logo for a boutique design studio" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAmqHCc_jowb2sJvm0f95zOyeHlo9pNMUQ-Sv0Ebq4xzAV1OHwEN_m6icf6tOpV48YqrgUXxuSULZkqvNb-lIg6r3z3ykwx63o-hVHq2cEMTlbUhKEZ9FdqmISpx_taMtlpFsLh6dpg0qOlYCJoCYAHSa4qFvWvshkUb1iZue5_HgbyTB5xelOI79VEX1vjKxvmUA1GEqg1TSO5X3KuBk2PXxY5feDKStKW_YExE0iwBQ1J0VkuIwVA1NxK9nQv6NGopfEJWC9S58"/>
+</div>
+<span class="font-label-caps text-[10px] text-zinc-900 line-clamp-2">Lustre Studio</span>
+</div>
+<div class="flex-none w-[118px] h-[122px] bg-[#F5F5F5] rounded-xl flex flex-col items-center justify-center text-center p-3">
+<div class="w-[42px] h-[42px] rounded-full bg-white mb-2 overflow-hidden shadow-sm flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Corporate logo for a trade supply company" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2vpKKRhToiBVjzTqh6SQgDeIMf3AcJ6Fd5MXb_wjKxrCIq8FymO2G2u96IS4WGrbSFq66dEeQP6MPXdYYM9GnaTnsYM5rVkBjCFgYJ6OfAEtVgwsrmjMyzMIaUU0pTTn-J73lrDt_3as-BYvukeUfprNlfM7SMYegICBZXkx71FliAGKaCgi4-kNwIAzbJVI66XPlDETGLW1G4OZJICJzn5Gje_hsZC0b9QFfxm593FH25A56SBsbbAKR-1wSXtL_NVJ284ro40E"/>
+</div>
+<span class="font-label-caps text-[10px] text-zinc-900 line-clamp-2">Supply Co.</span>
+</div>
+<div class="flex-none w-[118px] h-[122px] bg-[#F5F5F5] rounded-xl flex flex-col items-center justify-center text-center p-3">
+<div class="w-[42px] h-[42px] rounded-full bg-white mb-2 overflow-hidden shadow-sm flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Logo for a landscape inspired jewellery line" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCA3WJxW4CBFhOCRd8QEM0-FBFuT9np3CsLfCN_6knrAcof55auYff1HSi3Lw7in5gSjiehOTuuREbx8kJyYIO3qBa0-i-baxhssK_2KEB9uWa5CTSlhZyjZIOnTHjZLjKMKxMeSuQcMiDRBlWjzFnu-33DjOmYWwEefaAV6otD8c5XpGeenzbsXy_wTdYmey4mEAVAOSzBaK7Xlv3rhUEAOZm2A_zgB4VDezRIofWcHxm0esBDSEGPBintOLLWQEgthOY1wRXsiW4"/>
+</div>
+<span class="font-label-caps text-[10px] text-zinc-900 line-clamp-2">Nordic Gold</span>
+</div>
+</div>
+</section>
+<!-- Categories: CATEGORIES -->
+<section class="mt-xl">
+<div class="px-6 mb-4">
+<h2 class="font-label-caps text-label-caps text-tertiary uppercase">CATEGORIES</h2>
+</div>
+<div class="flex overflow-x-auto no-scrollbar gap-6 px-6">
+<!-- Category Items -->
+<div class="flex flex-col items-center gap-2">
+<div class="w-[56px] h-[56px] rounded-full bg-white border border-surface-container flex items-center justify-center text-gold shadow-sm">
+<span class="material-symbols-outlined text-[28px]">apparel</span>
+</div>
+<span class="font-label-caps text-[11px] text-on-surface-variant">Rings</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-[56px] h-[56px] rounded-full bg-white border border-surface-container flex items-center justify-center text-gold shadow-sm">
+<span class="material-symbols-outlined text-[28px]">link</span>
+</div>
+<span class="font-label-caps text-[11px] text-on-surface-variant">Chains</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-[56px] h-[56px] rounded-full bg-white border border-surface-container flex items-center justify-center text-gold shadow-sm">
+<span class="material-symbols-outlined text-[28px]">circles</span>
+</div>
+<span class="font-label-caps text-[11px] text-on-surface-variant">Bangles</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-[56px] h-[56px] rounded-full bg-white border border-surface-container flex items-center justify-center text-gold shadow-sm">
+<span class="material-symbols-outlined text-[28px]">person</span>
+</div>
+<span class="font-label-caps text-[11px] text-on-surface-variant">Necklaces</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-[56px] h-[56px] rounded-full bg-white border border-surface-container flex items-center justify-center text-gold shadow-sm">
+<span class="material-symbols-outlined text-[28px]">toll</span>
+</div>
+<span class="font-label-caps text-[11px] text-on-surface-variant">Coins</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-[56px] h-[56px] rounded-full bg-white border border-surface-container flex items-center justify-center text-gold shadow-sm">
+<span class="material-symbols-outlined text-[28px]">diamond</span>
+</div>
+<span class="font-label-caps text-[11px] text-on-surface-variant">Diamonds</span>
+</div>
+</div>
+</section>
+<!-- Product Grid: LATEST PRODUCTS -->
+<section class="mt-xl px-6">
+<div class="mb-4">
+<h2 class="font-label-caps text-label-caps text-tertiary uppercase">LATEST PRODUCTS</h2>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<!-- Product Card 1 -->
+<div class="bg-white rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container-low">
+<img class="w-full h-[130px] object-cover" data-alt="Close up of a 22k gold wedding ring with traditional engravings on a dark surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANt8p_GJVDNA4aZ14ixudXMJTwzuzNk3t7brf-VrGQ0ZdQxDUseJytgXpFqceT2rUOMuhv1VwtT_b7ufw7Cm6GtzT24ij5auYZb4qxi-YRTyww6FMIXIPzTtfnTe3d_nCQ8HX_FZwY92ZBvPjgYxH3Bz6PXq9p43QipByIiCz7L7utMh-lbgcOi7W4eQNgv-FOg2rULEbXtllTw7Dnj-4Jtjcxk7AsLnHR96T4WqGJgWnAGFbPM4LRedBtpJaObHbPzem19kjDN90"/>
+<div class="p-3">
+<p class="font-label-caps text-[11px] text-gold mb-1">22K | 10g</p>
+<h4 class="font-h3 text-[14px] leading-tight text-zinc-900 mb-1">Classic Gold Band</h4>
+<p class="font-body-sm text-[12px] text-zinc-500">Aurum Collective</p>
+</div>
+</div>
+<!-- Product Card 2 -->
+<div class="bg-white rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container-low">
+<img class="w-full h-[130px] object-cover" data-alt="Exquisite diamond necklace displayed on a velvet neck stand under soft gallery lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCiYaKWjmLGuN-o4f8RODBgknBEkEXWelqvhQ7rxTkNPa71WldiLKAK_57Uw8rVJ7u-K7IcMJCukigKR_yidqVuOcAKn-qQIWL-tyYrRAjYzzq8h4sdgdaNphB4ttwJqVGshg4ojzGpCv-nvSzz_dKTwD4AZ5sfwu6bLTHuZdTzkhn58PEXlJ9_56_GhVdpvpMdE50hrEPvXnHkplEBbG1eUZUlINuD1llQ_hVcDMElVduW7BG72GgtX8fKFKaDIdck6uryxAMTUKY"/>
+<div class="p-3">
+<p class="font-label-caps text-[11px] text-gold mb-1">Platinum | 2ct</p>
+<h4 class="font-h3 text-[14px] leading-tight text-zinc-900 mb-1">Etoile Pendant</h4>
+<p class="font-body-sm text-[12px] text-zinc-500">Diamond Reserve</p>
+</div>
+</div>
+<!-- Product Card 3 -->
+<div class="bg-white rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container-low">
+<img class="w-full h-[130px] object-cover" data-alt="Traditional gold bangles stacked neatly against a neutral linen background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8fAYStmIyeNEeegaEu2AKcbzyKX6D5_A11AZ1VDgXMCFDIAoygODPcvBJvsAxz6tWyhozXQAaU5I3Tc2CcM3rHLkdXnJWa_mVUMwWVYqu6NtemuQWgAG_2AOsduAV8Eum7tdrqNPkm33iQiolWSAQWotNIO5slODNTjT1397GFjDhhOHUkq8ADjgAUYLp5npKQndIXdCPCm0XUnXDS3QGZL-8ZZgODF67rm9mmT0m8e9HfyQm3j28t7ovJWKOJtsO_VWPOvtBabM"/>
+<div class="p-3">
+<p class="font-label-caps text-[11px] text-gold mb-1">22K | 45g</p>
+<h4 class="font-h3 text-[14px] leading-tight text-zinc-900 mb-1">Antiquity Bangles</h4>
+<p class="font-body-sm text-[12px] text-zinc-500">Vanguard Gems</p>
+</div>
+</div>
+<!-- Product Card 4 -->
+<div class="bg-white rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-surface-container-low">
+<img class="w-full h-[130px] object-cover" data-alt="Large solid gold coin with detailed historical motif being held with white gloves" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1Crsl-lI-Oa_W1EeE7wGWQx71fnNIlH94SpDdZQDc8jImZO6M_QAWvFNoGPFILfQWEpN7pvPbAYn6dMPRm8q6o9LCbmFoU-C-jvgnkUrxkl4PfeSj7W2qyRrdYRFlVRfSoMsVoxgrsQ4VwgRGGkgajWl1q_f8009T5ls6OXwPoZ0Ol62ftUWSzQhqMjLStNKvkB4eQTvtvFd3E4XrCYfn992xEeE2X87gpBM8r9CAWCEInzSmulUtykkiEwJs_gyBeoZTuzBhSQM"/>
+<div class="p-3">
+<p class="font-label-caps text-[11px] text-gold mb-1">999.9 | 1oz</p>
+<h4 class="font-h3 text-[14px] leading-tight text-zinc-900 mb-1">Legacy Bullion</h4>
+<p class="font-body-sm text-[12px] text-zinc-500">Elite Bullion</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-4 pb-safe bg-white dark:bg-zinc-950 shadow-[0px_-4px_20px_rgba(26,26,26,0.03)]">
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 scale-95 active:scale-100 transition-transform duration-150 hover:text-zinc-900" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-['Inter'] text-[11px] font-medium tracking-wide uppercase mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-amber-600 dark:text-amber-500 font-bold scale-95 active:scale-100 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">storefront</span>
+<span class="font-['Inter'] text-[11px] font-medium tracking-wide uppercase mt-1">Market</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 scale-95 active:scale-100 transition-transform duration-150 hover:text-zinc-900" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="font-['Inter'] text-[11px] font-medium tracking-wide uppercase mt-1">Search</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 scale-95 active:scale-100 transition-transform duration-150 hover:text-zinc-900" href="#">
+<span class="material-symbols-outlined">newspaper</span>
+<span class="font-['Inter'] text-[11px] font-medium tracking-wide uppercase mt-1">News</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 scale-95 active:scale-100 transition-transform duration-150 hover:text-zinc-900" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-['Inter'] text-[11px] font-medium tracking-wide uppercase mt-1">Profile</span>
+</a>
+</nav>
+</body></html>

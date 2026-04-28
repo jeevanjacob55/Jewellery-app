@@ -199,6 +199,8 @@ export interface Product {
   weight_grams: string;
   purity: string;
   description: string;
+  category_name: string;
+  image_url: string | null;
 }
 
 export interface Company {
@@ -213,6 +215,51 @@ export interface Company {
   specialization: string;
   verification: CompanyVerification | null;
   products: Product[];
+  hero_image_url: string | null;
+  logo_image_url: string | null;
+}
+
+export interface MarketFeaturedPartner {
+  company_id: number;
+  name: string;
+  hero_image_url: string | null;
+  logo_image_url: string | null;
+  city: string;
+  state: string;
+}
+
+export interface MarketCompanyCard {
+  company_id: number;
+  name: string;
+  hero_image_url: string | null;
+  logo_image_url: string | null;
+  is_verified: boolean;
+}
+
+export interface MarketCategory {
+  id: number;
+  name: string;
+  icon_key: string;
+  product_count: number;
+}
+
+export interface MarketProductCard {
+  product_id: number;
+  company_id: number;
+  company_name: string;
+  name: string;
+  purity: string;
+  weight_grams: string;
+  image_url: string | null;
+  category_name: string;
+}
+
+export interface MarketFeedData {
+  featured_partners: MarketFeaturedPartner[];
+  pro_companies: MarketCompanyCard[];
+  normal_companies: MarketCompanyCard[];
+  categories: MarketCategory[];
+  latest_products: MarketProductCard[];
 }
 
 export interface ServicesData {

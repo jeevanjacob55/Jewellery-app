@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+import { BottomNavigationBar } from "./BottomNavigationBar";
 import { useSession } from "../session/SessionProvider";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { AssociationRatesScreen } from "../screens/dashboard/AssociationRatesScreen";
@@ -21,17 +22,16 @@ const Tabs = createBottomTabNavigator();
 function MainTabs() {
   return (
     <Tabs.Navigator
+      tabBar={(props) => <BottomNavigationBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#1A1A1A",
-        tabBarInactiveTintColor: "#7D7A79",
       }}
     >
-      <Tabs.Screen name="Home" component={HomeDashboardScreen} />
-      <Tabs.Screen name="Market" component={MarketTiersScreen} />
-      <Tabs.Screen name="Services" component={ServicesScreen} />
-      <Tabs.Screen name="News" component={NewsAlertsScreen} />
-      <Tabs.Screen name="Profile" component={MemberProfileScreen} />
+      <Tabs.Screen name="Home" component={HomeDashboardScreen} options={{ tabBarLabel: "HOME" }} />
+      <Tabs.Screen name="Market" component={MarketTiersScreen} options={{ tabBarLabel: "MARKET" }} />
+      <Tabs.Screen name="Services" component={ServicesScreen} options={{ tabBarLabel: "SERVICES" }} />
+      <Tabs.Screen name="News" component={NewsAlertsScreen} options={{ tabBarLabel: "NEWS" }} />
+      <Tabs.Screen name="Profile" component={MemberProfileScreen} options={{ tabBarLabel: "PROFILE" }} />
     </Tabs.Navigator>
   );
 }

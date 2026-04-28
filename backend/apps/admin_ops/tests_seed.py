@@ -68,6 +68,7 @@ class SeededApiIntegrationTests(APITestCase):
         regions_response = self.client.get(reverse("region_hierarchy"))
         dashboard_response = self.client.get(reverse("dashboard"))
         directory_response = self.client.get(reverse("company_list"))
+        market_response = self.client.get(reverse("market_feed"))
         services_response = self.client.get(reverse("services_dashboard"))
         news_response = self.client.get(reverse("news_feed"))
 
@@ -80,7 +81,7 @@ class SeededApiIntegrationTests(APITestCase):
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertGreater(len(dashboard_response.data["comparisons"]), 0)
         self.assertEqual(directory_response.status_code, 200)
-        self.assertGreaterEqual(len(directory_response.data), 6)
+        self.assertGreaterEqual(len(directory_response.data), 10)
         self.assertTrue(any(company["products"] for company in directory_response.data))
         self.assertTrue(
             any(
@@ -89,6 +90,13 @@ class SeededApiIntegrationTests(APITestCase):
                 for product in company["products"]
             )
         )
+        self.assertEqual(market_response.status_code, 200)
+        self.assertGreaterEqual(len(market_response.data["featured_partners"]), 2)
+        self.assertGreaterEqual(len(market_response.data["pro_companies"]), 4)
+        self.assertGreaterEqual(len(market_response.data["normal_companies"]), 4)
+        self.assertGreaterEqual(len(market_response.data["categories"]), 6)
+        self.assertTrue(all(item["hero_image_url"] for item in market_response.data["featured_partners"]))
+        self.assertTrue(all(item["image_url"] for item in market_response.data["latest_products"]))
         self.assertEqual(services_response.status_code, 200)
         self.assertGreater(len(services_response.data["overview"]), 0)
         self.assertEqual(news_response.status_code, 200)

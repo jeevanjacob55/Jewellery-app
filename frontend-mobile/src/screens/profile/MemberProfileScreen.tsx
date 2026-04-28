@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { getJson } from "../../api/client";
+import { AppHeader } from "../../components/AppHeader";
+import { AppScreen } from "../../components/AppScreen";
 import { FilterChip } from "../../components/FilterChip";
-import { SectionHeading } from "../../components/SectionHeading";
 import { SurfaceCard } from "../../components/SurfaceCard";
 import { useSession } from "../../session/SessionProvider";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
@@ -160,10 +161,13 @@ export function MemberProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <SectionHeading>{status === "authenticated" ? "Member Profile" : "Guest Profile"}</SectionHeading>
-
-      <SurfaceCard>
+    <AppScreen scrollable safeAreaEdges={["top"]} contentContainerStyle={styles.content}>
+      <AppHeader
+        title={status === "authenticated" ? "Member Profile" : "Guest Profile"}
+        subtitle={status === "authenticated" ? "Manage your member details, alerts, and access settings." : "Review your guest browsing session and region context."}
+      />
+      <View style={styles.body}>
+        <SurfaceCard>
         <Text style={styles.title}>
           {status === "authenticated"
             ? `${user?.first_name || user?.username} ${user?.last_name || ""}`.trim()
@@ -186,11 +190,11 @@ export function MemberProfileScreen() {
         <Text style={styles.meta}>
           Unit: {user?.member_profile?.unit?.name || guestSession?.guest_profile.unit?.name || "Not selected"}
         </Text>
-      </SurfaceCard>
+        </SurfaceCard>
 
-      {status === "authenticated" ? (
-        <>
-          <SurfaceCard>
+        {status === "authenticated" ? (
+          <>
+            <SurfaceCard>
             <Text style={styles.title}>Member details</Text>
             <Text style={styles.label}>First name</Text>
             <TextInput value={firstName} onChangeText={setFirstName} placeholder="First name" style={styles.input} />
@@ -293,9 +297,9 @@ export function MemberProfileScreen() {
             <Pressable style={[styles.button, profileSubmitting && styles.disabledButton]} onPress={handleProfileSave} disabled={profileSubmitting}>
               <Text style={styles.buttonText}>{profileSubmitting ? "Saving..." : "Save profile details"}</Text>
             </Pressable>
-          </SurfaceCard>
+            </SurfaceCard>
 
-          <SurfaceCard>
+            <SurfaceCard>
             <Text style={styles.title}>Notification preferences</Text>
             <PreferenceRow
               label="Rate alerts"
@@ -325,11 +329,11 @@ export function MemberProfileScreen() {
             >
               <Text style={styles.buttonText}>{preferencesSubmitting ? "Saving..." : "Save preferences"}</Text>
             </Pressable>
-          </SurfaceCard>
-        </>
-      ) : null}
+            </SurfaceCard>
+          </>
+        ) : null}
 
-      <SurfaceCard>
+        <SurfaceCard>
         <Text style={styles.title}>Support & security</Text>
         <Text style={styles.meta}>
           {status === "authenticated"
@@ -339,8 +343,9 @@ export function MemberProfileScreen() {
         <Pressable style={styles.button} onPress={signOut}>
           <Text style={styles.buttonText}>{status === "authenticated" ? "Log out" : "Exit guest session"}</Text>
         </Pressable>
-      </SurfaceCard>
-    </ScrollView>
+        </SurfaceCard>
+      </View>
+    </AppScreen>
   );
 }
 
@@ -354,8 +359,8 @@ function PreferenceRow({ label, value, onValueChange }: { label: string; value: 
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, gap: spacing.md },
+  content: { paddingBottom: spacing.xl },
+  body: { paddingHorizontal: spacing.lg, gap: spacing.md },
   title: { color: colors.text, fontWeight: "700", fontSize: 18, marginBottom: spacing.sm },
   label: {
     color: colors.mutedText,

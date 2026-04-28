@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Jewellery Association - Home Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#fcf8f8",
+                        "surface-variant": "#e5e2e1",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-primary-fixed": "#1a1c1c",
+                        "inverse-surface": "#313030",
+                        "secondary-container": "#dcdddd",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "surface-container-low": "#f6f3f2",
+                        "primary-container": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-background": "#1c1b1b",
+                        "surface-tint": "#5d5f5f",
+                        "on-surface": "#1c1b1b",
+                        "on-primary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#747676",
+                        "outline-variant": "#c4c7c8",
+                        "on-primary-fixed-variant": "#454747",
+                        "on-surface-variant": "#444748",
+                        "surface-dim": "#ddd9d9",
+                        "primary-fixed": "#e2e2e2",
+                        "secondary": "#5d5f5f",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface-container-high": "#ebe7e7",
+                        "outline": "#747878",
+                        "surface-container-highest": "#e5e2e1",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#5f6161",
+                        "inverse-primary": "#c6c6c7",
+                        "tertiary-container": "#ffffff",
+                        "background": "#fcf8f8",
+                        "secondary-fixed": "#e2e2e2",
+                        "inverse-on-surface": "#f4f0ef",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-error": "#ffffff",
+                        "surface-container": "#f1edec",
+                        "surface-bright": "#fcf8f8",
+                        "tertiary": "#5d5f5f",
+                        "primary": "#5d5f5f",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "on-tertiary-container": "#747676",
+                        "on-secondary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "container-margin": "24px",
+                        "lg": "24px",
+                        "xl": "48px",
+                        "base": "8px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "h2": ["Inter"],
+                        "h1": ["Inter"],
+                        "data-tabular": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "h3": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 bg-white dark:bg-zinc-950 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center px-6 py-4">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-zinc-900 dark:text-zinc-50 cursor-pointer">menu</span>
+<h1 class="text-xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight uppercase">Jewellery Association</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-zinc-900 dark:text-zinc-50 cursor-pointer">notifications</span>
+</div>
+</header>
+<main class="mt-20 px-container-margin space-y-md">
+<!-- Premium Gold Rate Card (Thrissur) -->
+<section class="relative overflow-hidden rounded-xl bg-[#0A192F] text-white p-6 shadow-[0px_4px_20px_rgba(26,26,26,0.15)]">
+<div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#D4AF37]/20 to-transparent -mr-12 -mt-12 rounded-full blur-3xl"></div>
+<div class="relative z-10">
+<div class="flex justify-between items-start mb-4">
+<div>
+<span class="font-label-caps text-label-caps text-[#D4AF37] uppercase">Thrissur Association Rate</span>
+<h2 class="font-h2 text-h2 mt-1">22K Gold (916)</h2>
+</div>
+<div class="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 border border-white/20">
+<span class="material-symbols-outlined text-[16px] text-green-400" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+<span class="font-data-tabular text-data-tabular">+₹45</span>
+</div>
+</div>
+<div class="flex items-baseline gap-2 mb-6">
+<span class="font-h1 text-h1 tracking-tight">₹5,845</span>
+<span class="font-body-sm text-body-sm text-zinc-400">per gram</span>
+</div>
+<div class="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
+<div>
+<p class="font-label-caps text-[10px] text-zinc-400 uppercase tracking-widest">8 Grams (Sovereign)</p>
+<p class="font-h3 text-h3">₹46,760</p>
+</div>
+<div class="text-right">
+<p class="font-label-caps text-[10px] text-zinc-400 uppercase tracking-widest">Last Updated</p>
+<p class="font-body-sm text-body-sm">10:45 AM, Today</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Quick Actions -->
+<section class="grid grid-cols-4 gap-4">
+<div class="flex flex-col items-center gap-2">
+<div class="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-zinc-50">
+<span class="material-symbols-outlined text-amber-600">calculate</span>
+</div>
+<span class="font-label-caps text-[10px] text-center">CALCULATOR</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-zinc-50">
+<span class="material-symbols-outlined text-amber-600">receipt_long</span>
+</div>
+<span class="font-label-caps text-[10px] text-center">GST LOG</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-zinc-50">
+<span class="material-symbols-outlined text-amber-600">verified_user</span>
+</div>
+<span class="font-label-caps text-[10px] text-center">HALLMARK</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-zinc-50">
+<span class="material-symbols-outlined text-amber-600">groups</span>
+</div>
+<span class="font-label-caps text-[10px] text-center">MEMBERS</span>
+</div>
+</section>
+<!-- Featured Ads Carousel (Asymmetric Layout) -->
+<section class="py-4">
+<h3 class="font-h3 text-h3 mb-4">Trade Opportunities</h3>
+<div class="flex overflow-x-auto gap-4 pb-4 no-scrollbar">
+<div class="flex-shrink-0 w-80 h-44 rounded-xl relative overflow-hidden">
+<img class="absolute inset-0 w-full h-full object-cover" data-alt="Luxurious diamond necklace display in a high-end boutique with elegant warm lighting and soft bokeh background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNdetXRPknj-zc10Mz4hCI6kA3QmjJa90z0Xemw-0lufN8v8pLzhdmjg5OElETZ_JUGrVWUc-tFVkWlX1nClKbCO02FlhsqXO_d4WWxJSS0RAd-ZMOUUKeb0cOPRYOL8smmPRGYiOuC40cbNo1Kbjj071iPu-vu6tmX7edXFQETlLehXDa74tkqVS30zBaE6I8oVK-Sj4jkQ-8YEDIx21DLyqXbSjJu8Yb-Ui0mg14nwUhcnjsBXZN7EDj2n4xHEnOgIpEU1MrTy8"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
+<span class="bg-amber-600 text-[10px] font-bold px-2 py-0.5 rounded w-fit mb-2">FEATURED</span>
+<h4 class="font-h3 text-white text-base">New Collection Expo 2024</h4>
+<p class="text-zinc-300 text-[12px]">Registrations open for association members</p>
+</div>
+</div>
+<div class="flex-shrink-0 w-64 h-44 rounded-xl bg-zinc-900 p-6 flex flex-col justify-between border-2 border-amber-600/30">
+<span class="material-symbols-outlined text-amber-500 text-3xl">workspace_premium</span>
+<div>
+<h4 class="font-h3 text-white text-sm">Membership Renewal</h4>
+<p class="text-zinc-400 text-[12px] mt-1">Renew before March 31st to avoid penalties</p>
+</div>
+<button class="bg-amber-600 text-white font-label-caps text-[10px] py-2 rounded-lg mt-2">RENEW NOW</button>
+</div>
+</div>
+</section>
+<!-- Global Trends Bento Grid -->
+<section class="pb-8">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-h3 text-h3">Global Market Trends</h3>
+<span class="text-amber-600 font-label-caps text-xs">VIEW ALL</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-white p-4 rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-zinc-50 flex flex-col justify-between h-32">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-[10px] text-zinc-500">24K GOLD (MCX)</span>
+<span class="material-symbols-outlined text-green-500 text-sm" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+</div>
+<div>
+<p class="font-h3 text-h3">₹62,450</p>
+<p class="text-[10px] text-green-500">+1.2% this week</p>
+</div>
+</div>
+<div class="bg-white p-4 rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-zinc-50 flex flex-col justify-between h-32">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-[10px] text-zinc-500">SILVER (KG)</span>
+<span class="material-symbols-outlined text-red-500 text-sm" style="font-variation-settings: 'FILL' 1;">trending_down</span>
+</div>
+<div>
+<p class="font-h3 text-h3">₹74,200</p>
+<p class="text-[10px] text-red-500">-0.4% this week</p>
+</div>
+</div>
+<div class="bg-white p-4 rounded-xl shadow-[0px_4px_20px_rgba(26,26,26,0.05)] border border-zinc-50 col-span-2 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-600">attach_money</span>
+</div>
+<div>
+<p class="font-label-caps text-[10px] text-zinc-500">USD / INR Exchange</p>
+<p class="font-h3 text-h3">₹82.94</p>
+</div>
+</div>
+<div class="text-right">
+<span class="text-[10px] text-zinc-400 block">VOLATILITY: LOW</span>
+<span class="text-[10px] text-green-500 font-bold">STABLE</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+
+
+
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-zinc-100 dark:border-zinc-800 shadow-[0px_-4px_20px_rgba(26,26,26,0.05)] rounded-t-2xl">
+<!-- Home (Active) -->
+<button class="flex flex-col items-center justify-center text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 transition-colors active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide">Home</span>
+</button>
+<!-- Market -->
+<button class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-amber-700 dark:hover:text-amber-400 transition-colors active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined">monitoring</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide">Market</span>
+</button>
+<!-- News -->
+<button class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-amber-700 dark:hover:text-amber-400 transition-colors active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined">newspaper</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide">News</span>
+</button>
+<!-- Services -->
+<button class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-amber-700 dark:hover:text-amber-400 transition-colors active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined">handyman</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide">Services</span>
+</button>
+<!-- Profile -->
+<button class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-amber-700 dark:hover:text-amber-400 transition-colors active:scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined">person</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide">Profile</span>
+</button>
+</nav>
+<!-- Contextual FAB (Hidden as per hierarchy rules for main dashboard if desired, but included for actionability on Home) -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-zinc-900 text-white rounded-full flex items-center justify-center shadow-xl z-40 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">add</span>
+</button>
+</body></html>

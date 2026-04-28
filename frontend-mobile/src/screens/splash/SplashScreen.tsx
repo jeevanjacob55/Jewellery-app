@@ -1,17 +1,20 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
+import { AppScreen } from "../../components/AppScreen";
 import { colors, spacing } from "../../theme/tokens";
 
 export function SplashScreen() {
   return (
-    <View style={styles.screen}>
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>JA</Text>
+    <AppScreen safeAreaEdges={["top", "bottom"]}>
+      <View style={styles.screen}>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>JA</Text>
+        </View>
+        <Text style={styles.title}>Jewellery Association</Text>
+        <Text style={styles.subtitle}>Restoring your session and preparing the daily trade dashboard.</Text>
+        <ActivityIndicator size="small" color={colors.text} style={styles.loader} />
       </View>
-      <Text style={styles.title}>Jewellery Association</Text>
-      <Text style={styles.subtitle}>Restoring your session and preparing the daily trade dashboard.</Text>
-      <ActivityIndicator size="small" color={colors.text} style={styles.loader} />
-    </View>
+    </AppScreen>
   );
 }
 

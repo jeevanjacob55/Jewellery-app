@@ -19,15 +19,25 @@ type ProductCard = {
   purity: string;
   weightGrams: string;
   description: string;
+  categoryName: string;
+  imageUrl: string | null;
+};
+
+type ProductSearchRouteParams = {
+  companyId?: number;
+  categoryName?: string;
+  query?: string;
+  productId?: number;
 };
 
 const purityOptions = ["All", "22K", "24K"];
 
 export function ProductSearchScreen() {
   const route = useRoute<any>();
+  const params = (route.params ?? {}) as ProductSearchRouteParams;
   const { guestSession, user } = useSession();
   const [products, setProducts] = useState<ProductCard[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(params.query ?? "");
   const [selectedPurity, setSelectedPurity] = useState("All");
   const [requesterName, setRequesterName] = useState(user?.first_name || guestSession?.guest_profile.guest_name || "");
   const [requesterPhone, setRequesterPhone] = useState(user?.member_profile?.phone_number || "");
@@ -35,6 +45,10 @@ export function ProductSearchScreen() {
   const [loading, setLoading] = useState(true);
   const [submittingFor, setSubmittingFor] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSearchTerm(params.query ?? "");
+  }, [params.query]);
 
   useEffect(() => {
     let active = true;
@@ -55,12 +69,23 @@ export function ProductSearchScreen() {
             purity: product.purity,
             weightGrams: product.weight_grams,
             description: product.description,
+            categoryName: product.category_name,
+            imageUrl: product.image_url,
           })),
         );
 
-        const scopedProducts = route.params?.companyId
-          ? flattenedProducts.filter((product) => product.companyId === route.params.companyId)
-          : flattenedProducts;
+        const scopedProducts = flattenedProducts.filter((product) => {
+          if (params.companyId && product.companyId !== params.companyId) {
+            return false;
+          }
+          if (params.categoryName && product.categoryName.toLowerCase() !== params.categoryName.toLowerCase()) {
+            return false;
+          }
+          if (params.productId && product.id !== params.productId) {
+            return false;
+          }
+          return true;
+        });
         setProducts(scopedProducts);
       } catch {
         if (active) {
@@ -78,13 +103,14 @@ export function ProductSearchScreen() {
     return () => {
       active = false;
     };
-  }, [route.params?.companyId]);
+  }, [params.categoryName, params.companyId, params.productId]);
 
   const filteredProducts = products.filter((product) => {
     const matchesPurity = selectedPurity === "All" || product.purity === selectedPurity;
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.companyName.toLowerCase().includes(searchTerm.toLowerCase());
+      product.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.categoryName.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesPurity && matchesSearch;
   });
 
@@ -125,6 +151,8 @@ export function ProductSearchScreen() {
 
       <SurfaceCard>
         <TextInput value={searchTerm} onChangeText={setSearchTerm} placeholder="Search product or company" style={styles.input} />
+        {params.categoryName ? <Text style={styles.scopeText}>Category: {params.categoryName}</Text> : null}
+        {params.companyId ? <Text style={styles.scopeText}>Filtered to one company</Text> : null}
         <View style={styles.chipWrap}>
           {purityOptions.map((purity) => (
             <FilterChip key={purity} label={purity} selected={selectedPurity === purity} onPress={() => setSelectedPurity(purity)} />
@@ -151,7 +179,7 @@ export function ProductSearchScreen() {
           <Text style={styles.title}>{product.name}</Text>
           <Text style={styles.meta}>{product.companyName}</Text>
           <Text style={styles.meta}>
-            {product.purity} • {product.weightGrams}g
+            {product.purity} | {product.weightGrams}g
           </Text>
           <Text style={styles.meta}>{product.description}</Text>
           <Pressable style={styles.actionButton} onPress={() => submitEnquiry(product)} disabled={submittingFor === product.id}>
@@ -197,4 +225,5 @@ const styles = StyleSheet.create({
   },
   actionText: { color: colors.surface, textAlign: "center", fontWeight: "700" },
   message: { color: colors.text, marginTop: spacing.xs },
+  scopeText: { color: colors.mutedText, marginBottom: spacing.sm },
 });

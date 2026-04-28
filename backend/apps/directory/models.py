@@ -62,6 +62,7 @@ class MediaAsset(models.Model):
     bucket_name = models.CharField(max_length=255)
     original_filename = models.CharField(max_length=255)
     mime_type = models.CharField(max_length=120)
+    public_url = models.URLField(blank=True)
     width = models.PositiveIntegerField(default=0)
     height = models.PositiveIntegerField(default=0)
     file_size = models.PositiveIntegerField(default=0)

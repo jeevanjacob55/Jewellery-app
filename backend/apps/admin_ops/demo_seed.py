@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from urllib.parse import quote_plus
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -65,7 +66,16 @@ def _upsert(model, lookup: dict, defaults: dict):
     return instance
 
 
-def _seed_media_asset(*, object_key: str, uploader, bucket_name: str, filename: str, visibility: str, moderation_status: str) -> MediaAsset:
+def _seed_media_asset(
+    *,
+    object_key: str,
+    uploader,
+    bucket_name: str,
+    filename: str,
+    visibility: str,
+    moderation_status: str,
+    public_url: str = "",
+) -> MediaAsset:
     return _upsert(
         MediaAsset,
         {"object_key": object_key},
@@ -74,6 +84,7 @@ def _seed_media_asset(*, object_key: str, uploader, bucket_name: str, filename: 
             "bucket_name": bucket_name,
             "original_filename": filename,
             "mime_type": "image/jpeg",
+            "public_url": public_url,
             "width": 1200,
             "height": 1200,
             "file_size": 245760,
@@ -84,6 +95,10 @@ def _seed_media_asset(*, object_key: str, uploader, bucket_name: str, filename: 
             "sort_order": 0,
         },
     )
+
+
+def _build_logo_url(company_name: str) -> str:
+    return f"https://placehold.co/256x256/FFFFFF/1C1B1B?text={quote_plus(company_name)}"
 
 
 def reset_demo_data() -> None:
@@ -590,12 +605,27 @@ def _seed_regions() -> dict[str, dict[str, object]]:
 
 def _seed_directory(users: dict[str, object]) -> None:
     categories = {
-        "Temple Jewellery": ProductCategory.objects.filter(name="Temple Jewellery").first()
-        or ProductCategory.objects.create(name="Temple Jewellery"),
-        "Bridal Sets": ProductCategory.objects.filter(name="Bridal Sets").first() or ProductCategory.objects.create(name="Bridal Sets"),
-        "Lightweight Chains": ProductCategory.objects.filter(name="Lightweight Chains").first()
-        or ProductCategory.objects.create(name="Lightweight Chains"),
-        "Diamond Rings": ProductCategory.objects.filter(name="Diamond Rings").first() or ProductCategory.objects.create(name="Diamond Rings"),
+        "Rings": ProductCategory.objects.filter(name="Rings").first() or ProductCategory.objects.create(name="Rings"),
+        "Chains": ProductCategory.objects.filter(name="Chains").first() or ProductCategory.objects.create(name="Chains"),
+        "Bangles": ProductCategory.objects.filter(name="Bangles").first() or ProductCategory.objects.create(name="Bangles"),
+        "Necklaces": ProductCategory.objects.filter(name="Necklaces").first() or ProductCategory.objects.create(name="Necklaces"),
+        "Coins": ProductCategory.objects.filter(name="Coins").first() or ProductCategory.objects.create(name="Coins"),
+        "Diamonds": ProductCategory.objects.filter(name="Diamonds").first() or ProductCategory.objects.create(name="Diamonds"),
+    }
+
+    hero_images = {
+        "showroom": "https://lh3.googleusercontent.com/aida-public/AB6AXuBhKhZ6QWTOhfsnu7EONIw7ioQpcrbrF3dDFycVfnRkB8q-dkt9aFkfVW9PayZdi61IuQYMo1mFG_zih9iXsnei_5YbFMT9gqF97pZkB0pbAMYthV9A0S5CGdpbWuHMpryUV5U_WbjrMpTV1ovHm56lQj2gyvu8uo_c_YShipov5d3-0JSz7RCkhz-l0vznMvJl70a1rrXsR9rIouU4ixcVhQHJgr-WE_wE-2_sUXoubojfQOOZZ4X8kC0JD7GWXRisUmgxiUaLKI",
+        "diamond": "https://lh3.googleusercontent.com/aida-public/AB6AXuBHtNqSY_sV8-pOYCGl2q8jwhWY94AqGaqF2iDSxiKVSVUEp7pviX9LZbY5bEznvhJl1V6DBKP3zXw9ka-iViiHdeohep7LEWAbAUDhFxODAM0_pDmSPBSwkl9VenlJim29m3pFjED_SIw_7I_h2PFCxRAgUPIFwCk81uJkBTP5pbuvl5X6HkqRH120_bJhmO_1xEOm-s7ZL76LgsT4o75bqOmZ1E7PBItam3_mNgnLEjtXlK3VABYkjpUMUup57EFzWUgPTVs5oE4",
+        "bullion": "https://lh3.googleusercontent.com/aida-public/AB6AXuB1Crsl-lI-Oa_W1EeE7wGWQx71fnNIlH94SpDdZQDc8jImZO6M_QAWvFNoGPFILfQWEpN7pvPbAYn6dMPRm8q6o9LCbmFoU-C-jvgnkUrxkl4PfeSj7W2qyRrdYRFlVRfSoMsVoxgrsQ4VwgRGGkgajWl1q_f8009T5ls6OXwPoZ0Ol62ftUWSzQhqMjLStNKvkB4eQTvtvFd3E4XrCYfn992xEeE2X87gpBM8r9CAWCEInzSmulUtykkiEwJs_gyBeoZTuzBhSQM",
+        "artisan": "https://lh3.googleusercontent.com/aida-public/AB6AXuCqdXPUc3pNXw4_d0Fl6H1Hnpa2hq-WKu0K_LERYofWcpYw-Li9k0B4cr9f8oZsBuvSWFc5k59yLhHBBYLmrnYUHAkSDnI3Qz-raj3mC5-yBSih6WK3z9t75RpYCAcUDbtx0luP2PRSQ8qDxJjEwfsMJQnF8BgQZy-emoDg5bct0aYNiZY86G4fQersFfT6Q_URza_fL--SfUBfi2rLUONZUxtPIXPDZwWwKBb9ULQ1sbaUUF6yNWOmvSNUWRGwO6yXF9tLfWCyjt4",
+        "studio": "https://lh3.googleusercontent.com/aida-public/AB6AXuAAmqHCc_jowb2sJvm0f95zOyeHlo9pNMUQ-Sv0Ebq4xzAV1OHwEN_m6icf6tOpV48YqrgUXxuSULZkqvNb-lIg6r3z3ykwx63o-hVHq2cEMTlbUhKEZ9FdqmISpx_taMtlpFsLh6dpg0qOlYCJoCYAHSa4qFvWvshkUb1iZue5_HgbyTB5xelOI79VEX1vjKxvmUA1GEqg1TSO5X3KuBk2PXxY5feDKStKW_YExE0iwBQ1J0VkuIwVA1NxK9nQv6NGopfEJWC9S58",
+        "warehouse": "https://lh3.googleusercontent.com/aida-public/AB6AXuA2vpKKRhToiBVjzTqh6SQgDeIMf3AcJ6Fd5MXb_wjKxrCIq8FymO2G2u96IS4WGrbSFq66dEeQP6MPXdYYM9GnaTnsYM5rVkBjCFgYJ6OfAEtVgwsrmjMyzMIaUU0pTTn-J73lrDt_3as-BYvukeUfprNlfM7SMYegICBZXkx71FliAGKaCgi4-kNwIAzbJVI66XPlDETGLW1G4OZJICJzn5Gje_hsZC0b9QFfxm593FH25A56SBsbbAKR-1wSXtL_NVJ284ro40E",
+    }
+    product_images = {
+        "ring": "https://lh3.googleusercontent.com/aida-public/AB6AXuANt8p_GJVDNA4aZ14ixudXMJTwzuzNk3t7brf-VrGQ0ZdQxDUseJytgXpFqceT2rUOMuhv1VwtT_b7ufw7Cm6GtzT24ij5auYZb4qxi-YRTyww6FMIXIPzTtfnTe3d_nCQ8HX_FZwY92ZBvPjgYxH3Bz6PXq9p43QipByIiCz7L7utMh-lbgcOi7W4eQNgv-FOg2rULEbXtllTw7Dnj-4Jtjcxk7AsLnHR96T4WqGJgWnAGFbPM4LRedBtpJaObHbPzem19kjDN90",
+        "diamond": "https://lh3.googleusercontent.com/aida-public/AB6AXuCiYaKWjmLGuN-o4f8RODBgknBEkEXWelqvhQ7rxTkNPa71WldiLKAK_57Uw8rVJ7u-K7IcMJCukigKR_yidqVuOcAKn-qQIWL-tyYrRAjYzzq8h4sdgdaNphB4ttwJqVGshg4ojzGpCv-nvSzz_dKTwD4AZ5sfwu6bLTHuZdTzkhn58PEXlJ9_56_GhVdpvpMdE50hrEPvXnHkplEBbG1eUZUlINuD1llQ_hVcDMElVduW7BG72GgtX8fKFKaDIdck6uryxAMTUKY",
+        "bangle": "https://lh3.googleusercontent.com/aida-public/AB6AXuA8fAYStmIyeNEeegaEu2AKcbzyKX6D5_A11AZ1VDgXMCFDIAoygODPcvBJvsAxz6tWyhozXQAaU5I3Tc2CcM3rHLkdXnJWa_mVUMwWVYqu6NtemuQWgAG_2AOsduAV8Eum7tdrqNPkm33iQiolWSAQWotNIO5slODNTjT1397GFjDhhOHUkq8ADjgAUYLp5npKQndIXdCPCm0XUnXDS3QGZL-8ZZgODF67rm9mmT0m8e9HfyQm3j28t7ovJWKOJtsO_VWPOvtBabM",
+        "coin": "https://lh3.googleusercontent.com/aida-public/AB6AXuB1Crsl-lI-Oa_W1EeE7wGWQx71fnNIlH94SpDdZQDc8jImZO6M_QAWvFNoGPFILfQWEpN7pvPbAYn6dMPRm8q6o9LCbmFoU-C-jvgnkUrxkl4PfeSj7W2qyRrdYRFlVRfSoMsVoxgrsQ4VwgRGGkgajWl1q_f8009T5ls6OXwPoZ0Ol62ftUWSzQhqMjLStNKvkB4eQTvtvFd3E4XrCYfn992xEeE2X87gpBM8r9CAWCEInzSmulUtykkiEwJs_gyBeoZTuzBhSQM",
     }
 
     companies = [
@@ -607,11 +637,12 @@ def _seed_directory(users: dict[str, object]) -> None:
             "state": "Kerala",
             "about": "High-volume manufacturing for regional retailers and premium bridal houses.",
             "daily_capacity": "15kg",
-            "specialization": "Temple jewellery",
+            "specialization": "Bridal gold and statement necklaces",
+            "hero_image_url": hero_images["showroom"],
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
-                ("Temple Jewellery", "Lakshmi Kasu Mala", "48.50", "22K", "Hand-finished temple necklace."),
-                ("Bridal Sets", "Bridal Mango Haram", "62.00", "22K", "Layered mango-motif bridal haram."),
+                ("Rings", "Classic Gold Band", "10.00", "22K", "Traditional wedding band finished in warm gold.", product_images["ring"]),
+                ("Necklaces", "Bridal Mango Haram", "62.00", "22K", "Layered mango-motif bridal haram.", product_images["diamond"]),
             ],
         },
         {
@@ -623,9 +654,10 @@ def _seed_directory(users: dict[str, object]) -> None:
             "about": "Casting and finishing line focused on fast-moving daily wear collections.",
             "daily_capacity": "9kg",
             "specialization": "Lightweight chains",
+            "hero_image_url": hero_images["bullion"],
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": True},
             "products": [
-                ("Lightweight Chains", "Singapore Twist Chain", "14.25", "22K", "Daily wear Singapore twist chain."),
+                ("Chains", "Singapore Twist Chain", "14.25", "22K", "Daily wear Singapore twist chain.", product_images["ring"]),
             ],
         },
         {
@@ -636,10 +668,12 @@ def _seed_directory(users: dict[str, object]) -> None:
             "state": "Tamil Nadu",
             "about": "Premium retail showroom with bridal consultations and custom diamond work.",
             "daily_capacity": "4kg",
-            "specialization": "Diamond rings",
+            "specialization": "Diamond jewellery",
+            "hero_image_url": hero_images["diamond"],
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
-                ("Diamond Rings", "Solitaire Halo Ring", "6.40", "18K", "Halo-set solitaire ring for bridal collections."),
+                ("Diamonds", "Etoile Pendant", "2.00", "18K", "Diamond pendant for premium occasion wear.", product_images["diamond"]),
+                ("Rings", "Solitaire Halo Ring", "6.40", "18K", "Halo-set solitaire ring for bridal collections.", product_images["ring"]),
             ],
         },
         {
@@ -650,10 +684,11 @@ def _seed_directory(users: dict[str, object]) -> None:
             "state": "Tamil Nadu",
             "about": "Regional wholesaler with fast replenishment for family jewellers.",
             "daily_capacity": "6kg",
-            "specialization": "Bridal sets",
+            "specialization": "Bangles",
+            "hero_image_url": hero_images["artisan"],
             "verification": {"gst_registered": True, "bis_hallmarked": False, "export_licensed": False},
             "products": [
-                ("Bridal Sets", "Floral Bridal Choker", "38.00", "22K", "Floral bridal choker with matching studs."),
+                ("Bangles", "Antiquity Bangles", "45.00", "22K", "Stacked bridal bangles with antique finish.", product_images["bangle"]),
             ],
         },
         {
@@ -665,9 +700,10 @@ def _seed_directory(users: dict[str, object]) -> None:
             "about": "Bulk chain producer with strong daily wear assortments.",
             "daily_capacity": "11kg",
             "specialization": "Machine chains",
+            "hero_image_url": hero_images["studio"],
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
-                ("Lightweight Chains", "Box Link Chain", "10.10", "22K", "Popular box-link chain for urban storefronts."),
+                ("Chains", "Box Link Chain", "10.10", "22K", "Popular box-link chain for urban storefronts.", product_images["ring"]),
             ],
         },
         {
@@ -678,10 +714,86 @@ def _seed_directory(users: dict[str, object]) -> None:
             "state": "Karnataka",
             "about": "Traditional handcrafted pieces for festive and temple collections.",
             "daily_capacity": "3kg",
-            "specialization": "Antique finish work",
+            "specialization": "Coins and antique finish work",
+            "hero_image_url": hero_images["warehouse"],
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
-                ("Temple Jewellery", "Antique Vanki", "24.75", "22K", "Armlet with antique temple detailing."),
+                ("Coins", "Legacy Bullion Coin", "31.10", "999.9", "Premium bullion coin with heritage motif.", product_images["coin"]),
+            ],
+        },
+        {
+            "name": "Regal Necklace Works",
+            "category": "Manufacturer",
+            "tier": Company.Tier.PRO,
+            "city": "Hyderabad",
+            "state": "Telangana",
+            "about": "Large-format necklace and bridal set workshop for high-volume retailers.",
+            "daily_capacity": "8kg",
+            "specialization": "Statement necklaces",
+            "hero_image_url": hero_images["showroom"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
+            "products": [
+                ("Necklaces", "Temple Cascade Necklace", "54.50", "22K", "Layered bridal necklace with peacock detailing.", product_images["diamond"]),
+            ],
+        },
+        {
+            "name": "Auric Ring Atelier",
+            "category": "Retail",
+            "tier": Company.Tier.PRO,
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "about": "Boutique atelier focused on premium rings and custom bridal commissions.",
+            "daily_capacity": "2kg",
+            "specialization": "Custom rings",
+            "hero_image_url": hero_images["diamond"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
+            "products": [
+                ("Rings", "Solitaire Stack Ring", "5.80", "18K", "Stackable diamond-accent bridal ring.", product_images["ring"]),
+            ],
+        },
+        {
+            "name": "CoinCraft Mint",
+            "category": "Wholesale",
+            "tier": Company.Tier.NORMAL,
+            "city": "Jaipur",
+            "state": "Rajasthan",
+            "about": "Specialist supplier of festive bullion coins and commemorative gifting pieces.",
+            "daily_capacity": "7kg",
+            "specialization": "Gold coins",
+            "hero_image_url": hero_images["bullion"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
+            "products": [
+                ("Coins", "Lakshmi Gold Coin", "8.00", "24K", "Festival-ready gold coin with embossed motif.", product_images["coin"]),
+            ],
+        },
+        {
+            "name": "Diamond Light House",
+            "category": "Retail",
+            "tier": Company.Tier.NORMAL,
+            "city": "Surat",
+            "state": "Gujarat",
+            "about": "Contemporary diamond studio supplying lightweight daily wear pieces.",
+            "daily_capacity": "5kg",
+            "specialization": "Diamond pendants",
+            "hero_image_url": hero_images["studio"],
+            "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": True},
+            "products": [
+                ("Diamonds", "Petal Diamond Pendant", "3.25", "18K", "Lightweight pendant for premium daily wear.", product_images["diamond"]),
+            ],
+        },
+        {
+            "name": "Bangle Avenue",
+            "category": "Manufacturer",
+            "tier": Company.Tier.NORMAL,
+            "city": "Pune",
+            "state": "Maharashtra",
+            "about": "Mid-scale workshop producing stackable bangles for festive and bridal assortments.",
+            "daily_capacity": "6kg",
+            "specialization": "Bangles",
+            "hero_image_url": hero_images["artisan"],
+            "verification": {"gst_registered": True, "bis_hallmarked": False, "export_licensed": False},
+            "products": [
+                ("Bangles", "Petal Edge Bangles", "22.50", "22K", "Polished bridal bangles with floral edges.", product_images["bangle"]),
             ],
         },
     ]
@@ -702,7 +814,7 @@ def _seed_directory(users: dict[str, object]) -> None:
         )
         _upsert(CompanyVerification, {"company": company}, company_spec["verification"])
 
-        for category_name, product_name, weight, purity, description in company_spec["products"]:
+        for category_name, product_name, weight, purity, description, product_image_url in company_spec["products"]:
             category = categories[category_name]
             product = _upsert(
                 Product,
@@ -721,6 +833,7 @@ def _seed_directory(users: dict[str, object]) -> None:
                 filename=f"{product.name.lower().replace(' ', '-')}.jpg",
                 visibility=MediaAsset.Visibility.PUBLIC,
                 moderation_status=MediaAsset.ModerationStatus.APPROVED,
+                public_url=product_image_url,
             )
             _upsert(ProductImage, {"product": product}, {"asset": product_asset})
 
@@ -731,8 +844,20 @@ def _seed_directory(users: dict[str, object]) -> None:
             filename=f"{company.name.lower().replace(' ', '-')}.jpg",
             visibility=MediaAsset.Visibility.PUBLIC,
             moderation_status=MediaAsset.ModerationStatus.APPROVED,
+            public_url=company_spec["hero_image_url"],
         )
-        _upsert(CompanyImage, {"company": company}, {"asset": company_asset, "is_logo": False})
+        _upsert(CompanyImage, {"company": company, "is_logo": False}, {"asset": company_asset})
+
+        logo_asset = _seed_media_asset(
+            object_key=f"companies/{company.id}/logo.jpg",
+            uploader=users["member"],
+            bucket_name="demo-public-media",
+            filename=f"{company.name.lower().replace(' ', '-')}-logo.jpg",
+            visibility=MediaAsset.Visibility.PUBLIC,
+            moderation_status=MediaAsset.ModerationStatus.APPROVED,
+            public_url=_build_logo_url(company.name),
+        )
+        _upsert(CompanyImage, {"company": company, "is_logo": True}, {"asset": logo_asset})
 
 
 def _seed_rates() -> None:

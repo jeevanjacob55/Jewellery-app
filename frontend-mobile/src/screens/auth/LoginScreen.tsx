@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getJson, postJson } from "../../api/client";
+import { AppScreen } from "../../components/AppScreen";
 import { FilterChip } from "../../components/FilterChip";
 import { useSession } from "../../session/SessionProvider";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
@@ -10,7 +12,8 @@ import { Association, DistrictOperationalUnit, MemberAccessRequestPayload, Membe
 type AuthMode = "member" | "guest";
 
 export function LoginScreen() {
-  const { continueAsGuest, sessionInfo, signInMember } = useSession();
+  const { continueAsGuest, signInMember } = useSession();
+  const insets = useSafeAreaInsets();
   const [authMode, setAuthMode] = useState<AuthMode>("member");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -216,8 +219,8 @@ export function LoginScreen() {
   }
 
   return (
-    <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <>
+      <AppScreen scrollable safeAreaEdges={["top", "bottom"]} contentContainerStyle={styles.content}>
         <View style={styles.authContainer}>
           <View style={styles.tabRow}>
             <Pressable style={styles.tabButton} onPress={() => setAuthMode("member")}>
@@ -398,9 +401,16 @@ export function LoginScreen() {
             <Text style={styles.requestButtonText}>Request Member Access</Text>
           </Pressable>
         </View>
-      </ScrollView>
+      </AppScreen>
 
-      <Modal animationType="slide" presentationStyle="pageSheet" transparent visible={requestModalVisible} onRequestClose={closeRequestAccess}>
+      <Modal
+        animationType="slide"
+        presentationStyle={Platform.OS === "ios" ? "overFullScreen" : "fullScreen"}
+        transparent
+        statusBarTranslucent
+        visible={requestModalVisible}
+        onRequestClose={closeRequestAccess}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
@@ -413,7 +423,7 @@ export function LoginScreen() {
               </Pressable>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalContent}>
+            <ScrollView contentContainerStyle={[styles.modalContent, { paddingBottom: spacing.xl + insets.bottom }]}>
               <Text style={styles.inputLabel}>Full Name</Text>
               <TextInput value={requestFullName} onChangeText={setRequestFullName} style={styles.input} placeholder="Applicant name" placeholderTextColor="#6B7280" />
 
@@ -510,16 +520,15 @@ export function LoginScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
   content: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
     flexGrow: 1,
   },
   authContainer: {
@@ -532,7 +541,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#DDD7D5",
     marginBottom: spacing.xl,
-    marginTop: spacing.lg,
+    marginTop: spacing.sm,
   },
   tabButton: {
     flex: 1,

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 import { getJson } from "../../api/client";
+import { AppHeader } from "../../components/AppHeader";
+import { AppScreen } from "../../components/AppScreen";
 import { ScreenState } from "../../components/ScreenState";
 import { useSession } from "../../session/SessionProvider";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
@@ -132,31 +134,39 @@ export function HomeDashboardScreen() {
   const bannerBody = newsData?.urgent_alert.summary || "Exclusive access to trade analysis tools starting this month.";
 
   return (
-    <ScrollView
-      style={styles.screen}
+    <AppScreen
+      scrollable
+      safeAreaEdges={["top"]}
+      backgroundColor="#F5F5F5"
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadDashboard(true)} />}
     >
-      <View style={styles.header}>
-        <Pressable style={styles.headerIconButton}>
-          <View style={styles.menuIcon}>
-            <View style={styles.menuIconBar} />
-            <View style={styles.menuIconBar} />
-            <View style={styles.menuIconBar} />
-          </View>
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{associationName.toUpperCase()}</Text>
-          <Text style={styles.headerSubtitle}>{identityLine}</Text>
-        </View>
-        <Pressable style={styles.headerIconButton}>
-          <View style={styles.notificationIcon}>
-            <View style={styles.notificationBell} />
-            <View style={styles.notificationClapper} />
-            <View style={styles.notificationDot} />
-          </View>
-        </Pressable>
-      </View>
+      <AppHeader
+        title={associationName.toUpperCase()}
+        subtitle={identityLine}
+        centered
+        style={styles.header}
+        titleStyle={styles.headerTitle}
+        subtitleStyle={styles.headerSubtitle}
+        left={
+          <Pressable style={styles.headerIconButton}>
+            <View style={styles.menuIcon}>
+              <View style={styles.menuIconBar} />
+              <View style={styles.menuIconBar} />
+              <View style={styles.menuIconBar} />
+            </View>
+          </Pressable>
+        }
+        right={
+          <Pressable style={styles.headerIconButton}>
+            <View style={styles.notificationIcon}>
+              <View style={styles.notificationBell} />
+              <View style={styles.notificationClapper} />
+              <View style={styles.notificationDot} />
+            </View>
+          </Pressable>
+        }
+      />
 
       <View style={styles.heroCard}>
         <View style={styles.heroWatermark}>
@@ -270,7 +280,7 @@ export function HomeDashboardScreen() {
           )}
         </View>
       </View>
-    </ScrollView>
+    </AppScreen>
   );
 }
 
@@ -283,17 +293,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
+    marginBottom: spacing.xs,
   },
   headerIconButton: {
     width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -337,23 +344,15 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#EF4444",
   },
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-    paddingHorizontal: spacing.sm,
-  },
   headerTitle: {
     fontSize: 16,
     fontWeight: "800",
     color: "#111827",
     letterSpacing: 1.2,
-    textAlign: "center",
   },
   headerSubtitle: {
     color: "#6B7280",
     fontSize: 11,
-    marginTop: 2,
-    textAlign: "center",
   },
   heroCard: {
     marginHorizontal: 16,

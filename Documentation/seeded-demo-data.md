@@ -133,10 +133,12 @@ All seeded demo users share the same password:
 
 ### Product categories
 
-- Temple Jewellery
-- Bridal Sets
-- Lightweight Chains
-- Diamond Rings
+- Rings
+- Chains
+- Bangles
+- Necklaces
+- Coins
+- Diamonds
 
 ### Companies, verification, and products
 
@@ -146,20 +148,23 @@ All seeded demo users share the same password:
 - Tier: `premium`
 - City/State: `Thrissur, Kerala`
 - Daily capacity: `15kg`
-- Specialization: `Temple jewellery`
+- Specialization: `Bridal gold and statement necklaces`
 - About: `High-volume manufacturing for regional retailers and premium bridal houses.`
+- Market media
+  - Hero image: seeded
+  - Logo image: seeded
 - Verification
   - GST registered: `True`
   - BIS hallmarked: `True`
   - Export licensed: `False`
 - Products
-  - Lakshmi Kasu Mala
-    - Category: `Temple Jewellery`
-    - Weight: `48.50`
+  - Classic Gold Band
+    - Category: `Rings`
+    - Weight: `10.00`
     - Purity: `22K`
-    - Description: `Hand-finished temple necklace.`
+    - Description: `Traditional wedding band finished in warm gold.`
   - Bridal Mango Haram
-    - Category: `Bridal Sets`
+    - Category: `Necklaces`
     - Weight: `62.00`
     - Purity: `22K`
     - Description: `Layered mango-motif bridal haram.`
@@ -172,13 +177,16 @@ All seeded demo users share the same password:
 - Daily capacity: `9kg`
 - Specialization: `Lightweight chains`
 - About: `Casting and finishing line focused on fast-moving daily wear collections.`
+- Market media
+  - Hero image: seeded
+  - Logo image: seeded
 - Verification
   - GST registered: `True`
   - BIS hallmarked: `True`
   - Export licensed: `True`
 - Products
   - Singapore Twist Chain
-    - Category: `Lightweight Chains`
+    - Category: `Chains`
     - Weight: `14.25`
     - Purity: `22K`
     - Description: `Daily wear Singapore twist chain.`
@@ -189,15 +197,23 @@ All seeded demo users share the same password:
 - Tier: `premium`
 - City/State: `Chennai, Tamil Nadu`
 - Daily capacity: `4kg`
-- Specialization: `Diamond rings`
+- Specialization: `Diamond jewellery`
 - About: `Premium retail showroom with bridal consultations and custom diamond work.`
+- Market media
+  - Hero image: seeded
+  - Logo image: seeded
 - Verification
   - GST registered: `True`
   - BIS hallmarked: `True`
   - Export licensed: `False`
 - Products
+  - Etoile Pendant
+    - Category: `Diamonds`
+    - Weight: `2.00`
+    - Purity: `18K`
+    - Description: `Diamond pendant for premium occasion wear.`
   - Solitaire Halo Ring
-    - Category: `Diamond Rings`
+    - Category: `Rings`
     - Weight: `6.40`
     - Purity: `18K`
     - Description: `Halo-set solitaire ring for bridal collections.`
@@ -208,18 +224,21 @@ All seeded demo users share the same password:
 - Tier: `normal`
 - City/State: `Coimbatore, Tamil Nadu`
 - Daily capacity: `6kg`
-- Specialization: `Bridal sets`
+- Specialization: `Bangles`
 - About: `Regional wholesaler with fast replenishment for family jewellers.`
+- Market media
+  - Hero image: seeded
+  - Logo image: seeded
 - Verification
   - GST registered: `True`
   - BIS hallmarked: `False`
   - Export licensed: `False`
 - Products
-  - Floral Bridal Choker
-    - Category: `Bridal Sets`
-    - Weight: `38.00`
+  - Antiquity Bangles
+    - Category: `Bangles`
+    - Weight: `45.00`
     - Purity: `22K`
-    - Description: `Floral bridal choker with matching studs.`
+    - Description: `Stacked bridal bangles with antique finish.`
 
 #### Chickpet Classic Chains
 
@@ -229,13 +248,16 @@ All seeded demo users share the same password:
 - Daily capacity: `11kg`
 - Specialization: `Machine chains`
 - About: `Bulk chain producer with strong daily wear assortments.`
+- Market media
+  - Hero image: seeded
+  - Logo image: seeded
 - Verification
   - GST registered: `True`
   - BIS hallmarked: `True`
   - Export licensed: `False`
 - Products
   - Box Link Chain
-    - Category: `Lightweight Chains`
+    - Category: `Chains`
     - Weight: `10.10`
     - Purity: `22K`
     - Description: `Popular box-link chain for urban storefronts.`
@@ -246,26 +268,52 @@ All seeded demo users share the same password:
 - Tier: `normal`
 - City/State: `Mysuru, Karnataka`
 - Daily capacity: `3kg`
-- Specialization: `Antique finish work`
+- Specialization: `Coins and antique finish work`
 - About: `Traditional handcrafted pieces for festive and temple collections.`
+- Market media
+  - Hero image: seeded
+  - Logo image: seeded
 - Verification
   - GST registered: `True`
   - BIS hallmarked: `True`
   - Export licensed: `False`
 - Products
-  - Antique Vanki
-    - Category: `Temple Jewellery`
-    - Weight: `24.75`
-    - Purity: `22K`
-    - Description: `Armlet with antique temple detailing.`
+  - Legacy Bullion Coin
+    - Category: `Coins`
+    - Weight: `31.10`
+    - Purity: `999.9`
+    - Description: `Premium bullion coin with heritage motif.`
+
+#### Additional market-feed companies
+
+- `Regal Necklace Works` (`pro`, Hyderabad)
+  - Product: `Temple Cascade Necklace` in `Necklaces`
+- `Auric Ring Atelier` (`pro`, Mumbai)
+  - Product: `Solitaire Stack Ring` in `Rings`
+- `CoinCraft Mint` (`normal`, Jaipur)
+  - Product: `Lakshmi Gold Coin` in `Coins`
+- `Diamond Light House` (`normal`, Surat)
+  - Product: `Petal Diamond Pendant` in `Diamonds`
+- `Bangle Avenue` (`normal`, Pune)
+  - Product: `Petal Edge Bangles` in `Bangles`
+
+### Market feed coverage
+
+- Featured partners: 2 premium companies
+- Established members: 4 pro companies
+- Directory rail: 5 normal companies
+- Categories rail: 6 categories
+- Latest products grid: populated from the newest seeded products
+- Company hero images, company logos, and product images all include seeded public URLs for the mobile market screen
 
 ## Media Assets
 
-The seed creates public product and company media, one private ad asset, and one private reverse-search attachment.
+The seed creates public company hero images, public company logo images, public product images, one private ad asset, and one private reverse-search attachment.
 
 Because these keys include runtime database IDs, the exact prefixes vary by database state. The seeded patterns are:
 
-- Company image: `companies/{company.id}/hero.jpg`
+- Company hero image: `companies/{company.id}/hero.jpg`
+- Company logo image: `companies/{company.id}/logo.jpg`
 - Product images: `products/{company.id}/{product-slug}.jpg`
 - Ad asset: `ads/{demo_advertiser.id}/akshaya-tritiya-launch-banner.jpg`
 - Reverse-search attachment: `reverse-search/{demo_member.id}/bridal-bangle-reference.jpg`
@@ -281,7 +329,8 @@ Shared media defaults:
 
 Visibility and moderation:
 
-- Company images: `public`, `approved`
+- Company hero images: `public`, `approved`
+- Company logo images: `public`, `approved`
 - Product images: `public`, `approved`
 - Ad asset: `private`, `approved`
 - Reverse-search attachment: `private`, `pending`
