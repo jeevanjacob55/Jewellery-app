@@ -141,6 +141,7 @@ class CompanySerializer(serializers.ModelSerializer):
     tier = serializers.CharField(source="tier_ref.name", read_only=True)
     tier_id = serializers.IntegerField(source="tier_ref.id", read_only=True)
     tier_visibility_type = serializers.CharField(source="tier_ref.visibility_type", read_only=True)
+    max_products = serializers.IntegerField(source="tier_ref.max_products", read_only=True)
 
     class Meta:
         model = Company
@@ -151,6 +152,7 @@ class CompanySerializer(serializers.ModelSerializer):
             "tier",
             "tier_id",
             "tier_visibility_type",
+            "max_products",
             "city",
             "state",
             "about",

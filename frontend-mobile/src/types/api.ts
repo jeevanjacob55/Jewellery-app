@@ -229,6 +229,7 @@ export interface Company {
   tier: string;
   tier_id?: number;
   tier_visibility_type?: string;
+  max_products?: number;
   city: string;
   state: string;
   about: string;
