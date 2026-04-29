@@ -10,6 +10,7 @@ env = environ.Env(
     JWT_ACCESS_MINUTES=(int, 30),
     JWT_REFRESH_DAYS=(int, 7),
     MEDIA_SIGNED_URL_TTL=(int, 900),
+    COMPANY_PLAN_UPGRADE_URL=(str, ""),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -122,3 +123,4 @@ CORS_ALLOWED_ORIGINS = [
 GCS_BUCKET_NAME = env("GCS_BUCKET_NAME", default="")
 GCS_PRIVATE_BUCKET_NAME = env("GCS_PRIVATE_BUCKET_NAME", default="")
 MEDIA_SIGNED_URL_TTL = env("MEDIA_SIGNED_URL_TTL")
+COMPANY_PLAN_UPGRADE_URL = env("COMPANY_PLAN_UPGRADE_URL", default="").strip()

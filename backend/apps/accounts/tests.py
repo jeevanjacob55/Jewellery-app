@@ -1,9 +1,13 @@
+from django.test import override_settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.ads.models import Advertisement
+from apps.directory.models import Company, CompanyTier
+from apps.news.models import News
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference, UserRole
@@ -56,6 +60,22 @@ class AccountsApiTests(APITestCase):
             news_alerts=False,
             ad_alerts=True,
             meeting_alerts=False,
+        )
+        self.company_tier = CompanyTier.objects.create(
+            name="Prime Elite Accounts Test",
+            slug="prime-elite-accounts-test",
+            description="Premium plan",
+            max_products=25,
+            min_photos_per_product=3,
+            max_photos_per_product=5,
+            visibility_type=CompanyTier.VisibilityType.PRO,
+        )
+        self.company = Company.objects.create(
+            name="Asha Jewels Directory",
+            category="Retail",
+            tier_ref=self.company_tier,
+            city="Kochi",
+            state="Kerala",
         )
 
     def test_jwt_login_and_refresh_flow(self):
@@ -151,26 +171,72 @@ class AccountsApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_me_returns_nested_profile_for_authenticated_user(self):
+    @override_settings(COMPANY_PLAN_UPGRADE_URL="https://example.com/upgrade")
+    def test_me_returns_structured_profile_for_authenticated_user(self):
         self.client.force_authenticate(user=self.user)
         UserRole.objects.create(
             user=self.user,
             role=UserRole.Role.COMPANY_ADMIN,
             scope_type=UserRole.ScopeType.COMPANY,
-            scope_id=44,
+            scope_id=self.company.id,
         )
 
         response = self.client.get(reverse("me"))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["username"], "member1")
-        self.assertEqual(response.data["member_profile"]["company_name"], "Asha Jewels")
-        self.assertEqual(response.data["member_profile"]["state"]["name"], "Kerala")
-        self.assertEqual(response.data["member_profile"]["association"]["name"], "KGSMA")
-        self.assertTrue(response.data["notification_preferences"]["rate_alerts"])
-        self.assertEqual(response.data["roles"][0]["role"], "company_admin")
-        self.assertEqual(response.data["roles"][0]["scope_type"], "company")
-        self.assertEqual(response.data["roles"][0]["scope_id"], 44)
+        self.assertEqual(response.data["user"]["name"], "Asha Nair")
+        self.assertEqual(response.data["user"]["email"], "asha@example.com")
+        self.assertEqual(response.data["user"]["phone"], "9999999999")
+        self.assertEqual(response.data["user"]["role"], "COMPANY_ADMIN")
+        self.assertEqual(response.data["user"]["role_display_name"], "Company Admin")
+        self.assertFalse(response.data["user"]["is_admin"])
+        self.assertTrue(response.data["user"]["has_company"])
+        self.assertTrue(response.data["user"]["can_manage_products"])
+        self.assertEqual(response.data["hierarchy"]["state"], "Kerala")
+        self.assertEqual(response.data["hierarchy"]["association"], "KGSMA")
+        self.assertEqual(response.data["company"]["id"], self.company.id)
+        self.assertEqual(response.data["company"]["name"], "Asha Jewels Directory")
+        self.assertEqual(response.data["company"]["plan"], "Prime Elite Accounts Test")
+        self.assertEqual(response.data["company"]["upgrade_url"], "https://example.com/upgrade")
+        self.assertEqual(response.data["counts"]["pending_approvals_count"], 0)
+        self.assertEqual(response.data["counts"]["unread_notifications_count"], 0)
+
+    def test_me_returns_admin_pending_approval_counts(self):
+        self.client.force_authenticate(user=self.user)
+        UserRole.objects.create(
+            user=self.user,
+            role=UserRole.Role.ASSOCIATION_ADMIN,
+            scope_type=UserRole.ScopeType.ASSOCIATION,
+            scope_id=self.association.id,
+        )
+        MemberAccessRequest.objects.create(
+            full_name="Pending User",
+            phone_number="9000000000",
+            email="pending@example.com",
+            business_name="Pending Jewels",
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district_unit,
+            unit=self.unit,
+            notes="Awaiting approval",
+        )
+        News.objects.create(
+            title="Awaiting Review",
+            description="Pending approval content",
+            publisher_type=News.PublisherType.PLATFORM,
+            status=News.Status.PENDING_APPROVAL,
+        )
+        Advertisement.objects.create(
+            advertiser=self.other_user,
+            title="Submitted Campaign",
+            status=Advertisement.Status.SUBMITTED,
+        )
+
+        response = self.client.get(reverse("me"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["user"]["is_admin"])
+        self.assertEqual(response.data["counts"]["pending_approvals_count"], 3)
 
     def test_me_patch_requires_authentication(self):
         response = self.client.patch(reverse("me"), {"first_name": "Updated"}, format="json")
@@ -216,6 +282,16 @@ class AccountsApiTests(APITestCase):
         self.assertEqual(self.user.member_profile.unit.name, "RS Puram Unit")
         self.assertEqual(response.data["member_profile"]["state"]["name"], "Tamil Nadu")
         self.assertEqual(response.data["member_profile"]["unit"]["name"], "RS Puram Unit")
+
+    def test_preferences_get_returns_current_user_preferences(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(reverse("me_preferences"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["rate_alerts"])
+        self.assertTrue(response.data["news_alerts"])
+        self.assertFalse(response.data["ad_alerts"])
 
     def test_me_patch_rejects_mismatched_hierarchy_ids(self):
         self.client.force_authenticate(user=self.user)

@@ -1,5 +1,5 @@
-import { getJson } from "./client";
-import { MarketFeedData, ProductFilterConfigResponse, ProductSearchResponse } from "../types/api";
+import { getJson, postJson } from "./client";
+import { MarketFeedData, ProductDetail, ProductEnquiryPayload, ProductFilterConfigResponse, ProductSearchResponse } from "../types/api";
 
 export type MarketProductSearchParams = {
   search?: string;
@@ -52,4 +52,16 @@ export function searchMarketProducts(params: MarketProductSearchParams) {
 
   const query = searchParams.toString();
   return getJson<ProductSearchResponse>(`/products/${query ? `?${query}` : ""}`);
+}
+
+export function getProductDetail(productId: number, authenticated = false) {
+  return getJson<ProductDetail>(`/products/${productId}/`, authenticated);
+}
+
+export function toggleProductWishlist(productId: number) {
+  return postJson<{ product_id: number; is_wishlisted: boolean }>(`/products/${productId}/wishlist/`, {}, true);
+}
+
+export function createProductEnquiry(productId: number, payload: ProductEnquiryPayload) {
+  return postJson(`/products/${productId}/enquiries/`, payload);
 }

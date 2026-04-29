@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils.text import slugify
 from rest_framework import permissions, status
@@ -15,6 +15,7 @@ from config.storage import build_mock_signed_upload
 from .models import (
     Company,
     CompanyImage,
+    MarketRow,
     CompanyTier,
     Enquiry,
     MediaAsset,
@@ -24,6 +25,7 @@ from .models import (
     ProductCategory,
     ProductImage,
     ProductSubCategory,
+    ProductWishlist,
 )
 from .serializers import (
     CompanySerializer,
@@ -33,7 +35,10 @@ from .serializers import (
     CompanyTierWriteSerializer,
     EnquirySerializer,
     MarketFeedSerializer,
+    MarketRowWriteSerializer,
     ProductFilterCategorySerializer,
+    ProductDetailSerializer,
+    ProductEnquiryWriteSerializer,
     ProductImageAttachSerializer,
     ProductImageUploadSessionSerializer,
     ProductSearchResultSerializer,
@@ -90,31 +95,21 @@ def resolve_subcategory_param(param: str | None, *, category: ProductCategory | 
 
 def build_market_feed_payload() -> dict:
     company_queryset = get_public_company_queryset()
-    product_queryset = get_public_product_queryset()
+    rows = list(MarketRow.objects.filter(is_enabled=True).order_by("sort_order", "id"))
 
-    company_ordering = ["tier_ref__display_priority", "-admin_priority", "-created_at", "name"]
-    featured_companies = company_queryset.filter(tier_ref__visibility_type=CompanyTier.VisibilityType.FEATURED).order_by(*company_ordering)[:3]
-    pro_companies = company_queryset.filter(tier_ref__visibility_type=CompanyTier.VisibilityType.PRO).order_by("-admin_priority", "name")[:6]
-    normal_companies = company_queryset.filter(tier_ref__visibility_type=CompanyTier.VisibilityType.NORMAL).order_by("-admin_priority", "name")[:3]
-    categories = (
-        ProductCategory.objects.filter(is_active=True).annotate(
-            product_count=Count(
-                "products",
-                filter=Q(products__is_active=True, products__company__is_active=True, products__company__is_approved=True),
-            )
+    for row in rows:
+        if row.row_type != MarketRow.RowType.COMPANY_TIER:
+            row.resolved_items = []
+            continue
+
+        row.resolved_items = list(
+            company_queryset
+            .filter(tier_ref__visibility_type=row.target_visibility_type)
+            .order_by("-admin_priority", "-created_at", "name")
         )
-        .filter(product_count__gt=0)
-        .order_by("display_order", "name")
-    )
-    latest_products = product_queryset.order_by("-created_at", "-id")[:6]
 
-    return {
-        "featured_companies": featured_companies,
-        "pro_companies": pro_companies,
-        "normal_companies": normal_companies,
-        "categories": categories,
-        "latest_products": latest_products,
-    }
+    visible_rows = [row for row in rows if row.resolved_items]
+    return {"rows": visible_rows}
 
 
 class CompanyListView(ListAPIView):
@@ -230,6 +225,38 @@ class ProductSearchView(APIView):
         return Response({"count": count, "results": results, "sort": sort})
 
 
+class ProductDetailView(RetrieveAPIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+    lookup_url_kwarg = "product_id"
+    queryset = get_public_product_queryset()
+    serializer_class = ProductDetailSerializer
+
+
+class ProductWishlistToggleView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, product_id: int):
+        product = get_object_or_404(get_public_product_queryset(), pk=product_id)
+        wishlist, created = ProductWishlist.objects.get_or_create(user=request.user, product=product)
+        if not created:
+            wishlist.delete()
+
+        return Response({"product_id": product.id, "is_wishlisted": created})
+
+
+class ProductEnquiryCreateView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, product_id: int):
+        product = get_object_or_404(get_public_product_queryset(), pk=product_id)
+        serializer = ProductEnquiryWriteSerializer(data=request.data, context={"product": product})
+        serializer.is_valid(raise_exception=True)
+        enquiry = serializer.save()
+        return Response(EnquirySerializer(enquiry).data, status=status.HTTP_201_CREATED)
+
+
 class EnquiryCreateView(APIView):
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
@@ -341,6 +368,31 @@ class AdminCompanyTierListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         tier = serializer.save()
         return Response(CompanyTierSerializer(tier).data, status=status.HTTP_201_CREATED)
+
+
+class AdminMarketRowListCreateView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        rows = MarketRow.objects.all().order_by("sort_order", "id")
+        return Response(MarketRowWriteSerializer(rows, many=True).data)
+
+    def post(self, request):
+        serializer = MarketRowWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        row = serializer.save()
+        return Response(MarketRowWriteSerializer(row).data, status=status.HTTP_201_CREATED)
+
+
+class AdminMarketRowDetailView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def patch(self, request, row_id: int):
+        row = get_object_or_404(MarketRow, pk=row_id)
+        serializer = MarketRowWriteSerializer(row, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_row = serializer.save()
+        return Response(MarketRowWriteSerializer(updated_row).data)
 
 
 class AdminCompanyTierDetailView(APIView):

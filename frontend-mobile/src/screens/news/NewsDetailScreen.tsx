@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Image,
   Pressable,
   Share,
@@ -7,9 +8,10 @@ import {
   Text,
   View,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 
-import { getNewsDetail } from "../../api/news";
+import { getNewsDetail, toggleNewsBookmark } from "../../api/news";
 import { AppHeader } from "../../components/AppHeader";
 import { AppScreen } from "../../components/AppScreen";
 import { SurfaceCard } from "../../components/SurfaceCard";
@@ -70,10 +72,18 @@ function DetailSkeleton() {
   );
 }
 
-function ActionButton({ label, onPress }: { label: string; onPress: () => void }) {
+function HeaderActionButton({
+  icon,
+  onPress,
+  active = false,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  onPress: () => void;
+  active?: boolean;
+}) {
   return (
     <Pressable style={styles.actionButton} onPress={onPress}>
-      <Text style={styles.actionButtonText}>{label}</Text>
+      <MaterialIcons name={icon} size={18} color={active ? colors.accentGold : colors.text} />
     </Pressable>
   );
 }
@@ -131,6 +141,79 @@ export function NewsDetailScreen() {
     });
   }
 
+  function applyBookmarkState(isBookmarked: boolean) {
+    setNewsItem((current) =>
+      current
+        ? {
+            ...current,
+            is_bookmarked: isBookmarked,
+          }
+        : current,
+    );
+  }
+
+  async function handleToggleBookmark(targetItem?: NewsFeedItem) {
+    const item = targetItem ?? newsItem;
+    if (!item) {
+      return;
+    }
+    if (status !== "authenticated") {
+      Alert.alert("Sign in required", "Sign in as a member to save products and news.");
+      return;
+    }
+    setError(null);
+
+    if (targetItem) {
+      const previousValue = targetItem.is_bookmarked;
+      setNewsItem((current) =>
+        current
+          ? {
+              ...current,
+              related_items: current.related_items?.map((related) =>
+                related.id === targetItem.id ? { ...related, is_bookmarked: !related.is_bookmarked } : related,
+              ),
+            }
+          : current,
+      );
+      try {
+        const response = await toggleNewsBookmark(targetItem.id);
+        setNewsItem((current) =>
+          current
+            ? {
+                ...current,
+                related_items: current.related_items?.map((related) =>
+                  related.id === targetItem.id ? { ...related, is_bookmarked: response.is_bookmarked } : related,
+                ),
+              }
+            : current,
+        );
+      } catch (nextError) {
+        setNewsItem((current) =>
+          current
+            ? {
+                ...current,
+                related_items: current.related_items?.map((related) =>
+                  related.id === targetItem.id ? { ...related, is_bookmarked: previousValue } : related,
+                ),
+              }
+            : current,
+        );
+        setError(nextError instanceof Error ? nextError.message : "This bookmark could not be updated.");
+      }
+      return;
+    }
+
+    const previousValue = item.is_bookmarked;
+    applyBookmarkState(!previousValue);
+    try {
+      const response = await toggleNewsBookmark(item.id);
+      applyBookmarkState(response.is_bookmarked);
+    } catch (nextError) {
+      applyBookmarkState(previousValue);
+      setError(nextError instanceof Error ? nextError.message : "This bookmark could not be updated.");
+    }
+  }
+
   function openRelatedItem(item: NewsFeedItem) {
     navigation.push("NewsDetail", { newsId: item.id });
   }
@@ -147,7 +230,12 @@ export function NewsDetailScreen() {
             <Text style={styles.headerButtonText}>{"<"}</Text>
           </Pressable>
         }
-        right={<ActionButton label="Share" onPress={handleShare} />}
+        right={
+          <View style={styles.headerActionRow}>
+            <HeaderActionButton icon="share" onPress={handleShare} />
+            <HeaderActionButton icon={newsItem?.is_bookmarked ? "bookmark" : "bookmark-border"} onPress={() => void handleToggleBookmark()} active={newsItem?.is_bookmarked ?? false} />
+          </View>
+        }
       />
 
       {loading ? (
@@ -228,9 +316,24 @@ export function NewsDetailScreen() {
                     <SurfaceCard>
                       <View style={styles.relatedCard}>
                         {item.image_url ? <Image source={{ uri: item.image_url }} style={styles.relatedImage} /> : null}
-                        <View style={styles.relatedCopy}>
-                          <Text style={styles.relatedMeta}>{titleCase(item.publisher_type)}</Text>
-                          <Text style={styles.relatedTitle}>{item.title}</Text>
+                        <View style={styles.relatedContentRow}>
+                          <View style={styles.relatedCopy}>
+                            <Text style={styles.relatedMeta}>{titleCase(item.publisher_type)}</Text>
+                            <Text style={styles.relatedTitle}>{item.title}</Text>
+                          </View>
+                          <Pressable
+                            style={styles.relatedBookmarkButton}
+                            onPress={(event) => {
+                              event.stopPropagation();
+                              void handleToggleBookmark(item);
+                            }}
+                          >
+                            <MaterialIcons
+                              name={item.is_bookmarked ? "bookmark" : "bookmark-border"}
+                              size={20}
+                              color={item.is_bookmarked ? colors.accentGold : "#8A6400"}
+                            />
+                          </Pressable>
                         </View>
                       </View>
                     </SurfaceCard>
@@ -261,6 +364,11 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1.4,
   },
+  headerActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   headerButton: {
     width: 34,
     height: 34,
@@ -278,21 +386,14 @@ const styles = StyleSheet.create({
     marginTop: -1,
   },
   actionButton: {
-    minHeight: 34,
+    width: 34,
+    height: 34,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "#E5DDD2",
-    paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
-  },
-  actionButtonText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
   },
   body: {
     gap: spacing.lg,
@@ -451,6 +552,12 @@ const styles = StyleSheet.create({
   relatedCard: {
     gap: spacing.md,
   },
+  relatedContentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
   relatedImage: {
     width: "100%",
     height: 176,
@@ -458,7 +565,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#EDE6D8",
   },
   relatedCopy: {
+    flex: 1,
     gap: spacing.xs,
+  },
+  relatedBookmarkButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   relatedMeta: {
     color: "#8A6400",

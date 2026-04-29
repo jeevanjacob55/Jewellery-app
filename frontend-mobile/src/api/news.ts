@@ -1,4 +1,4 @@
-import { getJson, resolveApiUrl } from "./client";
+import { getJson, postJson, resolveApiUrl } from "./client";
 import { NewsData, NewsDetail, NewsFeedItem } from "../types/api";
 
 type RawNewsImageFields = {
@@ -76,4 +76,8 @@ export async function getNewsDetail(newsId: number, authenticated = false): Prom
     ...normalized,
     related_items: toArray(response.related_items).map(normalizeNewsItem),
   };
+}
+
+export function toggleNewsBookmark(newsId: number) {
+  return postJson<{ news_id: number; is_bookmarked: boolean }>(`/news/${newsId}/bookmark/`, {}, true);
 }

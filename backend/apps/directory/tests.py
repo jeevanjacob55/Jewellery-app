@@ -9,6 +9,7 @@ from apps.accounts.models import UserRole
 from .models import (
     Company,
     CompanyImage,
+    MarketRow,
     CompanyTier,
     CompanyVerification,
     Enquiry,
@@ -19,6 +20,7 @@ from .models import (
     ProductCategory,
     ProductImage,
     ProductSubCategory,
+    ProductWishlist,
 )
 
 
@@ -229,7 +231,7 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(len(response.data["products"]), 2)
         self.assertEqual({product["category_name"] for product in response.data["products"]}, {"Rings", "Chains"})
 
-    def test_market_feed_returns_sectioned_payload(self):
+    def test_market_feed_returns_row_payload(self):
         self._create_company_with_product(
             name="Metro Diamond Studio",
             tier=self.featured_tier,
@@ -278,19 +280,35 @@ class DirectoryApiTests(APITestCase):
         response = self.client.get(reverse("market_feed"))
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["featured_companies"]), 2)
-        self.assertEqual(len(response.data["pro_companies"]), 2)
-        self.assertEqual(len(response.data["normal_companies"]), 1)
-        self.assertGreaterEqual(len(response.data["categories"]), 3)
-        self.assertEqual(response.data["featured_companies"][0]["hero_image_url"], "https://example.com/company-hero.jpg")
-        self.assertEqual(response.data["featured_companies"][0]["logo_image_url"], "https://example.com/company-logo.jpg")
-        self.assertEqual(response.data["pro_companies"][0]["name"], "Coastal Bullion Works")
-        self.assertTrue(response.data["pro_companies"][0]["is_verified"])
-        self.assertIn(response.data["categories"][0]["icon_key"], {"diamond", "rings", "chains", "diamonds", "bangles"})
-        latest_product_ids = [item["product_id"] for item in response.data["latest_products"]]
-        self.assertEqual(latest_product_ids, sorted(latest_product_ids, reverse=True))
-        self.assertTrue(all(item["image_url"] for item in response.data["latest_products"]))
-        self.assertNotIn("Inactive House", [item["name"] for item in response.data["featured_companies"]])
+        rows = response.data["rows"]
+        self.assertEqual([row["title"] for row in rows], ["Premium Companies", "Pro Companies", "Normal Companies"])
+        self.assertEqual([row["layout"] for row in rows], ["hero_company", "rail_company", "grid_company"])
+        self.assertEqual(rows[0]["items"][0]["hero_image_url"], "https://example.com/company-hero.jpg")
+        self.assertEqual(rows[0]["items"][0]["logo_image_url"], "https://example.com/company-logo.jpg")
+        self.assertEqual(rows[1]["items"][0]["name"], "Coastal Bullion Works")
+        self.assertTrue(rows[1]["items"][0]["is_verified"])
+        self.assertEqual(rows[2]["items"][0]["tier_visibility_type"], CompanyTier.VisibilityType.NORMAL)
+        self.assertNotIn("Inactive House", [item["name"] for item in rows[0]["items"]])
+
+    def test_market_feed_omits_disabled_and_empty_rows(self):
+        self._create_company_with_product(
+            name="Coastal Bullion Works",
+            tier=self.pro_tier,
+            category_name="Chains",
+            product_name="Singapore Twist Chain",
+            product_public_url="https://example.com/chain.jpg",
+            company_public_url="https://example.com/coastal-hero.jpg",
+            admin_priority=70,
+        )
+        featured_row = MarketRow.objects.get(target_visibility_type=CompanyTier.VisibilityType.FEATURED)
+        featured_row.is_enabled = False
+        featured_row.save(update_fields=["is_enabled"])
+        Company.objects.filter(tier_ref=self.normal_tier).update(is_active=False)
+
+        response = self.client.get(reverse("market_feed"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([row["title"] for row in response.data["rows"]], ["Pro Companies"])
 
     def test_product_filter_config_returns_dynamic_market_filters(self):
         response = self.client.get(reverse("product_filter_config"))
@@ -344,6 +362,55 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.data["count"], 0)
         self.assertEqual(response.data["results"], [])
 
+    def test_product_detail_returns_full_enquiry_payload(self):
+        response = self.client.get(reverse("product_detail", args=[self.chain_product.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["name"], "Curb Link Chain")
+        self.assertEqual(response.data["weight"], "42.50g")
+        self.assertEqual(response.data["length"], "18 inch")
+        self.assertEqual(response.data["category"], "Chains")
+        self.assertEqual(response.data["subcategory"], "Link Chain")
+        self.assertEqual(response.data["availability"], "In Stock")
+        self.assertEqual(response.data["price_min"], "2840.00")
+        self.assertEqual(response.data["price_max"], "2840.00")
+        self.assertEqual(response.data["images"][0]["url"], "https://example.com/curb-link-chain.jpg")
+        self.assertEqual(response.data["company"]["name"], "Heritage Gold House")
+        self.assertEqual(response.data["company"]["location"], "Thrissur, Kerala")
+        self.assertIsNone(response.data["company"]["phone"])
+        self.assertFalse(response.data["is_wishlisted"])
+        self.assertIn(f"/api/products/{self.chain_product.id}/", response.data["share_url"])
+
+    def test_product_wishlist_toggle_toggles_state_for_authenticated_user(self):
+        self.client.force_authenticate(user=self.user)
+
+        create_response = self.client.post(reverse("product_wishlist_toggle", args=[self.chain_product.id]), {}, format="json")
+
+        self.assertEqual(create_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(create_response.data["is_wishlisted"])
+        self.assertTrue(ProductWishlist.objects.filter(user=self.user, product=self.chain_product).exists())
+
+        detail_response = self.client.get(reverse("product_detail", args=[self.chain_product.id]))
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(detail_response.data["is_wishlisted"])
+
+        self.client.force_authenticate(user=self.company_admin)
+        other_user_detail = self.client.get(reverse("product_detail", args=[self.chain_product.id]))
+        self.assertEqual(other_user_detail.status_code, status.HTTP_200_OK)
+        self.assertFalse(other_user_detail.data["is_wishlisted"])
+
+        self.client.force_authenticate(user=self.user)
+
+        remove_response = self.client.post(reverse("product_wishlist_toggle", args=[self.chain_product.id]), {}, format="json")
+        self.assertEqual(remove_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(remove_response.data["is_wishlisted"])
+        self.assertFalse(ProductWishlist.objects.filter(user=self.user, product=self.chain_product).exists())
+
+    def test_product_wishlist_requires_authentication(self):
+        response = self.client.post(reverse("product_wishlist_toggle", args=[self.chain_product.id]), {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
     def test_enquiry_create_persists_record(self):
         response = self.client.post(
             reverse("enquiry_create"),
@@ -360,6 +427,26 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Enquiry.objects.count(), 1)
         self.assertEqual(Enquiry.objects.get().requester_name, "Meera")
+
+    def test_product_enquiry_create_persists_record(self):
+        response = self.client.post(
+            reverse("product_enquiry_create", args=[self.chain_product.id]),
+            {
+                "type": "FINAL_PRICE_REQUEST",
+                "message": "Please share the final price and availability.",
+                "requester_name": "Riya",
+                "requester_phone": "9888888888",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Enquiry.objects.count(), 1)
+        enquiry = Enquiry.objects.get()
+        self.assertEqual(enquiry.company_id, self.company.id)
+        self.assertEqual(enquiry.product_id, self.chain_product.id)
+        self.assertEqual(enquiry.requester_name, "Riya")
+        self.assertEqual(enquiry.notes, "Please share the final price and availability.")
 
     def test_company_tier_visibility_type_is_validated(self):
         tier = CompanyTier(
@@ -599,6 +686,22 @@ class CompanyTierAdminApiTests(APITestCase):
         deactivate_response = self.client.post(reverse("admin_directory_tier_toggle", args=[created_tier_id, "deactivate"]))
         self.assertEqual(deactivate_response.status_code, status.HTTP_200_OK)
         self.assertFalse(deactivate_response.data["is_active"])
+
+    def test_super_admin_can_reorder_market_rows(self):
+        self.client.force_authenticate(user=self.super_admin)
+        row = MarketRow.objects.get(target_visibility_type=CompanyTier.VisibilityType.PRO)
+
+        response = self.client.patch(
+            reverse("admin_market_row_detail", args=[row.id]),
+            {"title": "Featured Pro Houses", "sort_order": 5, "layout": "grid_company"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        row.refresh_from_db()
+        self.assertEqual(row.title, "Featured Pro Houses")
+        self.assertEqual(row.sort_order, 5)
+        self.assertEqual(row.layout, "grid_company")
 
     def test_tier_slot_limit_rejects_overflow_assignment(self):
         self.client.force_authenticate(user=self.super_admin)

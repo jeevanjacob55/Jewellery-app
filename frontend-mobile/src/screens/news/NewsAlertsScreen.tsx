@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Image,
   ImageBackground,
   Linking,
@@ -9,11 +10,12 @@ import {
   Text,
   View,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 import { getAdvertisements, recordAdClick, recordAdImpression } from "../../api/ads";
 import { postJson } from "../../api/client";
-import { getNewsFeed } from "../../api/news";
+import { getNewsFeed, toggleNewsBookmark } from "../../api/news";
 import { AppHeader } from "../../components/AppHeader";
 import { AppScreen } from "../../components/AppScreen";
 import { SurfaceCard } from "../../components/SurfaceCard";
@@ -70,6 +72,18 @@ function hasMeaningfulTicker(newsData: NewsData | null) {
     return false;
   }
   return newsData.ticker.gold > 0 || newsData.ticker.silver > 0;
+}
+
+function applyBookmarkState(newsData: NewsData | null, newsId: number, isBookmarked: boolean): NewsData | null {
+  if (!newsData) {
+    return newsData;
+  }
+  return {
+    ...newsData,
+    featured_news:
+      newsData.featured_news?.id === newsId ? { ...newsData.featured_news, is_bookmarked: isBookmarked } : newsData.featured_news,
+    items: (newsData.items ?? []).map((item) => (item.id === newsId ? { ...item, is_bookmarked: isBookmarked } : item)),
+  };
 }
 
 function NotificationButton({ onPress }: { onPress: () => void }) {
@@ -212,6 +226,18 @@ export function NewsAlertsScreen() {
   }, [status]);
 
   useEffect(() => {
+    let isFirstFocus = true;
+    const unsubscribe = navigation.addListener("focus", () => {
+      if (isFirstFocus) {
+        isFirstFocus = false;
+        return;
+      }
+      void loadNews();
+    });
+    return unsubscribe;
+  }, [navigation, status]);
+
+  useEffect(() => {
     const spotlightAdvertisement = advertisements[0];
     if (!spotlightAdvertisement || viewedAdvertisementIdsRef.current.has(spotlightAdvertisement.id)) {
       return;
@@ -273,6 +299,25 @@ export function NewsAlertsScreen() {
 
   function openNewsItem(item: NewsFeedItem) {
     navigation.navigate("NewsDetail", { newsId: item.id });
+  }
+
+  async function handleToggleBookmark(item: NewsFeedItem) {
+    if (status !== "authenticated") {
+      Alert.alert("Sign in required", "Sign in as a member to save products and news.");
+      return;
+    }
+
+    const previousValue = item.is_bookmarked;
+    setError(null);
+    setNewsData((current) => applyBookmarkState(current, item.id, !previousValue));
+
+    try {
+      const response = await toggleNewsBookmark(item.id);
+      setNewsData((current) => applyBookmarkState(current, item.id, response.is_bookmarked));
+    } catch (nextError) {
+      setNewsData((current) => applyBookmarkState(current, item.id, previousValue));
+      setError(nextError instanceof Error ? nextError.message : "The bookmark could not be updated.");
+    }
   }
 
   async function handleAdvertisementPress(advertisement: AdvertisementItem) {
@@ -346,6 +391,16 @@ export function NewsAlertsScreen() {
                             <Text style={styles.urgentBadge}>Featured</Text>
                             <Text style={styles.publisherBadge}>{titleCase(featuredNews.publisher_type)}</Text>
                           </View>
+                          <Pressable style={styles.bookmarkButtonFeatured} onPress={(event) => {
+                            event.stopPropagation();
+                            void handleToggleBookmark(featuredNews);
+                          }}>
+                            <MaterialIcons
+                              name={featuredNews.is_bookmarked ? "bookmark" : "bookmark-border"}
+                              size={20}
+                              color={featuredNews.is_bookmarked ? colors.accentGold : "#1A1A1A"}
+                            />
+                          </Pressable>
                         </View>
                         <View style={styles.featuredCopy}>
                           <Text style={styles.featuredMeta}>{formatPublishedLabel(featuredNews.published_at)}</Text>
@@ -372,16 +427,28 @@ export function NewsAlertsScreen() {
                   <View style={styles.section}>
                     <Text style={styles.sectionTitle}>{selectedTab === "news" ? "Published News" : "Latest Updates"}</Text>
                     <View style={styles.newsList}>
-                      {compactNewsItems.map((item) => (
-                        <Pressable key={item.id} onPress={() => openNewsItem(item)}>
-                          <SurfaceCard>
-                            <View style={styles.compactNewsRow}>
-                              {item.image_url ? <Image source={{ uri: item.image_url }} style={styles.compactNewsImage} /> : null}
-                              <View style={styles.compactNewsCopy}>
-                                <Text style={styles.compactNewsMeta}>{`${titleCase(item.publisher_type)}  |  ${formatPublishedLabel(item.published_at)}`}</Text>
-                                <Text style={styles.compactNewsTitle}>{item.title}</Text>
-                                <Text style={styles.compactNewsBody} numberOfLines={item.image_url ? 3 : 4}>
-                                  {item.description}
+                        {compactNewsItems.map((item) => (
+                          <Pressable key={item.id} onPress={() => openNewsItem(item)}>
+                            <SurfaceCard>
+                              <View style={styles.compactNewsRow}>
+                                {item.image_url ? <Image source={{ uri: item.image_url }} style={styles.compactNewsImage} /> : null}
+                                <View style={styles.compactNewsCopy}>
+                                  <View style={styles.compactNewsHeader}>
+                                    <Text style={styles.compactNewsMeta}>{`${titleCase(item.publisher_type)}  |  ${formatPublishedLabel(item.published_at)}`}</Text>
+                                    <Pressable style={styles.bookmarkButtonInline} onPress={(event) => {
+                                      event.stopPropagation();
+                                      void handleToggleBookmark(item);
+                                    }}>
+                                      <MaterialIcons
+                                        name={item.is_bookmarked ? "bookmark" : "bookmark-border"}
+                                        size={20}
+                                        color={item.is_bookmarked ? colors.accentGold : "#8A6400"}
+                                      />
+                                    </Pressable>
+                                  </View>
+                                  <Text style={styles.compactNewsTitle}>{item.title}</Text>
+                                  <Text style={styles.compactNewsBody} numberOfLines={item.image_url ? 3 : 4}>
+                                    {item.description}
                                 </Text>
                               </View>
                             </View>
@@ -694,6 +761,17 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.sm,
   },
+  bookmarkButtonFeatured: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.94)",
+  },
   urgentBadge: {
     backgroundColor: "#B91C1C",
     color: "#FFFFFF",
@@ -788,11 +866,25 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 6,
   },
+  compactNewsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
   compactNewsMeta: {
     color: "#8A6400",
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
+    flex: 1,
+  },
+  bookmarkButtonInline: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
   },
   compactNewsTitle: {
     color: colors.text,

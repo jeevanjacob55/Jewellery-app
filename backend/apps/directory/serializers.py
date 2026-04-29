@@ -8,12 +8,14 @@ from .models import (
     CompanyTier,
     CompanyVerification,
     Enquiry,
+    MarketRow,
     MediaAsset,
     Product,
     ProductAttributeDefinition,
     ProductAttributeValue,
     ProductCategory,
     ProductSubCategory,
+    ProductWishlist,
 )
 from .services import (
     TierValidationError,
@@ -38,6 +40,14 @@ def get_product_image_url(product: Product) -> str | None:
     return None
 
 
+def get_product_image_payload(product: Product) -> list[dict[str, str]]:
+    payload: list[dict[str, str]] = []
+    for image in product.images.all():
+        if image.asset.public_url:
+            payload.append({"url": image.asset.public_url, "type": "image"})
+    return payload
+
+
 def get_product_attribute_payload(product: Product) -> list[dict[str, str]]:
     payload: list[dict[str, str]] = []
     for attribute_value in product.attribute_values.all():
@@ -49,6 +59,22 @@ def get_product_attribute_payload(product: Product) -> list[dict[str, str]]:
             }
         )
     return payload
+
+
+def get_product_attribute_lookup(product: Product) -> dict[str, str]:
+    lookup: dict[str, str] = {}
+    for attribute_value in product.attribute_values.all():
+        lookup[attribute_value.attribute_definition.key.strip().lower()] = attribute_value.value
+    return lookup
+
+
+def get_product_attribute_value(product: Product, *keys: str) -> str | None:
+    lookup = get_product_attribute_lookup(product)
+    for key in keys:
+        value = lookup.get(key.strip().lower())
+        if value:
+            return value
+    return None
 
 
 def get_product_primary_attribute(product: Product) -> tuple[str | None, str | None]:
@@ -64,6 +90,32 @@ def get_company_is_verified(company: Company) -> bool:
     if not verification:
         return False
     return bool(verification.gst_registered or verification.bis_hallmarked or verification.export_licensed)
+
+
+def get_company_contact_payload(company: Company) -> dict[str, str | None]:
+    from apps.accounts.models import UserRole
+
+    contact_user = (
+        UserRole.objects.filter(
+            role=UserRole.Role.COMPANY_ADMIN,
+            scope_type=UserRole.ScopeType.COMPANY,
+            scope_id=company.id,
+            user__member_profile__phone_number__gt="",
+        )
+        .select_related("user", "user__member_profile")
+        .order_by("id")
+        .first()
+    )
+    phone = None
+    if contact_user and getattr(contact_user.user, "member_profile", None):
+        phone = contact_user.user.member_profile.phone_number or None
+
+    return {
+        "location": ", ".join(part for part in [company.city, company.state] if part),
+        "logo": get_company_image_url(company, is_logo=True),
+        "phone": phone,
+        "whatsapp": phone,
+    }
 
 
 def get_market_category_icon_key(category_name: str) -> str:
@@ -174,31 +226,18 @@ class CompanySerializer(serializers.ModelSerializer):
         return get_company_image_url(obj, is_logo=True)
 
 
-class MarketFeaturedCompanySerializer(serializers.ModelSerializer):
-    company_id = serializers.IntegerField(source="id", read_only=True)
-    hero_image_url = serializers.SerializerMethodField()
-    logo_image_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Company
-        fields = ["company_id", "name", "hero_image_url", "logo_image_url", "city", "state"]
-
-    def get_hero_image_url(self, obj: Company) -> str | None:
-        return get_company_image_url(obj, is_logo=False)
-
-    def get_logo_image_url(self, obj: Company) -> str | None:
-        return get_company_image_url(obj, is_logo=True)
-
-
 class MarketCompanyCardSerializer(serializers.ModelSerializer):
     company_id = serializers.IntegerField(source="id", read_only=True)
     hero_image_url = serializers.SerializerMethodField()
     logo_image_url = serializers.SerializerMethodField()
     is_verified = serializers.SerializerMethodField()
+    city = serializers.CharField(read_only=True)
+    state = serializers.CharField(read_only=True)
+    tier_visibility_type = serializers.CharField(source="tier_ref.visibility_type", read_only=True)
 
     class Meta:
         model = Company
-        fields = ["company_id", "name", "hero_image_url", "logo_image_url", "is_verified"]
+        fields = ["company_id", "name", "hero_image_url", "logo_image_url", "is_verified", "city", "state", "tier_visibility_type"]
 
     def get_hero_image_url(self, obj: Company) -> str | None:
         return get_company_image_url(obj, is_logo=False)
@@ -210,47 +249,19 @@ class MarketCompanyCardSerializer(serializers.ModelSerializer):
         return get_company_is_verified(obj)
 
 
-class MarketCategorySerializer(serializers.ModelSerializer):
-    icon_key = serializers.SerializerMethodField()
-    product_count = serializers.IntegerField(read_only=True)
-    slug = serializers.SerializerMethodField()
+class MarketRowSerializer(serializers.ModelSerializer):
+    items = serializers.SerializerMethodField()
 
     class Meta:
-        model = ProductCategory
-        fields = ["id", "name", "slug", "icon_key", "product_count"]
+        model = MarketRow
+        fields = ["id", "title", "row_type", "layout", "sort_order", "is_enabled", "items"]
 
-    def get_slug(self, obj: ProductCategory) -> str:
-        return get_category_slug(obj)
-
-    def get_icon_key(self, obj: ProductCategory) -> str:
-        return obj.icon_key or get_market_category_icon_key(obj.name)
-
-
-class MarketProductCardSerializer(serializers.ModelSerializer):
-    product_id = serializers.IntegerField(source="id", read_only=True)
-    company_id = serializers.IntegerField(source="company.id", read_only=True)
-    company_name = serializers.CharField(source="company.name", read_only=True)
-    category_name = serializers.CharField(source="category.name", read_only=True)
-    category_slug = serializers.SerializerMethodField()
-    image_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Product
-        fields = ["product_id", "company_id", "company_name", "name", "purity", "weight_grams", "image_url", "category_name", "category_slug"]
-
-    def get_category_slug(self, obj: Product) -> str:
-        return get_category_slug(obj.category)
-
-    def get_image_url(self, obj: Product) -> str | None:
-        return get_product_image_url(obj)
+    def get_items(self, obj: MarketRow):
+        return MarketCompanyCardSerializer(getattr(obj, "resolved_items", []), many=True).data
 
 
 class MarketFeedSerializer(serializers.Serializer):
-    featured_companies = MarketFeaturedCompanySerializer(many=True)
-    pro_companies = MarketCompanyCardSerializer(many=True)
-    normal_companies = MarketCompanyCardSerializer(many=True)
-    categories = MarketCategorySerializer(many=True)
-    latest_products = MarketProductCardSerializer(many=True)
+    rows = MarketRowSerializer(many=True)
 
 
 class ProductSubCategorySerializer(serializers.ModelSerializer):
@@ -341,6 +352,111 @@ class ProductSearchResultSerializer(serializers.ModelSerializer):
         return get_product_attribute_payload(obj)
 
 
+class ProductDetailCompanySerializer(serializers.ModelSerializer):
+    location = serializers.SerializerMethodField()
+    logo = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
+    whatsapp = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Company
+        fields = ["id", "name", "location", "logo", "phone", "whatsapp"]
+
+    def _get_contact(self, obj: Company) -> dict[str, str | None]:
+        cache = getattr(self, "_contact_cache", None)
+        if cache is None:
+            cache = {}
+            self._contact_cache = cache
+        if obj.id not in cache:
+            cache[obj.id] = get_company_contact_payload(obj)
+        return cache[obj.id]
+
+    def get_location(self, obj: Company) -> str:
+        return self._get_contact(obj)["location"] or ""
+
+    def get_logo(self, obj: Company) -> str | None:
+        return self._get_contact(obj)["logo"]
+
+    def get_phone(self, obj: Company) -> str | None:
+        return self._get_contact(obj)["phone"]
+
+    def get_whatsapp(self, obj: Company) -> str | None:
+        return self._get_contact(obj)["whatsapp"]
+
+
+class ProductDetailSerializer(serializers.ModelSerializer):
+    collection_label = serializers.SerializerMethodField()
+    weight = serializers.SerializerMethodField()
+    length = serializers.SerializerMethodField()
+    category = serializers.CharField(source="category.name", read_only=True)
+    subcategory = serializers.CharField(source="subcategory.name", read_only=True)
+    availability = serializers.SerializerMethodField()
+    hallmark = serializers.SerializerMethodField()
+    price_min = serializers.SerializerMethodField()
+    price_max = serializers.SerializerMethodField()
+    images = serializers.SerializerMethodField()
+    company = ProductDetailCompanySerializer(read_only=True)
+    is_wishlisted = serializers.SerializerMethodField()
+    share_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "name",
+            "collection_label",
+            "purity",
+            "weight",
+            "length",
+            "category",
+            "subcategory",
+            "availability",
+            "hallmark",
+            "price_min",
+            "price_max",
+            "description",
+            "images",
+            "company",
+            "is_wishlisted",
+            "share_url",
+        ]
+
+    def get_collection_label(self, obj: Product) -> str | None:
+        return get_product_attribute_value(obj, "collection_label", "collection", "collection_name")
+
+    def get_weight(self, obj: Product) -> str:
+        return f"{obj.weight_grams}g"
+
+    def get_length(self, obj: Product) -> str | None:
+        return get_product_attribute_value(obj, "length", "chain_length", "size")
+
+    def get_availability(self, obj: Product) -> str:
+        return "In Stock" if obj.is_active else "Unavailable"
+
+    def get_hallmark(self, obj: Product) -> str | None:
+        return get_product_attribute_value(obj, "hallmark", "hallmark_certification", "bis_hallmark")
+
+    def get_price_min(self, obj: Product) -> str | None:
+        return str(obj.price) if obj.price is not None else None
+
+    def get_price_max(self, obj: Product) -> str | None:
+        return str(obj.price) if obj.price is not None else None
+
+    def get_images(self, obj: Product) -> list[dict[str, str]]:
+        return get_product_image_payload(obj)
+
+    def get_is_wishlisted(self, obj: Product) -> bool:
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            return False
+        return ProductWishlist.objects.filter(user=user, product=obj).exists()
+
+    def get_share_url(self, obj: Product) -> str | None:
+        request = self.context.get("request")
+        return request.build_absolute_uri() if request is not None else None
+
+
 class CompanyTierSerializer(serializers.ModelSerializer):
     current_company_count = serializers.SerializerMethodField()
 
@@ -384,6 +500,42 @@ class CompanyTierWriteSerializer(serializers.ModelSerializer):
             "display_priority",
             "visibility_type",
         ]
+
+
+class MarketRowWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MarketRow
+        fields = ["id", "title", "row_type", "layout", "target_visibility_type", "sort_order", "is_enabled"]
+        read_only_fields = ["id"]
+
+    def validate_row_type(self, value: str) -> str:
+        if value != MarketRow.RowType.COMPANY_TIER:
+            raise serializers.ValidationError("Only company-tier market rows are supported in Phase 1.")
+        return value
+
+
+class ProductEnquiryWriteSerializer(serializers.Serializer):
+    type = serializers.CharField(required=False, allow_blank=True, default="FINAL_PRICE_REQUEST")
+    message = serializers.CharField(required=False, allow_blank=True, default="")
+    requester_name = serializers.CharField(max_length=120)
+    requester_phone = serializers.CharField(max_length=20)
+
+    def validate(self, attrs):
+        product: Product = self.context["product"]
+        if not product.company.is_active or not product.company.is_approved or not product.is_active:
+            raise serializers.ValidationError("This product is no longer available for enquiries.")
+        return attrs
+
+    def create(self, validated_data):
+        product: Product = self.context["product"]
+        message = validated_data.get("message", "").strip() or "I would like to know the final price for this product."
+        return Enquiry.objects.create(
+            company=product.company,
+            product=product,
+            requester_name=validated_data["requester_name"].strip(),
+            requester_phone=validated_data["requester_phone"].strip(),
+            notes=message,
+        )
 
 
 class CompanyTierAssignmentSerializer(serializers.Serializer):

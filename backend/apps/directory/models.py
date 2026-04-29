@@ -49,6 +49,33 @@ class Company(models.Model):
         return self.name
 
 
+class MarketRow(models.Model):
+    class RowType(models.TextChoices):
+        COMPANY_TIER = "company_tier", "Company Tier"
+        FEATURED_PRODUCT_COLLECTION = "featured_product_collection", "Featured Product Collection"
+        CATEGORY_COLLECTION = "category_collection", "Category Collection"
+
+    class Layout(models.TextChoices):
+        HERO_COMPANY = "hero_company", "Hero Company"
+        GRID_COMPANY = "grid_company", "Grid Company"
+        RAIL_COMPANY = "rail_company", "Rail Company"
+
+    title = models.CharField(max_length=140)
+    row_type = models.CharField(max_length=40, choices=RowType.choices, default=RowType.COMPANY_TIER)
+    layout = models.CharField(max_length=40, choices=Layout.choices, default=Layout.RAIL_COMPANY)
+    target_visibility_type = models.CharField(max_length=20, choices=CompanyTier.VisibilityType.choices)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class CompanyVerification(models.Model):
     company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name="verification")
     gst_registered = models.BooleanField(default=False)
@@ -128,6 +155,20 @@ class Product(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class ProductWishlist(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="product_wishlists")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="wishlists")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "product"], name="uniq_product_wishlist_user_product"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.product_id}"
 
 
 class MediaAsset(models.Model):

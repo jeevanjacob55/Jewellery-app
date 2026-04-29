@@ -57,6 +57,20 @@ class News(models.Model):
         return self.title
 
 
+class NewsBookmark(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="news_bookmarks")
+    news = models.ForeignKey(News, on_delete=models.CASCADE, related_name="bookmarks")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "news"], name="uniq_news_bookmark_user_news"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.news_id}"
+
+
 class NewsTarget(models.Model):
     class TargetType(models.TextChoices):
         PLATFORM = "platform", "Platform"

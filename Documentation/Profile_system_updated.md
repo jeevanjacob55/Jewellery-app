@@ -1,429 +1,647 @@
 ````md
-# Jewellery Association Platform — Profile & Sidebar (Drawer) Implementation Guide
+# Profile System Implementation Plan
+# Jewellery Association Platform
 
 ---
 
-# 1. Overview
+## 1. Core Decision
 
-## Purpose of Profile Screen
-The Profile Screen represents the **user’s identity and context** within the platform. It provides:
-- Personal details (name, email, phone, avatar)
-- Hierarchical association context (State → Association → District → Unit)
-- Company linkage (if applicable)
-- Quick access to user-centric data (wishlist, bookmarks)
+Profile System has two parts:
 
-It is **read-heavy, low-action**, focused on clarity and trust.
+1. **Profile Screen**
+   - Shows user identity only.
+   - Shows basic personal details.
+   - Shows association context.
 
----
+2. **Sidebar Drawer**
+   - Shows account actions.
+   - Shows company tools.
+   - Shows admin tools.
+   - Shows settings and logout.
 
-## Purpose of Sidebar (Drawer)
-The Sidebar (Drawer) is the **primary action/navigation hub** of the app. It provides:
-- Navigation across core modules (Dashboard, Market, News, Services)
-- Access to user activity (wishlist, bookmarks)
-- Company management tools
-- Admin tools (if applicable)
-- Settings and logout
-
-It is **action-heavy and dynamic**, adapting based on user role.
+Do not mix these responsibilities.
 
 ---
 
-## Separation of Concerns
+# 2. Profile Screen
 
-| Component       | Responsibility                  |
-|----------------|--------------------------------|
-| Profile Screen | Identity, context, personal info |
-| Sidebar        | Navigation, actions, system access |
+## 2.1 Purpose
+
+The Profile Screen should answer:
+
+- Who is this user?
+- What is their role?
+- What is their email and phone number?
+- Which association and state do they belong to?
+
+The Profile Screen must stay clean and simple.
 
 ---
 
-# 2. Profile Screen Specification
+## 2.2 Final Profile Screen Wireframe
 
-## 2.1 Layout Structure
+```text
+------------------------------------------------
+| Profile                                      |
+------------------------------------------------
 
-```yaml
-ProfileScreen:
-  Header:
-    avatar: true
-    name: string
-    email: string
-    phone: string
+              [ Profile Photo ]
 
-  AssociationCard:
-    state: string
-    association: string
-    district: string
-    unit: string
+              Jeevan Jacob
+              Company Admin
 
-  CompanyCard:
-    condition: user.hasCompany
-    fields:
-      name: string
-      plan: string
-      product_count: number
-      max_products: number
+------------------------------------------------
+| Personal Details                             |
+------------------------------------------------
+| Email        jeevan@example.com              |
+| Phone        +91 98765 43210                 |
+------------------------------------------------
 
-  QuickAccess:
-    - Wishlist Products
-    - Bookmarked News
+------------------------------------------------
+| Association                                  |
+------------------------------------------------
+| Association  AKGSMA                          |
+| State        Kerala                          |
+------------------------------------------------
 ````
 
 ---
 
-## 2.2 UI Behavior
+## 2.3 Profile Screen Must Show
 
-### Company Card Visibility
-
-* Render only if:
-
-```javascript
-user.hasCompany === true
+```text
+Profile photo
+Name
+Role
+Email
+Phone number
+Association name
+State
 ```
-
-### Tap Actions
-
-* Wishlist Products → `/wishlist`
-* Bookmarked News → `/bookmarks`
-* Manage Products → `/company/products`
-
-### Loading State
-
-* Skeleton placeholders for:
-
-  * Header
-  * Cards
-* Avoid layout shift
-
-### Empty States
-
-* Wishlist empty → "No saved products yet"
-* Bookmarks empty → "No bookmarked news"
 
 ---
 
-## 2.3 Role-Based Visibility
+## 2.4 Profile Screen Must NOT Show
 
-| Role          | Visible Elements                             |
-| ------------- | -------------------------------------------- |
-| Guest         | Header (limited), AssociationCard (partial)  |
-| Member        | Full Profile + AssociationCard + QuickAccess |
-| Company Admin | + CompanyCard                                |
-| Admin         | Same as Member (no admin tools here)         |
+```text
+Wishlist
+Bookmarked News
+Quick Navigation
+Company Profile Card
+Company Plan
+Upgrade Plan
+Admin Tools
+Pending Approvals
+Notification Settings
+Fake labels like Platinum Member
+District
+Unit
+Local chapter
+```
 
 ---
 
-## 2.4 API Requirements
+# 3. Profile Card Redesign
 
-### Endpoint
+## 3.1 Goal
 
+The profile card should look clean, centered, and modern.
+
+The previous design must be replaced if it looks like a random membership card or shows fake labels like “Platinum Member”.
+
+---
+
+## 3.2 Profile Card Wireframe
+
+```text
+------------------------------------------------
+|                                              |
+|              [ Profile Photo ]               |
+|                                              |
+|              Jeevan Jacob                    |
+|              Company Admin                   |
+|                                              |
+------------------------------------------------
 ```
+
+---
+
+## 3.3 Profile Card Rules
+
+* Profile photo must be circular.
+* If photo is missing, show initials.
+* Name should be bold and prominent.
+* Role should be smaller and muted.
+* Do not show membership tier.
+* Do not show “Platinum Member”.
+* Do not show company plan here.
+* Do not show association hierarchy here.
+
+---
+
+# 4. Personal Details Card
+
+## 4.1 Wireframe
+
+```text
+------------------------------------------------
+| Personal Details                             |
+------------------------------------------------
+| Email        jeevan@example.com              |
+| Phone        +91 98765 43210                 |
+------------------------------------------------
+```
+
+---
+
+## 4.2 Rules
+
+* Show email if available.
+* Show phone if available.
+* If email is missing, show `Email not added`.
+* If phone is missing, show `Phone not added`.
+* Do not add edit buttons inside this card.
+* Edit Profile must remain in Sidebar → Settings.
+
+---
+
+# 5. Association Card
+
+## 5.1 Wireframe
+
+```text
+------------------------------------------------
+| Association                                  |
+------------------------------------------------
+| Association  AKGSMA                          |
+| State        Kerala                          |
+------------------------------------------------
+```
+
+---
+
+## 5.2 Rules
+
+Association card must show only:
+
+```text
+Association name
+State
+```
+
+Do not show:
+
+```text
+District
+Unit
+Local chapter
+Membership tier
+Company plan
+Company name
+```
+
+---
+
+# 6. Sidebar Drawer
+
+## 6.1 Purpose
+
+Sidebar Drawer is for secondary actions, account management, company management, admin tools, settings, and logout.
+
+Do not duplicate bottom navigation items.
+
+If Dashboard, Market, News, and Services already exist in bottom navigation, do not show them in the drawer.
+
+---
+
+## 6.2 Final Sidebar Wireframe
+
+```text
+------------------------------------------------
+| [Avatar]  Jeevan Jacob                       |
+|           Company Admin                      |
+------------------------------------------------
+
+| Company                                     |
+| Show only for company users/admins          |
+------------------------------------------------
+| Manage Products                             |
+| View Plan                                   |
+| Upgrade Plan                                |
+| Opens website for now                       |
+------------------------------------------------
+
+| Admin Tools                                 |
+| Show only for admins                        |
+------------------------------------------------
+| Pending Approvals                           |
+| Manage Users                                |
+| Manage News                                 |
+------------------------------------------------
+
+| Settings                                    |
+------------------------------------------------
+| Notification Settings                       |
+| Edit Profile                                |
+| Help & Support                              |
+------------------------------------------------
+
+| Logout                                      |
+------------------------------------------------
+```
+
+---
+
+# 7. Sidebar Section Rules
+
+## 7.1 Drawer Header
+
+```text
+------------------------------------------------
+| [Avatar]  Jeevan Jacob                       |
+|           Company Admin                      |
+------------------------------------------------
+```
+
+Rules:
+
+* Show avatar or initials.
+* Show user name.
+* Show user role.
+* Tapping header opens Profile Screen.
+
+---
+
+## 7.2 Company Section
+
+Show only if the logged-in user is linked to a company.
+
+```text
+Company
+- Manage Products
+- View Plan
+- Upgrade Plan
+```
+
+Rules:
+
+* Show `Manage Products` only if user can manage company products.
+* Show `View Plan` for company-linked users.
+* Show `Upgrade Plan` only for company admins.
+* Upgrade Plan must open website for now.
+* Do not implement in-app payment or plan upgrade flow in Phase 1.
+
+---
+
+## 7.3 Admin Tools Section
+
+Show only if the user has admin permissions.
+
+```text
+Admin Tools
+- Pending Approvals
+- Manage Users
+- Manage News
+```
+
+Rules:
+
+* Normal members must never see Admin Tools.
+* Company admins should not see Admin Tools unless they also have association admin permission.
+* Pending Approvals means ads/news/access items waiting for admin approval.
+* Approvals should open a separate screen, not happen directly inside the drawer.
+
+---
+
+## 7.4 Settings Section
+
+Show for logged-in users.
+
+```text
+Settings
+- Notification Settings
+- Edit Profile
+- Help & Support
+```
+
+Rules:
+
+* Use exactly `Edit Profile`.
+* Do not use `Edit Profiles`.
+* Notification Settings must live here, not on the Profile Screen.
+
+---
+
+## 7.5 Logout
+
+Rules:
+
+* Logout must ask for confirmation.
+* After logout, clear auth token/session.
+* Redirect user to login or guest entry screen.
+
+---
+
+# 8. Guest User Drawer
+
+For guests, keep drawer minimal.
+
+```text
+------------------------------------------------
+| [Avatar]  Guest User                         |
+|           Guest                              |
+------------------------------------------------
+
+| Settings                                    |
+------------------------------------------------
+| Help & Support                              |
+------------------------------------------------
+
+| Login / Sign Up                             |
+------------------------------------------------
+```
+
+Rules:
+
+* Do not show Company section.
+* Do not show Admin Tools.
+* Do not show Notification Settings unless guest notifications are supported.
+* Do not show Logout; show Login / Sign Up instead.
+
+---
+
+# 9. Role-Based Rules
+
+## Guest
+
+Show:
+
+```text
+Profile header with Guest
+Help & Support
+Login / Sign Up
+```
+
+Hide:
+
+```text
+Company section
+Admin Tools
+Notification Settings
+Logout
+```
+
+---
+
+## Member
+
+Show:
+
+```text
+Profile Screen
+Association card
+Settings
+Logout
+```
+
+Hide:
+
+```text
+Company section unless linked to company
+Admin Tools
+Upgrade Plan
+```
+
+---
+
+## Company Admin
+
+Show:
+
+```text
+Profile Screen
+Company section
+Manage Products
+View Plan
+Upgrade Plan
+Settings
+Logout
+```
+
+Hide:
+
+```text
+Admin Tools unless also admin
+```
+
+---
+
+## Association Admin / Super Admin
+
+Show:
+
+```text
+Profile Screen
+Admin Tools
+Pending Approvals
+Manage Users
+Manage News
+Settings
+Logout
+```
+
+Show Company section only if the admin is also linked to a company.
+
+---
+
+# 10. API Requirements
+
+## 10.1 Main Profile Endpoint
+
+```http
 GET /api/me/
 ```
 
-### Response Structure
+Response should include:
 
 ```json
 {
   "user": {
-    "name": "string",
-    "email": "string",
-    "phone": "string",
-    "avatar": "url",
-    "role": "string"
+    "id": 1,
+    "name": "Jeevan Jacob",
+    "email": "jeevan@example.com",
+    "phone": "+919876543210",
+    "avatar": "https://example.com/avatar.jpg",
+    "role": "COMPANY_ADMIN",
+    "role_display_name": "Company Admin",
+    "is_admin": false,
+    "has_company": true,
+    "can_manage_products": true
   },
   "hierarchy": {
-    "state": "string",
-    "association": "string",
-    "district": "string",
-    "unit": "string"
+    "state": "Kerala",
+    "association": "AKGSMA"
   },
   "company": {
-    "name": "string",
-    "plan": "string",
-    "product_count": 5,
-    "max_products": 7
+    "id": 10,
+    "name": "ABC Jewellers",
+    "plan": "Prime Elite",
+    "upgrade_url": "https://example.com/upgrade"
   },
-  "preferences": {
-    "rate_alerts": true,
-    "news_alerts": true,
-    "ad_alerts": false,
-    "meeting_alerts": true
+  "counts": {
+    "pending_approvals_count": 0,
+    "unread_notifications_count": 3
   }
 }
 ```
 
+Important:
+
+* Frontend should only use `hierarchy.association` and `hierarchy.state` for the Profile Screen.
+* Do not show district/unit on Profile Screen even if backend returns them.
+* Do not show company details on Profile Screen.
+
 ---
 
-# 3. Sidebar (Drawer) Specification
+# 11. Navigation Routes
 
-## 3.1 Layout Structure
+```text
+/profile
+/company/products
+/company/plan
+/admin/approvals
+/admin/users
+/admin/news
+/settings/notifications
+/settings/edit-profile
+/support
+```
 
-```yaml
-DrawerMenu:
-  Header:
-    avatar: true
-    name: string
-    role: string
+Upgrade Plan behavior:
 
-  TopAction:
-    type: pending_approvals
-    badge: true
-
-  MainNavigation:
-    - Dashboard
-    - Market
-    - News
-    - Services
-
-  Sections:
-    - title: Your Activity
-      items:
-        - Wishlist Products
-        - Bookmarked News
-
-    - title: Company
-      condition: user.hasCompany
-      items:
-        - My Company Profile
-        - Manage Products
-        - View Plan
-        - Upgrade Plan (Admin Only)
-
-    - title: Admin Tools
-      condition: user.isAdmin
-      items:
-        - Pending Approvals
-        - Manage Users
-
-    - title: Settings
-      items:
-        - Notification Settings
-        - Edit Profile
-        - Help & Support
-
-  Footer:
-    - Logout
+```text
+Open external website URL from company.upgrade_url
 ```
 
 ---
 
-## 3.2 Interaction Behavior
+# 12. Loading, Empty, and Error States
 
-### Drawer Behavior
+## Loading
 
-* Opens from left (swipe or menu button)
-* Closes on:
+Use skeleton loading for:
 
-  * Outside tap
-  * Navigation selection
-
-### Navigation Routing
-
-| Item      | Route              |
-| --------- | ------------------ |
-| Dashboard | `/dashboard`       |
-| Market    | `/market`          |
-| News      | `/news`            |
-| Services  | `/services`        |
-| Wishlist  | `/wishlist`        |
-| Bookmarks | `/bookmarks`       |
-| Approvals | `/admin/approvals` |
-
----
-
-### Badge Updates
-
-* Pending approvals → real-time or periodic refresh
-* Wishlist count → fetched on login
-
----
-
-### Tap Actions
-
-* Section item tap → navigate
-* Header tap → open Profile Screen
-
----
-
-## 3.3 Role-Based Rendering Logic
-
-```javascript
-if (user.isAdmin) {
-  showAdminSection()
-}
-
-if (user.hasCompany) {
-  showCompanySection()
-}
-
-if (user.role === "COMPANY_ADMIN") {
-  showUpgradePlan()
-}
+```text
+Profile card
+Personal details card
+Association card
+Drawer header
+Drawer sections
 ```
 
 ---
 
-## 3.4 API Mapping
+## Missing Data
 
-| Feature           | API Endpoint                 |
-| ----------------- | ---------------------------- |
-| Wishlist          | GET /api/wishlist/           |
-| Bookmarks         | GET /api/bookmarks/          |
-| Pending Approvals | GET /api/admin/pending-count |
-| Notifications     | GET /api/notifications/      |
-
----
-
-# 4. Wireframes (Human + AI Readable)
-
-## 4.1 ASCII Wireframe
-
-```
-------------------------------------------------
-| [👤 Avatar]   Jeevan Jacob                  |
-|              Company Admin                  |
-------------------------------------------------
-| 🔴 Pending Approvals (5)                     |
-------------------------------------------------
-| 🏠 Dashboard                                |
-| 🛒 Market                                   |
-| 📰 News                                     |
-| 🛠 Services                                 |
-------------------------------------------------
-| ⭐ YOUR ACTIVITY                            |
-| ❤️ Wishlist Products (12)                   |
-| 🔖 Bookmarked News (5)                      |
-------------------------------------------------
-| 🏢 COMPANY                                 |
-| 🏬 My Company Profile                       |
-| 📦 Manage Products                          |
-| 📊 View Plan                                |
-| 🚀 Upgrade Plan                             |
-------------------------------------------------
-| 🛠 ADMIN TOOLS                             |
-| 📌 Pending Approvals                        |
-| 👥 Manage Users                             |
-------------------------------------------------
-| ⚙️ SETTINGS                                |
-| 🔔 Notification Settings                    |
-| ✏️ Edit Profile                             |
-| ❓ Help & Support                           |
-------------------------------------------------
-| 🚪 Logout                                  |
-------------------------------------------------
+```text
+Missing avatar → show initials
+Missing email → show "Email not added"
+Missing phone → show "Phone not added"
+Missing association → show "Association not assigned"
+Missing state → show "State not assigned"
 ```
 
 ---
 
-## 4.2 Structured YAML Wireframe
+## Error
 
-```yaml
-DrawerWireframe:
-  header:
-    avatar: true
-    name: dynamic
-    role: dynamic
+```text
+Could not load profile.
+[Retry]
+```
 
-  top_action:
-    approvals:
-      badge: dynamic
+Drawer error:
 
-  navigation:
-    - Dashboard
-    - Market
-    - News
-    - Services
-
-  sections:
-    activity:
-      - Wishlist
-      - Bookmarks
-
-    company:
-      condition: hasCompany
-
-    admin:
-      condition: isAdmin
-
-    settings:
-      - Notifications
-      - EditProfile
-
-  footer:
-    - Logout
+```text
+Could not load account options.
+[Retry]
 ```
 
 ---
 
-# 5. UX & Design Rules
+# 13. Design Rules
 
-## Spacing
+## Profile Screen
 
-* Section padding: 16px
-* Item spacing: 12px
-* Touch target: minimum 44px
+* Keep it visually calm.
+* Use card-based layout.
+* Use enough spacing.
+* Avoid clutter.
+* No action-heavy sections.
+* No fake membership labels.
+* No company card.
 
-## Section Grouping
+## Sidebar Drawer
 
-* Logical grouping by intent
-* Use dividers between sections
-
-## Badge Usage
-
-* Red badge → critical (approvals)
-* Grey badge → passive (wishlist count)
-
-## Empty States
-
-* Always show placeholder text
-* Avoid removing sections completely
-
-## Error States
-
-* Show retry button
-* Preserve layout
+* Use clear section headings.
+* Hide irrelevant sections completely.
+* Do not duplicate bottom navigation.
+* Keep drawer scrollable.
+* Use badges only when meaningful.
+* Admin actions should be visually separated from normal settings.
 
 ---
 
-# 6. Edge Cases
+# 14. Do Not Implement
 
-| Scenario             | Behavior                          |
-| -------------------- | --------------------------------- |
-| No company           | Hide Company section              |
-| No wishlist          | Show empty state                  |
-| No admin permissions | Hide Admin section                |
-| No internet          | Show cached data + "Offline mode" |
+Do not implement:
 
----
-
-# 7. Future Scalability Notes
-
-## Feature Expansion
-
-* Add new sections without breaking layout
-* Modular section rendering
-
-## More Roles
-
-* Extend role logic easily
-* Add permissions layer
-
-## Additional Sections
-
-* Notifications center
-* Analytics dashboard
-* Subscription management
+```text
+Wishlist in Profile Screen
+Bookmarked News in Profile Screen
+Quick Navigation in Profile Screen
+Company Card in Profile Screen
+Upgrade Plan in Profile Screen
+Fake membership badge
+Platinum Member label
+District/Unit in Association card
+Bottom navigation items inside drawer
+In-app payment for plan upgrade
+Approval action directly inside drawer
+```
 
 ---
 
-# FINAL NOTE
+# 15. Implementation Order
 
-This structure ensures:
+1. Update Profile Screen layout.
+2. Remove quick navigation from Profile Screen.
+3. Remove company card from Profile Screen.
+4. Remove fake membership badge.
+5. Update Association card to show only Association and State.
+6. Redesign Profile Identity card.
+7. Update Sidebar Drawer.
+8. Remove bottom-tab items from drawer.
+9. Add role-based drawer sections.
+10. Add external website behavior for Upgrade Plan.
+11. Add loading/error/empty states.
+12. Test Guest, Member, Company Admin, and Admin views.
 
-* Clean separation of concerns
-* Role-based dynamic UI
-* Scalable architecture
-* Codex-friendly implementation
+---
+
+# 16. Acceptance Criteria
+
+* Profile screen shows only identity, personal details, association, and state.
+* No “Platinum Member” or fake membership label appears.
+* Association card shows only association name and state.
+* Company details do not appear on Profile Screen.
+* Quick navigation does not appear on Profile Screen.
+* Drawer does not duplicate bottom navigation.
+* Company section appears only for company-linked users.
+* Upgrade Plan opens website, not in-app payment.
+* Admin Tools appear only for admins.
+* Notification Settings appears under Settings.
+* Text says `Edit Profile`, not `Edit Profiles`.
 
 ```
 ```

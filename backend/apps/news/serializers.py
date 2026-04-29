@@ -52,13 +52,18 @@ class TickerSerializer(serializers.Serializer):
 
 class NewsFeedItemSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    is_bookmarked = serializers.SerializerMethodField()
 
     class Meta:
         model = News
-        fields = ["id", "title", "description", "publisher_type", "publisher_id", "published_at", "image_url"]
+        fields = ["id", "title", "description", "publisher_type", "publisher_id", "published_at", "image_url", "is_bookmarked"]
 
     def get_image_url(self, obj: News) -> str | None:
         return get_news_image_url(obj, request=self.context.get("request"))
+
+    def get_is_bookmarked(self, obj: News) -> bool:
+        bookmarked_ids = self.context.get("bookmarked_news_ids", set())
+        return obj.id in bookmarked_ids
 
 
 class NewsFeedResponseSerializer(serializers.Serializer):
@@ -71,13 +76,23 @@ class NewsFeedResponseSerializer(serializers.Serializer):
 
 class NewsDetailSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    is_bookmarked = serializers.SerializerMethodField()
+    related_items = serializers.SerializerMethodField()
 
     class Meta:
         model = News
-        fields = ["id", "title", "description", "publisher_type", "publisher_id", "published_at", "image_url"]
+        fields = ["id", "title", "description", "publisher_type", "publisher_id", "published_at", "image_url", "is_bookmarked", "related_items"]
 
     def get_image_url(self, obj: News) -> str | None:
         return get_news_image_url(obj, request=self.context.get("request"))
+
+    def get_is_bookmarked(self, obj: News) -> bool:
+        bookmarked_ids = self.context.get("bookmarked_news_ids", set())
+        return obj.id in bookmarked_ids
+
+    def get_related_items(self, obj: News):
+        related_items = self.context.get("related_items", [])
+        return NewsFeedItemSerializer(related_items, many=True, context=self.context).data
 
 
 class NewsTargetInputSerializer(serializers.Serializer):

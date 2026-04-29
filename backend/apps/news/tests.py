@@ -12,7 +12,7 @@ from apps.directory.models import Company, CompanyTier
 from apps.rates.models import AssociationRate
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .models import Alert, Meeting, MeetingResponse, MeetingTarget, News, NewsItem, NewsTarget
+from .models import Alert, Meeting, MeetingResponse, MeetingTarget, News, NewsBookmark, NewsItem, NewsTarget
 
 
 class ScopedNewsMeetingBase(APITestCase):
@@ -353,6 +353,54 @@ class NewsFeedTests(ScopedNewsMeetingBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Visible Story")
         self.assertTrue(response.data["image_url"].startswith("http://testserver/media/news/images/"))
+        self.assertEqual(response.data["related_items"], [])
+
+    def test_news_detail_returns_only_visible_published_related_items(self):
+        detail_news = self._create_published_news(
+            title="Lead Story",
+            description="Lead article body.",
+            created_by=self.super_admin,
+            publisher_type=News.PublisherType.PLATFORM,
+            publisher_id=None,
+            include_targets=[(NewsTarget.TargetType.PLATFORM, None)],
+        )
+        latest_related = self._create_published_news(
+            title="Latest Related",
+            description="Visible related story.",
+            created_by=self.super_admin,
+            publisher_type=News.PublisherType.PLATFORM,
+            publisher_id=None,
+            include_targets=[(NewsTarget.TargetType.PLATFORM, None)],
+        )
+        older_related = self._create_published_news(
+            title="Older Related",
+            description="Another visible related story.",
+            created_by=self.super_admin,
+            publisher_type=News.PublisherType.PLATFORM,
+            publisher_id=None,
+            include_targets=[(NewsTarget.TargetType.PLATFORM, None)],
+        )
+        self._create_published_news(
+            title="Hidden Related",
+            description="Not visible to the requester.",
+            created_by=self.association_admin,
+            publisher_type=News.PublisherType.ASSOCIATION,
+            publisher_id=self.kgsma.id,
+            include_targets=[(NewsTarget.TargetType.ASSOCIATION, self.kgsma.id)],
+        )
+        News.objects.create(
+            title="Draft Related",
+            description="Still in draft.",
+            created_by=self.super_admin,
+            publisher_type=News.PublisherType.PLATFORM,
+            publisher_id=None,
+            status=News.Status.DRAFT,
+        )
+
+        response = self.client.get(reverse("news_detail", args=[detail_news.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["title"] for item in response.data["related_items"]], [older_related.title, latest_related.title])
 
     def test_news_detail_hides_out_of_scope_or_unpublished_news(self):
         hidden_news = self._create_published_news(
@@ -455,6 +503,95 @@ class NewsFeedTests(ScopedNewsMeetingBase):
         self.client.force_authenticate(user=self.company_admin)
         reject_response = self.client.post(reverse("news_reject", args=[news_id]), {"rejection_reason": "Nope"}, format="json")
         self.assertEqual(reject_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_news_bookmark_toggle_requires_authentication(self):
+        news = self._create_published_news(
+            title="Public Story",
+            description="Visible article.",
+            created_by=self.super_admin,
+            publisher_type=News.PublisherType.PLATFORM,
+            publisher_id=None,
+            include_targets=[(NewsTarget.TargetType.PLATFORM, None)],
+        )
+
+        response = self.client.post(reverse("news_bookmark_toggle", args=[news.id]), {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_news_bookmark_toggle_updates_feed_and_detail_for_requesting_user_only(self):
+        bookmarked_news = self._create_published_news(
+            title="Bookmarkable Story",
+            description="Visible article.",
+            created_by=self.super_admin,
+            publisher_type=News.PublisherType.PLATFORM,
+            publisher_id=None,
+            include_targets=[(NewsTarget.TargetType.PLATFORM, None)],
+        )
+        related_news = self._create_published_news(
+            title="Related Bookmarkable Story",
+            description="Visible related article.",
+            created_by=self.super_admin,
+            publisher_type=News.PublisherType.PLATFORM,
+            publisher_id=None,
+            include_targets=[(NewsTarget.TargetType.PLATFORM, None)],
+        )
+
+        self.client.force_authenticate(user=self.member)
+        create_response = self.client.post(reverse("news_bookmark_toggle", args=[bookmarked_news.id]), {}, format="json")
+        self.assertEqual(create_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(create_response.data["is_bookmarked"])
+        self.assertTrue(NewsBookmark.objects.filter(user=self.member, news=bookmarked_news).exists())
+
+        feed_response = self.client.get(reverse("news_feed"))
+        self.assertEqual(feed_response.status_code, status.HTTP_200_OK)
+        if feed_response.data["featured_news"]["id"] == bookmarked_news.id:
+            self.assertTrue(feed_response.data["featured_news"]["is_bookmarked"])
+        if feed_response.data["featured_news"]["id"] == related_news.id:
+            self.assertFalse(feed_response.data["featured_news"]["is_bookmarked"])
+        self.assertTrue(any(item["id"] == bookmarked_news.id and item["is_bookmarked"] for item in feed_response.data["items"]))
+        self.assertTrue(any(item["id"] == related_news.id and not item["is_bookmarked"] for item in feed_response.data["items"]))
+
+        detail_response = self.client.get(reverse("news_detail", args=[bookmarked_news.id]))
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(detail_response.data["is_bookmarked"])
+        self.assertTrue(any(item["id"] == related_news.id and not item["is_bookmarked"] for item in detail_response.data["related_items"]))
+
+        self.client.force_authenticate(user=self.other_member)
+        other_feed_response = self.client.get(reverse("news_feed"))
+        self.assertEqual(other_feed_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(all(not item["is_bookmarked"] for item in other_feed_response.data["items"]))
+        other_detail_response = self.client.get(reverse("news_detail", args=[bookmarked_news.id]))
+        self.assertEqual(other_detail_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(other_detail_response.data["is_bookmarked"])
+
+        self.client.force_authenticate(user=self.member)
+        remove_response = self.client.post(reverse("news_bookmark_toggle", args=[bookmarked_news.id]), {}, format="json")
+        self.assertEqual(remove_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(remove_response.data["is_bookmarked"])
+        self.assertFalse(NewsBookmark.objects.filter(user=self.member, news=bookmarked_news).exists())
+
+    def test_bookmarked_scoped_news_stays_hidden_for_other_users(self):
+        scoped_news = self._create_published_news(
+            title="Association Scope Story",
+            description="Only one association can see this.",
+            created_by=self.association_admin,
+            publisher_type=News.PublisherType.ASSOCIATION,
+            publisher_id=self.kgsma.id,
+            include_targets=[(NewsTarget.TargetType.ASSOCIATION, self.kgsma.id)],
+        )
+
+        self.client.force_authenticate(user=self.member)
+        bookmark_response = self.client.post(reverse("news_bookmark_toggle", args=[scoped_news.id]), {}, format="json")
+        self.assertEqual(bookmark_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(bookmark_response.data["is_bookmarked"])
+
+        self.client.force_authenticate(user=self.other_member)
+        feed_response = self.client.get(reverse("news_feed"))
+        detail_response = self.client.get(reverse("news_detail", args=[scoped_news.id]))
+
+        self.assertEqual(feed_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(any(item["id"] == scoped_news.id for item in feed_response.data["items"]))
+        self.assertEqual(detail_response.status_code, status.HTTP_404_NOT_FOUND)
 
 
 class MeetingApiTests(ScopedNewsMeetingBase):

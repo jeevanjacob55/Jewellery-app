@@ -6,6 +6,8 @@ from apps.directory.views import (
     AdminCompanyTierDetailView,
     AdminCompanyTierListCreateView,
     AdminCompanyTierToggleView,
+    AdminMarketRowDetailView,
+    AdminMarketRowListCreateView,
 )
 
 from .views import (
@@ -21,6 +23,8 @@ urlpatterns = [
     path("hierarchy/", HierarchyManagementView.as_view(), name="admin_hierarchy"),
     path("directory/tiers/", AdminCompanyTierListCreateView.as_view(), name="admin_directory_tier_list_create"),
     path("directory/tiers/<int:tier_id>/", AdminCompanyTierDetailView.as_view(), name="admin_directory_tier_detail"),
+    path("market-rows/", AdminMarketRowListCreateView.as_view(), name="admin_market_row_list_create"),
+    path("market-rows/<int:row_id>/", AdminMarketRowDetailView.as_view(), name="admin_market_row_detail"),
     path(
         "directory/tiers/<int:tier_id>/<str:action>/",
         AdminCompanyTierToggleView.as_view(),

@@ -13,6 +13,7 @@ const INTERNAL_SCREEN_WHITELIST = new Set([
   "StateRates",
   "CompanyProfile",
   "ProductSearch",
+  "ProductDetail",
   "MeetingDetail",
   "ReverseSearch",
 ]);
@@ -38,7 +39,7 @@ export async function executeAdvertisementAction(advertisement: AdvertisementIte
       return;
     case "product":
       if (actionPayload.product_id) {
-        navigation.navigate("ProductSearch", {
+        navigation.navigate("ProductDetail", {
           productId: actionPayload.product_id,
           companyId: actionPayload.company_id,
         });

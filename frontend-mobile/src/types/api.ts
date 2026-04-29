@@ -281,49 +281,32 @@ export interface Company {
   is_approved?: boolean;
 }
 
-export interface MarketFeaturedCompany {
-  company_id: number;
-  name: string;
-  hero_image_url: string | null;
-  logo_image_url: string | null;
-  city: string;
-  state: string;
-}
-
 export interface MarketCompanyCard {
   company_id: number;
   name: string;
   hero_image_url: string | null;
   logo_image_url: string | null;
   is_verified: boolean;
+  city: string;
+  state: string;
+  tier_visibility_type: string;
 }
 
-export interface MarketCategory {
+export type MarketRowType = "company_tier" | "featured_product_collection" | "category_collection";
+export type MarketRowLayout = "hero_company" | "grid_company" | "rail_company";
+
+export interface MarketRow {
   id: number;
-  name: string;
-  slug: string;
-  icon_key: string;
-  product_count: number;
-}
-
-export interface MarketProductCard {
-  product_id: number;
-  company_id: number;
-  company_name: string;
-  name: string;
-  purity: string;
-  weight_grams: string;
-  image_url: string | null;
-  category_name: string;
-  category_slug: string;
+  title: string;
+  row_type: MarketRowType;
+  layout: MarketRowLayout;
+  sort_order: number;
+  is_enabled: boolean;
+  items: MarketCompanyCard[];
 }
 
 export interface MarketFeedData {
-  featured_companies: MarketFeaturedCompany[];
-  pro_companies: MarketCompanyCard[];
-  normal_companies: MarketCompanyCard[];
-  categories: MarketCategory[];
-  latest_products: MarketProductCard[];
+  rows: MarketRow[];
 }
 
 export type ProductFilterAttributeType = "select" | "range" | "number";
@@ -381,6 +364,40 @@ export interface ProductSearchResponse {
   sort: string;
 }
 
+export interface ProductDetailImage {
+  url: string;
+  type: "image" | "video";
+}
+
+export interface ProductDetailCompany {
+  id: number;
+  name: string;
+  location: string;
+  logo: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+}
+
+export interface ProductDetail {
+  id: number;
+  name: string;
+  collection_label: string | null;
+  purity: string;
+  weight: string;
+  length: string | null;
+  category: string;
+  subcategory: string | null;
+  availability: string;
+  hallmark: string | null;
+  price_min: string | null;
+  price_max: string | null;
+  description: string;
+  images: ProductDetailImage[];
+  company: ProductDetailCompany;
+  is_wishlisted: boolean;
+  share_url: string | null;
+}
+
 export type AdvertisementPlacement = "dashboard_hero" | "market_banner" | "news_inline";
 
 export type AdvertisementActionType = "external_url" | "internal_screen" | "product" | "company" | "category";
@@ -429,6 +446,7 @@ export interface NewsFeedItem {
   publisher_id: number | null;
   published_at: string | null;
   image_url: string | null;
+  is_bookmarked: boolean;
 }
 
 export interface NewsDetail {
@@ -439,6 +457,7 @@ export interface NewsDetail {
   publisher_id: number | null;
   published_at: string | null;
   image_url: string | null;
+  is_bookmarked: boolean;
   related_items?: NewsFeedItem[];
 }
 
@@ -544,4 +563,11 @@ export interface EnquiryPayload {
   requester_name: string;
   requester_phone: string;
   notes: string;
+}
+
+export interface ProductEnquiryPayload {
+  type?: string;
+  message?: string;
+  requester_name: string;
+  requester_phone: string;
 }

@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 
 from apps.rates.models import AssociationRate
 
-from .models import Alert, Meeting, News, NewsItem
+from .models import Alert, Meeting, News, NewsBookmark, NewsItem
 from .serializers import (
     CreateMeetingSerializer,
     CreateNewsSerializer,
@@ -40,12 +40,26 @@ def _build_news_queryset_with_relations():
     return News.objects.prefetch_related("targets").select_related("created_by", "approved_by")
 
 
-def build_news_feed_payload(user) -> dict:
+def _get_visible_published_news(user, *, exclude_news_id: int | None = None) -> list[News]:
     published_news = list(
-        _build_news_queryset_with_relations().filter(status=News.Status.PUBLISHED)
+        _build_news_queryset_with_relations()
+        .filter(status=News.Status.PUBLISHED)
         .order_by("-published_at", "-updated_at", "-id")
     )
     visible_news = [news for news in published_news if is_news_visible_to_user(news, user)]
+    if exclude_news_id is None:
+        return visible_news
+    return [news for news in visible_news if news.id != exclude_news_id]
+
+
+def _get_bookmarked_news_ids(user, news_ids: list[int] | tuple[int, ...] | set[int]) -> set[int]:
+    if not user or not getattr(user, "is_authenticated", False) or not news_ids:
+        return set()
+    return set(NewsBookmark.objects.filter(user=user, news_id__in=news_ids).values_list("news_id", flat=True))
+
+
+def build_news_feed_payload(user) -> dict:
+    visible_news = _get_visible_published_news(user)
     active_alert = Alert.objects.filter(active=True).order_by("-id").first()
     latest_news_item = NewsItem.objects.order_by("-published_at", "-id").first()
     latest_rate = AssociationRate.objects.order_by("-effective_at", "-id").first()
@@ -82,7 +96,20 @@ class NewsFeedView(APIView):
 
     def get(self, request):
         payload = build_news_feed_payload(request.user)
-        return Response(NewsFeedResponseSerializer(payload, context={"user": request.user, "request": request}).data)
+        news_ids = [item.id for item in payload["items"]]
+        if payload["featured_news"] is not None:
+            news_ids.append(payload["featured_news"].id)
+        bookmarked_news_ids = _get_bookmarked_news_ids(request.user, news_ids)
+        return Response(
+            NewsFeedResponseSerializer(
+                payload,
+                context={
+                    "user": request.user,
+                    "request": request,
+                    "bookmarked_news_ids": bookmarked_news_ids,
+                },
+            ).data
+        )
 
     def post(self, request):
         if not request.user or not request.user.is_authenticated:
@@ -123,7 +150,33 @@ class NewsDetailView(APIView):
         if news is None or not is_news_visible_to_user(news, request.user):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response(NewsDetailSerializer(news, context={"request": request}).data)
+        related_items = _get_visible_published_news(request.user, exclude_news_id=news.id)[:2]
+        bookmarked_news_ids = _get_bookmarked_news_ids(request.user, [news.id, *[item.id for item in related_items]])
+        return Response(
+            NewsDetailSerializer(
+                news,
+                context={
+                    "request": request,
+                    "related_items": related_items,
+                    "bookmarked_news_ids": bookmarked_news_ids,
+                },
+            ).data
+        )
+
+
+class NewsBookmarkToggleView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk: int):
+        news = _build_news_queryset_with_relations().filter(pk=pk, status=News.Status.PUBLISHED).first()
+        if news is None or not is_news_visible_to_user(news, request.user):
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        bookmark, created = NewsBookmark.objects.get_or_create(user=request.user, news=news)
+        if not created:
+            bookmark.delete()
+
+        return Response({"news_id": news.id, "is_bookmarked": created})
 
 
 class NewsApproveView(APIView):
