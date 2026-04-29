@@ -439,6 +439,7 @@ export interface NewsDetail {
   publisher_id: number | null;
   published_at: string | null;
   image_url: string | null;
+  related_items?: NewsFeedItem[];
 }
 
 export interface NewsData {
