@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -1379,6 +1380,12 @@ def _seed_services() -> None:
 
 
 def _seed_news() -> None:
+    def ensure_news_image(news: News, filename: str, content: bytes) -> None:
+        if news.image and news.image.name.endswith(filename):
+            return
+        news.image.save(filename, ContentFile(content), save=False)
+        news.save(update_fields=["image"])
+
     now = timezone.now().replace(microsecond=0, second=0)
     kgsma = Association.objects.filter(name="KGSMA").first()
 
@@ -1406,6 +1413,10 @@ def _seed_news() -> None:
             },
             {},
         )
+    if association_news.image:
+        association_news.image.delete(save=False)
+        association_news.image = ""
+        association_news.save(update_fields=["image"])
 
     urgent_news = _upsert(
         News,
@@ -1430,6 +1441,39 @@ def _seed_news() -> None:
         },
         {},
     )
+    ensure_news_image(
+        urgent_news,
+        "gst-update-issued-for-bullion-traders.jpg",
+        b"demo-news-image-gst-update",
+    )
+
+    checklist_news = _upsert(
+        News,
+        {"title": "Hallmarking inspection checklist published"},
+        {
+            "description": "Members can now review the latest hallmarking inspection checklist and branch-readiness notes.",
+            "created_by": None,
+            "publisher_type": News.PublisherType.PLATFORM,
+            "publisher_id": None,
+            "status": News.Status.PUBLISHED,
+            "published_at": now - timedelta(hours=2),
+            "rejection_reason": "",
+        },
+    )
+    _upsert(
+        NewsTarget,
+        {
+            "news": checklist_news,
+            "target_type": NewsTarget.TargetType.PLATFORM,
+            "target_id": None,
+            "mode": NewsTarget.Mode.INCLUDE,
+        },
+        {},
+    )
+    if checklist_news.image:
+        checklist_news.image.delete(save=False)
+        checklist_news.image = ""
+        checklist_news.save(update_fields=["image"])
 
     _upsert(
         Alert,

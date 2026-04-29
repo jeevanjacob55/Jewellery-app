@@ -12,6 +12,7 @@ import { MarketTiersScreen } from "../screens/directory/MarketTiersScreen";
 import { ProductSearchScreen } from "../screens/directory/ProductSearchScreen";
 import { MeetingDetailScreen } from "../screens/news/MeetingDetailScreen";
 import { NewsAlertsScreen } from "../screens/news/NewsAlertsScreen";
+import { NewsDetailScreen } from "../screens/news/NewsDetailScreen";
 import { MemberProfileScreen } from "../screens/profile/MemberProfileScreen";
 import { ReverseSearchScreen } from "../screens/reverse-search/ReverseSearchScreen";
 import { ServicesScreen } from "../screens/services/ServicesScreen";
@@ -56,6 +57,7 @@ export function RootNavigator() {
           <Stack.Screen name="CompanyProfile" component={CompanyProfileScreen} options={{ title: "Company Profile" }} />
           <Stack.Screen name="ProductSearch" component={ProductSearchScreen} options={{ title: "Product Search" }} />
           <Stack.Screen name="MeetingDetail" component={MeetingDetailScreen} options={{ title: "Meeting" }} />
+          <Stack.Screen name="NewsDetail" component={NewsDetailScreen} options={{ title: "News" }} />
           <Stack.Screen name="ReverseSearch" component={ReverseSearchScreen} options={{ title: "Reverse Search" }} />
         </>
       )}

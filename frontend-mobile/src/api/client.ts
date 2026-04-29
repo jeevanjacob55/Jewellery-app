@@ -20,6 +20,13 @@ function resolveUrl(pathOrUrl: string): string {
   }
 }
 
+export function resolveApiUrl(pathOrUrl: string | null | undefined): string | null {
+  if (!pathOrUrl) {
+    return null;
+  }
+  return resolveUrl(pathOrUrl);
+}
+
 export function configureApiClient(nextConfig: ApiClientConfig) {
   config = nextConfig;
 }

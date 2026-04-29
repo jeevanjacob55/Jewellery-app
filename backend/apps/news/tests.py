@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -144,6 +145,7 @@ class ScopedNewsMeetingBase(APITestCase):
         publisher_id: int | None,
         include_targets: list[tuple[str, int | None]],
         exclude_targets: list[tuple[str, int | None]] | None = None,
+        with_image: bool = False,
     ) -> News:
         news = News.objects.create(
             title=title,
@@ -153,6 +155,7 @@ class ScopedNewsMeetingBase(APITestCase):
             publisher_id=publisher_id,
             status=News.Status.PUBLISHED,
             published_at=timezone.now(),
+            image=SimpleUploadedFile("news.jpg", b"news-image-bytes", content_type="image/jpeg") if with_image else None,
         )
         for target_type, target_id in include_targets:
             NewsTarget.objects.create(news=news, target_type=target_type, target_id=target_id, mode=NewsTarget.Mode.INCLUDE)
@@ -217,6 +220,7 @@ class NewsFeedTests(ScopedNewsMeetingBase):
         self.assertEqual(response.data["meetings"], [])
         self.assertEqual(response.data["ticker"]["gold"], 0.0)
         self.assertEqual(response.data["ticker"]["silver"], 0.0)
+        self.assertIsNone(response.data["featured_news"])
         self.assertEqual(response.data["items"], [])
 
     def test_association_admin_can_publish_directly_within_scope(self):
@@ -241,6 +245,8 @@ class NewsFeedTests(ScopedNewsMeetingBase):
         self.client.force_authenticate(user=self.member)
         feed_response = self.client.get(reverse("news_feed"))
         self.assertEqual(feed_response.data["urgent_alert"]["title"], "Association Circular")
+        self.assertEqual(feed_response.data["featured_news"]["title"], "Association Circular")
+        self.assertIsNone(feed_response.data["featured_news"]["image_url"])
         self.assertEqual(feed_response.data["items"][0]["title"], "Association Circular")
 
     def test_unit_admin_out_of_scope_news_requires_association_approval(self):
@@ -315,17 +321,63 @@ class NewsFeedTests(ScopedNewsMeetingBase):
             publisher_id=None,
             include_targets=[(NewsTarget.TargetType.PLATFORM, None)],
             exclude_targets=[(NewsTarget.TargetType.USER, self.other_member.id)],
+            with_image=True,
         )
 
         self.client.force_authenticate(user=self.member)
         member_response = self.client.get(reverse("news_feed"))
         self.assertEqual(member_response.data["urgent_alert"]["title"], "Public But Excluded")
         self.assertEqual(len(member_response.data["items"]), 1)
+        self.assertIsNotNone(member_response.data["featured_news"]["image_url"])
+        self.assertTrue(member_response.data["items"][0]["image_url"].startswith("http://testserver/media/news/images/"))
 
         self.client.force_authenticate(user=self.other_member)
         excluded_response = self.client.get(reverse("news_feed"))
         self.assertEqual(excluded_response.data["urgent_alert"]["title"], "No active alerts")
+        self.assertIsNone(excluded_response.data["featured_news"])
         self.assertEqual(excluded_response.data["items"], [])
+
+    def test_news_detail_returns_visible_published_news_with_image_url(self):
+        news = self._create_published_news(
+            title="Visible Story",
+            description="Visible full article.",
+            created_by=self.super_admin,
+            publisher_type=News.PublisherType.PLATFORM,
+            publisher_id=None,
+            include_targets=[(NewsTarget.TargetType.PLATFORM, None)],
+            with_image=True,
+        )
+
+        response = self.client.get(reverse("news_detail", args=[news.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["title"], "Visible Story")
+        self.assertTrue(response.data["image_url"].startswith("http://testserver/media/news/images/"))
+
+    def test_news_detail_hides_out_of_scope_or_unpublished_news(self):
+        hidden_news = self._create_published_news(
+            title="Association-only Story",
+            description="Restricted article.",
+            created_by=self.association_admin,
+            publisher_type=News.PublisherType.ASSOCIATION,
+            publisher_id=self.kgsma.id,
+            include_targets=[(NewsTarget.TargetType.ASSOCIATION, self.kgsma.id)],
+        )
+        draft_news = News.objects.create(
+            title="Draft Story",
+            description="Draft article",
+            created_by=self.super_admin,
+            publisher_type=News.PublisherType.PLATFORM,
+            publisher_id=None,
+            status=News.Status.DRAFT,
+        )
+
+        self.client.force_authenticate(user=self.other_member)
+        hidden_response = self.client.get(reverse("news_detail", args=[hidden_news.id]))
+        draft_response = self.client.get(reverse("news_detail", args=[draft_news.id]))
+
+        self.assertEqual(hidden_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(draft_response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_news_feed_prefers_visible_news_then_falls_back_to_legacy_alert_and_meetings_come_from_new_model(self):
         now = timezone.now()

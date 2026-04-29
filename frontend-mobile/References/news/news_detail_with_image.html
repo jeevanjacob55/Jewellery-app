@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>News Article | Jewellery Association</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed": "#1a1c1c",
+                    "outline-variant": "#c4c7c8",
+                    "on-background": "#1c1b1b",
+                    "primary": "#5d5f5f",
+                    "surface-container-high": "#ebe7e7",
+                    "on-secondary-container": "#5f6161",
+                    "surface-bright": "#fcf8f8",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "surface-variant": "#e5e2e1",
+                    "tertiary-container": "#ffffff",
+                    "tertiary": "#5d5f5f",
+                    "secondary-container": "#dcdddd",
+                    "on-surface": "#1c1b1b",
+                    "secondary": "#5d5f5f",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "surface": "#fcf8f8",
+                    "surface-tint": "#5d5f5f",
+                    "primary-container": "#ffffff",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#e2e2e2",
+                    "surface-dim": "#ddd9d9",
+                    "primary-fixed": "#e2e2e2",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed": "#e2e2e2",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "on-surface-variant": "#444748",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "on-tertiary-container": "#747676",
+                    "error-container": "#ffdad6",
+                    "error": "#ba1a1a",
+                    "surface-container": "#f1edec",
+                    "background": "#fcf8f8",
+                    "outline": "#747878",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-tertiary": "#ffffff",
+                    "inverse-primary": "#c6c6c7",
+                    "inverse-on-surface": "#f4f0ef",
+                    "on-primary-fixed": "#1a1c1c",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "on-primary-container": "#747676",
+                    "on-primary-fixed-variant": "#454747",
+                    "inverse-surface": "#313030",
+                    "surface-container-highest": "#e5e2e1",
+                    "surface-container-low": "#f6f3f2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "sm": "8px",
+                    "container-margin": "24px",
+                    "base": "8px",
+                    "xs": "4px",
+                    "gutter": "16px",
+                    "xl": "48px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Inter"],
+                    "h2": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "data-tabular": ["Inter"],
+                    "h3": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "h1": ["Inter"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                    "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                    "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                    "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .article-shadow {
+            box-shadow: 0px 4px 20px rgba(26, 26, 26, 0.05);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background font-body-lg text-on-surface">
+<header class="bg-white dark:bg-zinc-950 flex justify-between items-center px-6 h-16 w-full docked full-width top-0 border-b border-zinc-100 dark:border-zinc-900 shadow-[0px_4px_20px_rgba(26,26,26,0.05)] sticky z-50">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-zinc-900 cursor-pointer" data-icon="arrow_back">arrow_back</span>
+<h1 class="text-lg font-bold tracking-tighter text-zinc-900 dark:text-white uppercase font-['Inter']">Jewellery Association</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-zinc-900" data-icon="share">share</span>
+<span class="material-symbols-outlined text-zinc-900" data-icon="bookmark">bookmark</span>
+<div class="w-8 h-8 rounded-full overflow-hidden bg-zinc-200">
+<img alt="Profile" data-alt="Professional headshot of an executive diamond merchant in a tailored dark suit, minimalist grey background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUQ9XSJ3PaFy7oBUJGFRXNhvuSlcf_Sx9b5JYC0pWN3Qkq9DqbVinc3qWKQVmwTXkgRz5y7yLcgzGmFPAq40ErgUn-Q34D5zCcnhCWpSPbAKD6fxHkR-7hRrxg0QPVIPIzmYc_3va_XU2ZyBexsCJNyAr1NYO0XTP8kSUqR693xQWVMujLLndnTBOZgDQH-6nNsx5Mp8Ha30Hd8Zspb8d9-HT7b7nEOulk7vFU5fJFZAsB30su0Ad4rsdEhMA6AW-E1ZohBWGvcno"/>
+</div>
+</div>
+</header>
+<main class="max-w-4xl mx-auto pb-32">
+<div class="w-full h-[400px] md:h-[500px] overflow-hidden relative">
+<img alt="Hero Image" class="w-full h-full object-cover" data-alt="High-end close-up of unrefined gold bars and polished loose diamonds resting on a dark velvet surface with dramatic cinematic lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUJxvfBQkZYdjc_Efy-zZdIMsfGmDXaFZ3YowqeXcvaDKYBJKOoQGGrLXMR6VeP38ykbjGxbg1w6IOk9S5B2hEdNLb4jSqxsL9yfnL_kr4OZj5sdonvkH1EPOZZcXuDighiVbSGMWTEdIbT2UzBpYXmtzTa_OokckROelT6WXeHpwXLqHIFVi0rmV1aiLvTlYhQuVBtMNmGxl8JUlkJoHUxedcRdaCpb14gyD8luAwwqykciA7-F910PpfxspGgug5x9U2Li-dfgQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+<div class="absolute bottom-8 left-8 right-8">
+<span class="inline-block bg-[#D4AF37] text-white px-3 py-1 rounded-sm font-label-caps text-label-caps uppercase mb-4">Government Policy</span>
+<h1 class="text-white font-h1 text-h1 max-w-2xl">GST Update: New policy released for Gold &amp; Diamond imports</h1>
+</div>
+</div>
+<article class="bg-white px-container-margin py-xl mt-[-40px] relative z-10 article-shadow mx-4 md:mx-auto">
+<div class="flex flex-wrap items-center justify-between gap-4 mb-lg border-b border-surface-container pb-md">
+<div class="flex items-center gap-md">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-zinc-400 uppercase">Published</span>
+<span class="font-data-tabular text-data-tabular">24 Oct 2024 • 09:30 AM</span>
+</div>
+<div class="w-[1px] h-8 bg-surface-container"></div>
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-zinc-400 uppercase">Reading Time</span>
+<span class="font-data-tabular text-data-tabular">6 Min Read</span>
+</div>
+</div>
+<div class="flex gap-sm">
+<span class="bg-surface-container text-on-surface-variant px-2 py-1 font-label-caps text-[10px] uppercase tracking-widest">Trade Law</span>
+<span class="bg-surface-container text-on-surface-variant px-2 py-1 font-label-caps text-[10px] uppercase tracking-widest">Compliance</span>
+</div>
+</div>
+<section class="space-y-md text-on-surface-variant leading-relaxed">
+<p class="font-body-lg text-body-lg font-medium text-on-surface">
+                    The Ministry of Finance has officially released the revised Goods and Services Tax (GST) framework specifically targeting the import of precious metals and unmounted gemstones. This landmark decision aims to streamline the cross-border trade of high-value commodities while ensuring greater transparency in the supply chain.
+                </p>
+<p class="font-body-lg text-body-lg">
+                    Effective from the next fiscal quarter, the new directives replace the provisional measures introduced earlier this year. Under the new guidelines, authorized economic operators (AEOs) will benefit from a fast-track clearance process at major international ports, provided they adhere to the updated digital documentation standards.
+                </p>
+<h3 class="font-h3 text-h3 text-on-surface pt-md border-l-4 border-[#D4AF37] pl-md">Key Implications for Diamond Merchants</h3>
+<p class="font-body-lg text-body-lg">
+                    The policy introduces a nuanced classification for lab-grown diamonds, distinguishing them from natural stones for duty valuation. Industry analysts suggest this move will provide much-needed clarity for local manufacturers who have been navigating a grey area in customs declarations for the past eighteen months.
+                </p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md my-lg">
+<div class="bg-surface-container-low p-md rounded-lg">
+<span class="material-symbols-outlined text-[#D4AF37] mb-sm" data-icon="trending_down">trending_down</span>
+<h4 class="font-h3 text-h3 mb-xs text-on-surface">Reduced Compliance</h4>
+<p class="font-body-sm text-body-sm">Documentation requirements for Tier-1 association members reduced by 35% for routine shipments.</p>
+</div>
+<div class="bg-surface-container-low p-md rounded-lg">
+<span class="material-symbols-outlined text-[#D4AF37] mb-sm" data-icon="shield">shield</span>
+<h4 class="font-h3 text-h3 mb-xs text-on-surface">Asset Protection</h4>
+<p class="font-body-sm text-body-sm">New insurance mandates for transit values exceeding $1M USD to mitigate systemic risk.</p>
+</div>
+</div>
+<p class="font-body-lg text-body-lg">
+                    Association Chairman, Mr. Rajesh Mehta, commented on the release: "This update represents a significant victory for our advocacy efforts. By aligning import duties with international standards, we are positioning our domestic market as a global hub for jewellery excellence."
+                </p>
+<div class="my-lg border-y border-surface-container py-md">
+<div class="flex items-center justify-between mb-sm">
+<h5 class="font-label-caps text-label-caps text-zinc-500 uppercase">Download Official Gazette</h5>
+<span class="material-symbols-outlined text-zinc-400" data-icon="download">download</span>
+</div>
+<div class="flex items-center gap-md bg-zinc-50 p-sm rounded border border-zinc-100 hover:bg-zinc-100 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-error" data-icon="picture_as_pdf">picture_as_pdf</span>
+<div>
+<p class="font-data-tabular text-on-surface">GST_Circular_2024_Precious_Metals.pdf</p>
+<p class="text-[10px] text-zinc-400">2.4 MB • PDF</p>
+</div>
+</div>
+</div>
+<p class="font-body-lg text-body-lg italic text-zinc-500">
+                    The Association will be hosting a closed-door webinar this Friday to walk members through the technical implementation of these changes. Please register via the Meetings tab in the main navigation.
+                </p>
+</section>
+</article>
+<section class="px-container-margin mt-xl">
+<h2 class="font-h2 text-h2 mb-lg">Related Market News</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<div class="bg-white overflow-hidden article-shadow group cursor-pointer">
+<div class="h-40 overflow-hidden">
+<img alt="Related news" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Macro photography of artisanal jeweler working with precise tools on a gold wedding band in a modern workshop." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFDPvwpkCvan-x47auE7OqjE7XRChbofwvYyj_JmtjUsvF4mD2GmRAxCSZmSQ0c3RXZ1zw12vTf8CnkjCRYypCJvvOwcXuo6CPNd8B3KbSLqZeH3SRhhCb1yLvqjRKYbVhaXXrahN2O7kFsKzJlq-13eqc_5G5SsPESAlDjfP446vQpaDO_6hkK8oJhSBYq4IBD_rLN7G2UvbaqxoEvoiO4do3UO2sYhgO8RWONpauRhvATKUFofOJGImwzJ6KLbTr3a_XYEGMkX0"/>
+</div>
+<div class="p-md">
+<span class="text-[10px] font-label-caps text-[#D4AF37] uppercase tracking-wider">Export Trends</span>
+<h4 class="font-h3 text-h3 mt-xs">Middle East Demand Surges by 15%</h4>
+</div>
+</div>
+<div class="bg-white overflow-hidden article-shadow group cursor-pointer">
+<div class="h-40 overflow-hidden">
+<img alt="Related news" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A diverse board of directors seated in a professional minimalist boardroom discussing trade statistics on large digital screens." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCpNMTeJDrERxuNLrvlK8CURS8RNOHYHs3v3gRnmtg-AWf-EKFimscRyrJntn4Qjf1l4BxnVI1Wi8M9j5he2iXTo5qHB1wFTCMA0a9KhU5s2ETTdcM6LcE3993p-GbnINTnZiLZqaOSa8pLjKCefMymowKO9osRNHYylBOIhLb8Xwemu6CRfMtX3dYc_7EEM1oIQJ-1Vmkj_DRqCYaFqk5X8YlsB7UHZAq7H2pBRmcKb2HH4jNHdk0uyXCGTG0pMNu6Pt5ycWLoHE"/>
+</div>
+<div class="p-md">
+<span class="text-[10px] font-label-caps text-[#D4AF37] uppercase tracking-wider">Association</span>
+<h4 class="font-h3 text-h3 mt-xs">Annual General Meeting: Key Agenda Items</h4>
+</div>
+</div>
+</div>
+</section>
+</main>
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 pb-safe px-4 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md shadow-[0px_-4px_20px_rgba(26,26,26,0.03)] border-t border-zinc-100 dark:border-zinc-900">
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 pt-1 border-t-2 border-transparent hover:text-zinc-900 dark:hover:text-zinc-300 scale-95 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-amber-600 dark:text-amber-500 pt-1 border-t-2 border-amber-600 scale-95 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="newspaper">newspaper</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider mt-1">News</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 pt-1 border-t-2 border-transparent hover:text-zinc-900 dark:hover:text-zinc-300 scale-95 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider mt-1">Meetings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 pt-1 border-t-2 border-transparent hover:text-zinc-900 dark:hover:text-zinc-300 scale-95 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider mt-1">Market</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 pt-1 border-t-2 border-transparent hover:text-zinc-900 dark:hover:text-zinc-300 scale-95 active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider mt-1">Account</span>
+</a>
+</nav>
+</body></html>

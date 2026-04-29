@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib import admin
+from django.conf.urls.static import static
 from django.urls import include, path
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,3 +33,6 @@ urlpatterns = [
     path("api/ads/", include("apps.ads.urls")),
     path("api/admin/", include("apps.admin_ops.urls")),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

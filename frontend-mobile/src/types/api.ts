@@ -383,19 +383,33 @@ export interface ServicesData {
   };
 }
 
+export interface NewsFeedItem {
+  id: number;
+  title: string;
+  description: string;
+  publisher_type: string;
+  publisher_id: number | null;
+  published_at: string | null;
+  image_url: string | null;
+}
+
+export interface NewsDetail {
+  id: number;
+  title: string;
+  description: string;
+  publisher_type: string;
+  publisher_id: number | null;
+  published_at: string | null;
+  image_url: string | null;
+}
+
 export interface NewsData {
   urgent_alert: {
     title: string;
     summary: string;
   };
-  items?: Array<{
-    id: number;
-    title: string;
-    description: string;
-    publisher_type: string;
-    publisher_id: number | null;
-    published_at: string | null;
-  }>;
+  featured_news?: NewsFeedItem | null;
+  items?: NewsFeedItem[];
   meetings: MeetingListItem[];
   ticker: {
     gold: number;

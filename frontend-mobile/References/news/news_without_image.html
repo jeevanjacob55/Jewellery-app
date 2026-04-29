@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed": "#1a1c1c",
+                    "outline-variant": "#c4c7c8",
+                    "on-background": "#1c1b1b",
+                    "primary": "#5d5f5f",
+                    "surface-container-high": "#ebe7e7",
+                    "on-secondary-container": "#5f6161",
+                    "surface-bright": "#fcf8f8",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "surface-variant": "#e5e2e1",
+                    "tertiary-container": "#ffffff",
+                    "tertiary": "#5d5f5f",
+                    "secondary-container": "#dcdddd",
+                    "on-surface": "#1c1b1b",
+                    "secondary": "#5d5f5f",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "surface": "#fcf8f8",
+                    "surface-tint": "#5d5f5f",
+                    "primary-container": "#ffffff",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#e2e2e2",
+                    "surface-dim": "#ddd9d9",
+                    "primary-fixed": "#e2e2e2",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed": "#e2e2e2",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "on-surface-variant": "#444748",
+                    "on-secondary": "#ffffff",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "on-tertiary-container": "#747676",
+                    "error-container": "#ffdad6",
+                    "error": "#ba1a1a",
+                    "surface-container": "#f1edec",
+                    "background": "#fcf8f8",
+                    "outline": "#747878",
+                    "secondary-fixed-dim": "#c6c6c7",
+                    "on-secondary-fixed-variant": "#454747",
+                    "on-tertiary": "#ffffff",
+                    "inverse-primary": "#c6c6c7",
+                    "inverse-on-surface": "#f4f0ef",
+                    "on-primary-fixed": "#1a1c1c",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "on-primary-container": "#747676",
+                    "on-primary-fixed-variant": "#454747",
+                    "inverse-surface": "#313030",
+                    "surface-container-highest": "#e5e2e1",
+                    "surface-container-low": "#f6f3f2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "sm": "8px",
+                    "container-margin": "24px",
+                    "base": "8px",
+                    "xs": "4px",
+                    "gutter": "16px",
+                    "xl": "48px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Inter"],
+                    "h2": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "data-tabular": ["Inter"],
+                    "h3": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "h1": ["Inter"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "h2": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                    "data-tabular": ["14px", {"lineHeight": "1", "letterSpacing": "0", "fontWeight": "500"}],
+                    "h3": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                    "h1": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fcf8f8;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-lg text-on-background">
+<!-- TopAppBar -->
+<header class="bg-white dark:bg-zinc-950 flex justify-between items-center px-6 h-16 w-full docked full-width top-0 border-b border-zinc-100 dark:border-zinc-900 shadow-[0px_4px_20px_rgba(26,26,26,0.05)] sticky z-50">
+<div class="flex items-center gap-4">
+<button class="active:opacity-80 transition-opacity p-2 hover:bg-zinc-50 dark:hover:bg-zinc-900">
+<span class="material-symbols-outlined text-zinc-900 dark:text-zinc-100" data-icon="arrow_back">arrow_back</span>
+</button>
+<span class="text-lg font-bold tracking-tighter text-zinc-900 dark:text-white uppercase font-['Inter']">Jewellery Association</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="active:opacity-80 transition-opacity p-2 hover:bg-zinc-50 dark:hover:bg-zinc-900">
+<span class="material-symbols-outlined text-zinc-900 dark:text-zinc-100" data-icon="share">share</span>
+</button>
+<button class="active:opacity-80 transition-opacity p-2 hover:bg-zinc-50 dark:hover:bg-zinc-900">
+<span class="material-symbols-outlined text-zinc-900 dark:text-zinc-100" data-icon="bookmark">bookmark</span>
+</button>
+</div>
+</header>
+<main class="max-w-screen-md mx-auto px-container-margin py-xl">
+<article class="flex flex-col gap-lg">
+<!-- News Meta -->
+<header class="flex flex-col gap-sm">
+<div class="flex items-center gap-md">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label-caps text-label-caps inline-block">MARKET ANALYSIS</span>
+<span class="text-on-surface-variant font-data-tabular text-data-tabular">October 24, 2024 • 09:45 GMT</span>
+</div>
+<h1 class="font-h1 text-h1 text-on-surface tracking-tight">Market Analysis: Global Bullion Trends</h1>
+<div class="h-px w-16 bg-surface-tint mt-md"></div>
+</header>
+<!-- Article Content -->
+<section class="flex flex-col gap-md text-on-surface">
+<p class="font-body-lg text-body-lg leading-relaxed">
+                    The international bullion market is currently navigating a period of unprecedented volatility, driven by shifting macroeconomic signals and central bank policies. As we approach the final quarter of the fiscal year, analysts are closely monitoring the decoupling of gold prices from traditional interest rate expectations.
+                </p>
+<p class="font-body-lg text-body-lg leading-relaxed">
+                    The Jewellery Association's latest data indicates a significant increase in demand for institutional-grade gold bars across Asian markets, particularly in hubs such as Singapore and Hong Kong. This surge is largely attributed to a flight to quality as geopolitical tensions continue to influence global trade corridors.
+                </p>
+<div class="my-sm p-lg bg-surface-container-low border-l-4 border-surface-tint">
+<p class="font-h3 text-h3 italic text-on-surface-variant">
+                        "The current trajectory suggests that physical bullion demand is reaching a ten-year peak among retail and institutional investors alike, signaling a robust confidence in hard assets."
+                    </p>
+<cite class="block mt-md font-label-caps text-label-caps text-surface-tint uppercase">— Chief Analyst, Market Intelligence Division</cite>
+</div>
+<h3 class="font-h2 text-h2 mt-md">Regional Performance Metrics</h3>
+<p class="font-body-lg text-body-lg leading-relaxed">
+                    While North American markets remain steady, the European sector has shown signs of consolidation. The Swiss refinery output has increased by 4.2% month-over-month to meet the growing appetite for certified investment products. Within the association, members are reporting a shift toward more transparent supply chains, as ESG compliance becomes a primary differentiator for luxury jewellery houses.
+                </p>
+<p class="font-body-lg text-body-lg leading-relaxed">
+                    Our projections for the coming month indicate a potential price resistance level at the $2,100 mark, though short-term technical indicators suggest a bullish momentum remains in play. Members are advised to review their liquidity positions and ensure hedging strategies are aligned with the current market volatility.
+                </p>
+<div class="flex flex-col gap-sm mt-md p-lg bg-white shadow-[0px_4px_20px_rgba(26,26,26,0.05)] rounded-lg">
+<span class="font-label-caps text-label-caps text-surface-tint">KEY DATA POINTS</span>
+<div class="grid grid-cols-2 gap-md border-t border-zinc-100 pt-md">
+<div>
+<p class="text-on-surface-variant text-body-sm font-body-sm uppercase">Daily Volatility</p>
+<p class="font-h3 text-h3 text-on-surface">0.85%</p>
+</div>
+<div>
+<p class="text-on-surface-variant text-body-sm font-body-sm uppercase">Trading Volume</p>
+<p class="font-h3 text-h3 text-on-surface">12.4M oz</p>
+</div>
+</div>
+</div>
+<p class="font-body-lg text-body-lg leading-relaxed">
+                    The Association will continue to provide real-time updates as the situation evolves. Detailed member-only reports including specific metallurgical breakdowns and secondary market forecasts are available in the Legal Documents section of the Executive portal.
+                </p>
+</section>
+<!-- Footer Tags -->
+<footer class="mt-lg pt-lg border-t border-zinc-100 flex flex-wrap gap-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant">TAGS:</span>
+<span class="text-body-sm font-body-sm text-surface-tint hover:underline cursor-pointer">Bullion</span>
+<span class="text-body-sm font-body-sm text-surface-tint hover:underline cursor-pointer">Gold Standards</span>
+<span class="text-body-sm font-body-sm text-surface-tint hover:underline cursor-pointer">Market Data</span>
+<span class="text-body-sm font-body-sm text-surface-tint hover:underline cursor-pointer">Quarterly Report</span>
+</footer>
+</article>
+</main>
+<!-- BottomNavBar (Hidden on desktop as per Shell Visibility Rules) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 pb-safe px-4 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-zinc-100 dark:border-zinc-900 shadow-[0px_-4px_20px_rgba(26,26,26,0.03)] md:hidden">
+<div class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 pt-1 border-t-2 border-transparent transition-transform duration-150 scale-95 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-amber-600 dark:text-amber-500 pt-1 border-t-2 border-amber-600 transition-transform duration-150 scale-95 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="newspaper">newspaper</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider">News</span>
+</div>
+<div class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 pt-1 border-t-2 border-transparent transition-transform duration-150 scale-95 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider">Meetings</span>
+</div>
+<div class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 pt-1 border-t-2 border-transparent transition-transform duration-150 scale-95 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="trending_up">trending_up</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider">Market</span>
+</div>
+<div class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 pt-1 border-t-2 border-transparent transition-transform duration-150 scale-95 active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-[10px] font-medium font-['Inter'] uppercase tracking-wider">Account</span>
+</div>
+</nav>
+<!-- Content Spacer for Mobile Nav -->
+<div class="h-24 md:hidden"></div>
+</body></html>

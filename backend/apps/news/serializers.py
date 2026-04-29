@@ -2,6 +2,17 @@ from rest_framework import serializers
 
 from .models import Meeting, MeetingResponse, MeetingTarget, News, NewsTarget
 
+
+def get_news_image_url(news: News, *, request) -> str | None:
+    if not news.image:
+        return None
+    image_url = news.image.url
+    if image_url and not image_url.startswith(("http://", "https://", "/")):
+        image_url = f"/{image_url}"
+    if request is None:
+        return image_url
+    return request.build_absolute_uri(image_url)
+
 class UrgentAlertSerializer(serializers.Serializer):
     title = serializers.CharField()
     summary = serializers.CharField(allow_blank=True)
@@ -40,16 +51,33 @@ class TickerSerializer(serializers.Serializer):
 
 
 class NewsFeedItemSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = News
-        fields = ["id", "title", "description", "publisher_type", "publisher_id", "published_at"]
+        fields = ["id", "title", "description", "publisher_type", "publisher_id", "published_at", "image_url"]
+
+    def get_image_url(self, obj: News) -> str | None:
+        return get_news_image_url(obj, request=self.context.get("request"))
 
 
 class NewsFeedResponseSerializer(serializers.Serializer):
     urgent_alert = UrgentAlertSerializer()
+    featured_news = NewsFeedItemSerializer(allow_null=True, required=False)
     meetings = MeetingFeedSerializer(many=True)
     ticker = TickerSerializer()
     items = NewsFeedItemSerializer(many=True)
+
+
+class NewsDetailSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = News
+        fields = ["id", "title", "description", "publisher_type", "publisher_id", "published_at", "image_url"]
+
+    def get_image_url(self, obj: News) -> str | None:
+        return get_news_image_url(obj, request=self.context.get("request"))
 
 
 class NewsTargetInputSerializer(serializers.Serializer):
@@ -72,6 +100,7 @@ class NewsSerializer(serializers.ModelSerializer):
     targets = NewsTargetSerializer(many=True, read_only=True)
     created_by_id = serializers.IntegerField(source="created_by.id", read_only=True)
     approved_by_id = serializers.IntegerField(source="approved_by.id", read_only=True)
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = News
@@ -79,6 +108,7 @@ class NewsSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "description",
+            "image_url",
             "created_by_id",
             "publisher_type",
             "publisher_id",
@@ -90,6 +120,9 @@ class NewsSerializer(serializers.ModelSerializer):
             "updated_at",
             "targets",
         ]
+
+    def get_image_url(self, obj: News) -> str | None:
+        return get_news_image_url(obj, request=self.context.get("request"))
 
 
 class CreateNewsSerializer(serializers.Serializer):

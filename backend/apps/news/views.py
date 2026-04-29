@@ -12,6 +12,7 @@ from .serializers import (
     CreateNewsSerializer,
     MeetingRespondSerializer,
     MeetingSerializer,
+    NewsDetailSerializer,
     NewsFeedResponseSerializer,
     NewsSerializer,
     RejectNewsSerializer,
@@ -35,11 +36,13 @@ def _build_meeting_queryset_with_relations():
     return Meeting.objects.prefetch_related("targets", "responses").select_related("created_by")
 
 
+def _build_news_queryset_with_relations():
+    return News.objects.prefetch_related("targets").select_related("created_by", "approved_by")
+
+
 def build_news_feed_payload(user) -> dict:
     published_news = list(
-        News.objects.filter(status=News.Status.PUBLISHED)
-        .prefetch_related("targets")
-        .select_related("created_by", "approved_by")
+        _build_news_queryset_with_relations().filter(status=News.Status.PUBLISHED)
         .order_by("-published_at", "-updated_at", "-id")
     )
     visible_news = [news for news in published_news if is_news_visible_to_user(news, user)]
@@ -64,6 +67,7 @@ def build_news_feed_payload(user) -> dict:
 
     return {
         "urgent_alert": urgent_alert,
+        "featured_news": visible_news[0] if visible_news else None,
         "meetings": upcoming_meetings,
         "ticker": {
             "gold": float(latest_rate.gold_24k) if latest_rate else 0.0,
@@ -78,7 +82,7 @@ class NewsFeedView(APIView):
 
     def get(self, request):
         payload = build_news_feed_payload(request.user)
-        return Response(NewsFeedResponseSerializer(payload, context={"user": request.user}).data)
+        return Response(NewsFeedResponseSerializer(payload, context={"user": request.user, "request": request}).data)
 
     def post(self, request):
         if not request.user or not request.user.is_authenticated:
@@ -101,7 +105,7 @@ class NewsFeedView(APIView):
         except NewsValidationError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        response_data = NewsSerializer(news).data
+        response_data = NewsSerializer(news, context={"request": request}).data
         if news.status == News.Status.PENDING_APPROVAL:
             response_data["message"] = "This audience is outside your permission scope. Your news was sent for approval."
         elif news.status == News.Status.DRAFT:
@@ -109,6 +113,17 @@ class NewsFeedView(APIView):
         else:
             response_data["message"] = "News published successfully."
         return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+class NewsDetailView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk: int):
+        news = _build_news_queryset_with_relations().filter(pk=pk, status=News.Status.PUBLISHED).first()
+        if news is None or not is_news_visible_to_user(news, request.user):
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(NewsDetailSerializer(news, context={"request": request}).data)
 
 
 class NewsApproveView(APIView):
@@ -125,7 +140,7 @@ class NewsApproveView(APIView):
 
         news.publish(approved_by=request.user)
         news.save(update_fields=["status", "approved_by", "published_at", "rejection_reason"])
-        return Response(NewsSerializer(news).data)
+        return Response(NewsSerializer(news, context={"request": request}).data)
 
 
 class NewsRejectView(APIView):
@@ -146,7 +161,7 @@ class NewsRejectView(APIView):
         news.approved_by = request.user
         news.rejection_reason = serializer.validated_data.get("rejection_reason", "")
         news.save(update_fields=["status", "approved_by", "rejection_reason", "updated_at"])
-        return Response(NewsSerializer(news).data)
+        return Response(NewsSerializer(news, context={"request": request}).data)
 
 
 class MeetingListCreateView(APIView):
