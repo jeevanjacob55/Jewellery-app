@@ -12,6 +12,43 @@ export interface NotificationPreferences {
   meeting_alerts: boolean;
 }
 
+export interface MeUser {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  avatar: string | null;
+  role: string;
+  role_display_name: string;
+  is_admin: boolean;
+  has_company: boolean;
+  can_manage_products: boolean;
+}
+
+export interface MeHierarchy {
+  association: string | null;
+  state: string | null;
+}
+
+export interface MeCompany {
+  id: number;
+  name: string;
+  plan: string;
+  upgrade_url: string | null;
+}
+
+export interface MeCounts {
+  pending_approvals_count: number;
+  unread_notifications_count: number;
+}
+
+export interface MeResponse {
+  user: MeUser;
+  hierarchy: MeHierarchy;
+  company: MeCompany | null;
+  counts: MeCounts;
+}
+
 export interface HierarchyReference {
   id: number;
   name: string;

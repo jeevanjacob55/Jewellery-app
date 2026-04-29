@@ -13,7 +13,13 @@ import { ProductSearchScreen } from "../screens/directory/ProductSearchScreen";
 import { MeetingDetailScreen } from "../screens/news/MeetingDetailScreen";
 import { NewsAlertsScreen } from "../screens/news/NewsAlertsScreen";
 import { NewsDetailScreen } from "../screens/news/NewsDetailScreen";
+import { ManageNewsScreen, ManageUsersScreen, PendingApprovalsScreen } from "../screens/profile/AdminToolsScreens";
+import { CompanyPlanScreen } from "../screens/profile/CompanyPlanScreen";
+import { CompanyProductsScreen } from "../screens/profile/CompanyProductsScreen";
+import { EditProfileScreen } from "../screens/profile/EditProfileScreen";
+import { HelpSupportScreen } from "../screens/profile/HelpSupportScreen";
 import { MemberProfileScreen } from "../screens/profile/MemberProfileScreen";
+import { NotificationSettingsScreen } from "../screens/profile/NotificationSettingsScreen";
 import { ReverseSearchScreen } from "../screens/reverse-search/ReverseSearchScreen";
 import { ServicesScreen } from "../screens/services/ServicesScreen";
 import { SplashScreen } from "../screens/splash/SplashScreen";
@@ -58,6 +64,14 @@ export function RootNavigator() {
           <Stack.Screen name="ProductSearch" component={ProductSearchScreen} options={{ title: "Product Search" }} />
           <Stack.Screen name="MeetingDetail" component={MeetingDetailScreen} options={{ title: "Meeting" }} />
           <Stack.Screen name="NewsDetail" component={NewsDetailScreen} options={{ title: "News" }} />
+          <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: "Notification Settings" }} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit Profile" }} />
+          <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: "Help & Support" }} />
+          <Stack.Screen name="CompanyPlan" component={CompanyPlanScreen} options={{ title: "Company Plan" }} />
+          <Stack.Screen name="CompanyProducts" component={CompanyProductsScreen} options={{ title: "Manage Products" }} />
+          <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ title: "Pending Approvals" }} />
+          <Stack.Screen name="ManageUsers" component={ManageUsersScreen} options={{ title: "Manage Users" }} />
+          <Stack.Screen name="ManageNews" component={ManageNewsScreen} options={{ title: "Manage News" }} />
           <Stack.Screen name="ReverseSearch" component={ReverseSearchScreen} options={{ title: "Reverse Search" }} />
         </>
       )}

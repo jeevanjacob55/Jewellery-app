@@ -25,7 +25,7 @@ type DashboardUpdate = {
 
 export function HomeDashboardScreen() {
   const navigation = useNavigation<any>();
-  const { guestSession, status, user } = useSession();
+  const { guestSession, me, status } = useSession();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [newsData, setNewsData] = useState<NewsData | null>(null);
   const [advertisements, setAdvertisements] = useState<AdvertisementItem[]>([]);
@@ -64,10 +64,10 @@ export function HomeDashboardScreen() {
     loadDashboard();
   }, [status]);
 
-  const associationName = user?.member_profile?.association?.name ?? dashboard?.association.name ?? "Jewellery Association";
+  const associationName = me?.hierarchy.association ?? dashboard?.association.name ?? "Jewellery Association";
   const identityLine =
     status === "authenticated"
-      ? `${user?.member_profile?.membership_tier ?? "Member"} access for ${user?.first_name || user?.username || "member"}`
+      ? `${me?.user.role_display_name ?? "Member"} access for ${me?.user.name ?? "member"}`
       : `Guest browsing for ${guestSession?.guest_profile.guest_name ?? "visitor"}`;
 
   const updates = useMemo<DashboardUpdate[]>(() => {

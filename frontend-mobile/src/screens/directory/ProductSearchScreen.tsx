@@ -35,16 +35,21 @@ const purityOptions = ["All", "22K", "24K"];
 export function ProductSearchScreen() {
   const route = useRoute<any>();
   const params = (route.params ?? {}) as ProductSearchRouteParams;
-  const { guestSession, user } = useSession();
+  const { guestSession, me } = useSession();
   const [products, setProducts] = useState<ProductCard[]>([]);
   const [searchTerm, setSearchTerm] = useState(params.query ?? "");
   const [selectedPurity, setSelectedPurity] = useState("All");
-  const [requesterName, setRequesterName] = useState(user?.first_name || guestSession?.guest_profile.guest_name || "");
-  const [requesterPhone, setRequesterPhone] = useState(user?.member_profile?.phone_number || "");
+  const [requesterName, setRequesterName] = useState(me?.user.name || guestSession?.guest_profile.guest_name || "");
+  const [requesterPhone, setRequesterPhone] = useState(me?.user.phone || "");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [submittingFor, setSubmittingFor] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRequesterName(me?.user.name || guestSession?.guest_profile.guest_name || "");
+    setRequesterPhone(me?.user.phone || "");
+  }, [guestSession?.guest_profile.guest_name, me?.user.name, me?.user.phone]);
 
   useEffect(() => {
     setSearchTerm(params.query ?? "");

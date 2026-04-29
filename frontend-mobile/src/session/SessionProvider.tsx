@@ -6,7 +6,7 @@ import {
   AuthTokens,
   GuestAccessPayload,
   GuestSession,
-  MemberUser,
+  MeResponse,
   SessionInfo,
   SessionStatus,
   UpdateMemberUserPayload,
@@ -16,7 +16,7 @@ import {
 type SessionContextValue = {
   apiBaseUrl: string;
   status: SessionStatus;
-  user: MemberUser | null;
+  me: MeResponse | null;
   guestSession: GuestSession | null;
   sessionInfo: SessionInfo | null;
   error: string | null;
@@ -33,7 +33,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 export function SessionProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<SessionStatus>("booting");
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
-  const [user, setUser] = useState<MemberUser | null>(null);
+  const [me, setMe] = useState<MeResponse | null>(null);
   const [guestSession, setGuestSession] = useState<GuestSession | null>(null);
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +60,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
   async function clearSession() {
     tokensRef.current = null;
     setTokens(null);
-    setUser(null);
+    setMe(null);
     setGuestSession(null);
     setStatus("signedOut");
     await Promise.all([writeStoredTokens(null), writeStoredGuestSession(null)]);
@@ -76,13 +76,13 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }
 
   async function refreshCurrentUser() {
-    const nextUser = await getJson<MemberUser>("/me/", true);
-    setUser(nextUser);
+    const nextMe = await getJson<MeResponse>("/me/", true);
+    setMe(nextMe);
   }
 
   async function updateCurrentUser(payload: UpdateMemberUserPayload) {
     setError(null);
-    await patchJson<MemberUser>("/me/", payload, true);
+    await patchJson("/me/", payload, true);
     await refreshCurrentUser();
   }
 
@@ -110,11 +110,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
         try {
           tokensRef.current = storedTokens;
           setTokens(storedTokens);
-          const nextUser = await getJson<MemberUser>("/me/", true);
+          const nextMe = await getJson<MeResponse>("/me/", true);
           if (!mounted) {
             return;
           }
-          setUser(nextUser);
+          setMe(nextMe);
           setGuestSession(null);
           setStatus("authenticated");
           await writeStoredGuestSession(null);
@@ -148,8 +148,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
     await writeStoredGuestSession(null);
 
     try {
-      const nextUser = await getJson<MemberUser>("/me/", true);
-      setUser(nextUser);
+      const nextMe = await getJson<MeResponse>("/me/", true);
+      setMe(nextMe);
       setGuestSession(null);
       setStatus("authenticated");
     } catch (nextError) {
@@ -162,7 +162,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
     setError(null);
     const nextGuestSession = await postJson<GuestSession>("/auth/guest/", payload);
     setGuestSession(nextGuestSession);
-    setUser(null);
+    setMe(null);
     setTokens(null);
     tokensRef.current = null;
     setStatus("guest");
@@ -179,7 +179,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
       value={{
         apiBaseUrl: API_BASE_URL,
         status,
-        user,
+        me,
         guestSession,
         sessionInfo,
         error,

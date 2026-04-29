@@ -9,7 +9,7 @@ import { StateRatesData, StateRatesSummary } from "../../types/api";
 import { formatCurrency } from "../../utils/format";
 
 export function StateRatesScreen() {
-  const { guestSession, user } = useSession();
+  const { guestSession, me } = useSession();
   const [stateRates, setStateRates] = useState<StateRatesData | null>(null);
   const [selectedStateId, setSelectedStateId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,9 @@ export function StateRatesScreen() {
           return current;
         }
 
-        const preferredStateId = user?.member_profile?.state?.id ?? guestSession?.guest_profile?.state?.id ?? nextStateRates.states[0]?.id ?? null;
+        const preferredStateName = me?.hierarchy.state ?? guestSession?.guest_profile?.state?.name ?? null;
+        const preferredStateId =
+          nextStateRates.states.find((state) => state.name === preferredStateName)?.id ?? nextStateRates.states[0]?.id ?? null;
         return preferredStateId;
       });
     } finally {

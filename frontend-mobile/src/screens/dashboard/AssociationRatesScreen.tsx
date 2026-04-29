@@ -9,7 +9,7 @@ import { DashboardData } from "../../types/api";
 import { formatCurrency } from "../../utils/format";
 
 export function AssociationRatesScreen() {
-  const { status, user } = useSession();
+  const { me, status } = useSession();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,7 +42,7 @@ export function AssociationRatesScreen() {
     return <ScreenState title="Associations unavailable" detail="We could not load the association list right now." />;
   }
 
-  const activeAssociationName = user?.member_profile?.association?.name ?? dashboard.association.name;
+  const activeAssociationName = me?.hierarchy.association ?? dashboard.association.name;
 
   return (
     <ScrollView

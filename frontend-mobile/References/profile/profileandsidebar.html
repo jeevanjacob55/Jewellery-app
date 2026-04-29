@@ -1,0 +1,590 @@
+<!-- Profile Screen (Identity Only) -->
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+                  "inverse-on-surface": "#f2f0f0",
+                  "on-tertiary-container": "#838484",
+                  "surface-container-lowest": "#ffffff",
+                  "outline": "#7e7576",
+                  "on-surface-variant": "#4c4546",
+                  "outline-variant": "#cfc4c5",
+                  "on-background": "#1b1c1c",
+                  "error-container": "#ffdad6",
+                  "surface-container": "#efeded",
+                  "surface-bright": "#fbf9f9",
+                  "on-tertiary": "#ffffff",
+                  "tertiary": "#000000",
+                  "background": "#fbf9f9",
+                  "on-secondary-container": "#785a1a",
+                  "tertiary-fixed-dim": "#c6c6c7",
+                  "inverse-surface": "#303031",
+                  "surface-container-highest": "#e3e2e2",
+                  "on-primary-fixed-variant": "#474747",
+                  "on-tertiary-fixed": "#1a1c1c",
+                  "on-primary": "#ffffff",
+                  "on-primary-container": "#848484",
+                  "primary-container": "#1b1b1b",
+                  "on-secondary-fixed-variant": "#5d4201",
+                  "secondary-fixed-dim": "#e9c176",
+                  "inverse-primary": "#c6c6c6",
+                  "on-surface": "#1b1c1c",
+                  "on-secondary-fixed": "#261900",
+                  "secondary": "#775a19",
+                  "surface": "#fbf9f9",
+                  "tertiary-container": "#1a1c1c",
+                  "surface-tint": "#5e5e5e",
+                  "surface-dim": "#dbdad9",
+                  "on-error-container": "#93000a",
+                  "tertiary-fixed": "#e2e2e2",
+                  "surface-variant": "#e3e2e2",
+                  "on-tertiary-fixed-variant": "#454747",
+                  "primary-fixed-dim": "#c6c6c6",
+                  "on-primary-fixed": "#1b1b1b",
+                  "surface-container-high": "#e9e8e7",
+                  "primary": "#000000",
+                  "error": "#ba1a1a",
+                  "on-secondary": "#ffffff",
+                  "on-error": "#ffffff",
+                  "secondary-fixed": "#ffdea5",
+                  "surface-container-low": "#f5f3f3",
+                  "primary-fixed": "#e2e2e2",
+                  "secondary-container": "#fed488"
+          },
+          "borderRadius": {
+                  "DEFAULT": "0.125rem",
+                  "lg": "0.25rem",
+                  "xl": "0.5rem",
+                  "full": "0.75rem"
+          },
+          "spacing": {
+                  "xl": "48px",
+                  "gutter": "24px",
+                  "sm": "8px",
+                  "max_width": "1280px",
+                  "xs": "4px",
+                  "md": "16px",
+                  "unit": "4px",
+                  "xxl": "80px",
+                  "margin": "32px",
+                  "lg": "24px"
+          },
+          "fontFamily": {
+                  "body-md": ["Inter"],
+                  "headline-display": ["Inter"],
+                  "label-caps": ["Inter"],
+                  "headline-md": ["Inter"],
+                  "label-sm": ["Inter"],
+                  "headline-lg": ["Inter"],
+                  "body-lg": ["Inter"]
+          },
+          "fontSize": {
+                  "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                  "headline-display": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                  "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.08em", "fontWeight": "600"}],
+                  "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                  "label-sm": ["13px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                  "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                  "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md antialiased scrollbar-hide">
+<!-- TopAppBar Section -->
+<header class="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 border-b border-zinc-100 dark:border-zinc-800 shadow-sm fixed top-0 w-full z-50 h-16 flex items-center justify-between px-6 py-4">
+<div class="flex items-center gap-4">
+<button class="transition-all duration-200 active:opacity-70 hover:bg-zinc-50 dark:hover:bg-zinc-900 p-2 rounded-lg">
+<span class="material-symbols-outlined text-zinc-900 dark:text-zinc-50">menu</span>
+</button>
+<h1 class="font-inter text-sm font-semibold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">Profile</h1>
+</div>
+<div class="flex items-center">
+<button class="transition-all duration-200 active:opacity-70 hover:bg-zinc-50 dark:hover:bg-zinc-900 p-2 rounded-lg">
+<span class="material-symbols-outlined text-zinc-900 dark:text-zinc-50">notifications</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-xxl pb-xxl px-gutter max-w-screen-xl mx-auto min-h-screen">
+<!-- Profile Identity Section -->
+<section class="flex flex-col items-center mb-xl">
+<div class="relative group">
+<div class="w-32 h-32 rounded-full overflow-hidden border-2 border-secondary p-1">
+<img alt="Jeevan Jacob" class="w-full h-full object-cover rounded-full" data-alt="Professional headshot of a mature businessman with a confident expression in a clean studio setting with neutral lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDD4iY7lRD2a2H_IRFtEFrBbpGDpjOHrkjTfzOmvXTLjbollZdWs5omyooZCJg72fRSZblwBeGBzfyL5dtkhYwZtLK6KLG67CY86amHeUS2ogKhYlrw5d1zrFe9fg7vBkuufiqLuGLGE2A-m8ASD1loLaABcvp9VxBXXoo9UPFFLzU9PqDqslDAirhM3d0c8SoFEdhLUj0AiQqkB4TOTMVJrzKqYv2mGCwfzefxevuE6ZUDWDGWr84hmn8EzuHOQ4fLoAzZe20Y9Oo"/>
+</div>
+<div class="absolute bottom-1 right-1 bg-primary text-on-primary p-1.5 rounded-full border-2 border-white">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+</div>
+</div>
+<div class="mt-md text-center">
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Jeevan Jacob</h2>
+<p class="font-label-caps text-label-caps text-secondary uppercase mt-1">Company Admin</p>
+</div>
+</section>
+<!-- Grid Layout for Profile Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<!-- Personal Details Card -->
+<div class="bg-surface-container-low rounded-xl p-lg transition-all duration-200">
+<div class="flex items-center gap-sm mb-md">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">person</span>
+<h3 class="font-headline-md text-headline-md text-on-surface">Personal Details</h3>
+</div>
+<div class="space-y-md">
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Email Address</span>
+<div class="flex items-center justify-between">
+<p class="font-body-md text-body-md text-on-surface">jeevan@example.com</p>
+<span class="material-symbols-outlined text-outline-variant text-sm">mail</span>
+</div>
+</div>
+<div class="h-[1px] bg-outline-variant opacity-30"></div>
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Phone Number</span>
+<div class="flex items-center justify-between">
+<p class="font-body-md text-body-md text-on-surface">+91 98765 43210</p>
+<span class="material-symbols-outlined text-outline-variant text-sm">call</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Association Card -->
+<div class="bg-surface-container-low rounded-xl p-lg transition-all duration-200">
+<div class="flex items-center gap-sm mb-md">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">corporate_fare</span>
+<h3 class="font-headline-md text-headline-md text-on-surface">Association</h3>
+</div>
+<div class="space-y-md">
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Association</span>
+<div class="flex items-center justify-between">
+<p class="font-body-md text-body-md text-on-surface">AKGSMA</p>
+<div class="bg-secondary-container px-2 py-0.5 rounded-full">
+<span class="font-label-caps text-[10px] text-on-secondary-container">MEMBER</span>
+</div>
+</div>
+</div>
+<div class="h-[1px] bg-outline-variant opacity-30"></div>
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">State</span>
+<div class="flex items-center justify-between">
+<p class="font-body-md text-body-md text-on-surface">Kerala</p>
+<span class="material-symbols-outlined text-outline-variant text-sm">location_on</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Security Section (Task-focused addition for Admin) -->
+<div class="md:col-span-2 bg-white border border-outline-variant border-opacity-20 rounded-xl p-lg">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant">security</span>
+<div>
+<h3 class="font-label-sm text-label-sm text-on-surface">Account Security</h3>
+<p class="text-xs text-on-surface-variant">Manage your password and authentication</p>
+</div>
+</div>
+<button class="bg-tertiary text-on-tertiary px-lg py-sm rounded-lg font-label-sm hover:opacity-90 transition-opacity">
+            Edit Profile
+          </button>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Section -->
+<nav class="bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 border-t border-zinc-100 dark:border-zinc-800 shadow-[0px_-2px_10px_rgba(0,0,0,0.02)] fixed bottom-0 left-0 w-full flex justify-around items-center h-16 pb-safe px-4 z-50">
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 scale-95 active:scale-90 transition-transform hover:text-zinc-900 dark:hover:text-zinc-100" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-inter text-[11px] font-medium">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 scale-95 active:scale-90 transition-transform hover:text-zinc-900 dark:hover:text-zinc-100" href="#">
+<span class="material-symbols-outlined">trending_up</span>
+<span class="font-inter text-[11px] font-medium">Market</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 scale-95 active:scale-90 transition-transform hover:text-zinc-900 dark:hover:text-zinc-100" href="#">
+<span class="material-symbols-outlined">newspaper</span>
+<span class="font-inter text-[11px] font-medium">News</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-600 scale-95 active:scale-90 transition-transform hover:text-zinc-900 dark:hover:text-zinc-100" href="#">
+<span class="material-symbols-outlined">handshake</span>
+<span class="font-inter text-[11px] font-medium">Services</span>
+</a>
+<a class="flex flex-col items-center justify-center text-amber-600 dark:text-amber-500 font-bold scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-inter text-[11px] font-medium">Profile</span>
+</a>
+</nav>
+</body></html>
+
+<!-- Sidebar Drawer (Role-Based) -->
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Company Admin Dashboard - Jewellery Association</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-on-surface": "#f2f0f0",
+                    "on-tertiary-container": "#838484",
+                    "surface-container-lowest": "#ffffff",
+                    "outline": "#7e7576",
+                    "on-surface-variant": "#4c4546",
+                    "outline-variant": "#cfc4c5",
+                    "on-background": "#1b1c1c",
+                    "error-container": "#ffdad6",
+                    "surface-container": "#efeded",
+                    "surface-bright": "#fbf9f9",
+                    "on-tertiary": "#ffffff",
+                    "tertiary": "#000000",
+                    "background": "#fbf9f9",
+                    "on-secondary-container": "#785a1a",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "inverse-surface": "#303031",
+                    "surface-container-highest": "#e3e2e2",
+                    "on-primary-fixed-variant": "#474747",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "on-primary": "#ffffff",
+                    "on-primary-container": "#848484",
+                    "primary-container": "#1b1b1b",
+                    "on-secondary-fixed-variant": "#5d4201",
+                    "secondary-fixed-dim": "#e9c176",
+                    "inverse-primary": "#c6c6c6",
+                    "on-surface": "#1b1c1c",
+                    "on-secondary-fixed": "#261900",
+                    "secondary": "#775a19",
+                    "surface": "#fbf9f9",
+                    "tertiary-container": "#1a1c1c",
+                    "surface-tint": "#5e5e5e",
+                    "surface-dim": "#dbdad9",
+                    "on-error-container": "#93000a",
+                    "tertiary-fixed": "#e2e2e2",
+                    "surface-variant": "#e3e2e2",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "on-primary-fixed": "#1b1b1b",
+                    "surface-container-high": "#e9e8e7",
+                    "primary": "#000000",
+                    "error": "#ba1a1a",
+                    "on-secondary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "secondary-fixed": "#ffdea5",
+                    "surface-container-low": "#f5f3f3",
+                    "primary-fixed": "#e2e2e2",
+                    "secondary-container": "#fed488"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "xl": "48px",
+                    "gutter": "24px",
+                    "sm": "8px",
+                    "max_width": "1280px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "unit": "4px",
+                    "xxl": "80px",
+                    "margin": "32px",
+                    "lg": "24px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "headline-display": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "headline-display": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.08em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                    "label-sm": ["13px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: #e3e2e2;
+            border-radius: 10px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex overflow-hidden">
+<!-- NavigationDrawer (Sidebar) -->
+<aside class="h-full w-80 border-r bg-white flex flex-col py-8 gap-4 shadow-2xl z-50 divide-y divide-zinc-100 flex-shrink-0" style="height: 100vh;">
+<!-- Header -->
+<div class="px-6 pb-6">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-surface-container-highest border border-outline-variant">
+<img alt="Jeevan Jacob" class="w-full h-full object-cover" data-alt="professional portrait of a middle-aged male executive with a warm smile, wearing a dark suit in a bright corporate office setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsaeZh2qwQCLgyiPQS-mcXfSaXTYYe7xfTAcqM-RFqC_cb-lMNDMTV1yf6Y4r63nJjg50stG7hXh0CJCdrg8bC575LChXW06cQGeMiOwiLPWON0Dy-R5OvHSZHC_Hd9Wwf4P2FeZUzuojr_OvOsuACDSlTlpbU8nLVVFNSygRZaMPX8bq5lPFzhq18xqVAb0L1uTaze7eBxhp9_ZWjlGAVJor7yrrGlgihjinFo7YKeqDIEP9l3zz-7hcodlaZEHdnu-9_rncmoB8"/>
+</div>
+<div>
+<h2 class="font-headline-md text-body-md font-bold text-zinc-900">Jeevan Jacob</h2>
+<p class="text-label-sm text-secondary font-medium uppercase tracking-wider">Company Admin</p>
+</div>
+</div>
+</div>
+<!-- Scrollable Navigation Sections -->
+<nav class="flex-1 overflow-y-auto sidebar-scroll px-4 pt-6 space-y-8">
+<!-- Company Section -->
+<section>
+<h3 class="px-2 mb-3 text-label-caps text-on-tertiary-container uppercase">Company</h3>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:pl-5 transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="inventory_2">inventory_2</span>
+<span class="text-sm font-medium">Manage Products</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:pl-5 transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="receipt_long">receipt_long</span>
+<span class="text-sm font-medium">View Plan</span>
+</a>
+<a class="flex items-center justify-between px-3 py-2 bg-zinc-50 text-amber-600 font-semibold border-r-2 border-amber-600 rounded-lg transition-all duration-300" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-xl" data-icon="workspace_premium" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+<span class="text-sm">Upgrade Plan</span>
+</div>
+<span class="material-symbols-outlined text-sm" data-icon="open_in_new">open_in_new</span>
+</a>
+</div>
+</section>
+<!-- Admin Tools Section -->
+<section>
+<h3 class="px-2 mb-3 text-label-caps text-on-tertiary-container uppercase">Admin Tools</h3>
+<div class="space-y-1">
+<a class="flex items-center justify-between px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:pl-5 transition-all duration-300 rounded-lg group" href="#">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-xl" data-icon="pending_actions">pending_actions</span>
+<span class="text-sm font-medium">Pending Approvals</span>
+</div>
+<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold">12</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:pl-5 transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="group">group</span>
+<span class="text-sm font-medium">Manage Users</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:pl-5 transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="newspaper">newspaper</span>
+<span class="text-sm font-medium">Manage News</span>
+</a>
+</div>
+</section>
+<!-- Settings Section -->
+<section>
+<h3 class="px-2 mb-3 text-label-caps text-on-tertiary-container uppercase">Settings</h3>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:pl-5 transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="notifications_active">notifications_active</span>
+<span class="text-sm font-medium">Notification Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:pl-5 transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="manage_accounts">manage_accounts</span>
+<span class="text-sm font-medium">Edit Profile</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-zinc-600 hover:bg-zinc-50 hover:pl-5 transition-all duration-300 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="contact_support">contact_support</span>
+<span class="text-sm font-medium">Help &amp; Support</span>
+</a>
+</div>
+</section>
+</nav>
+<!-- Footer / Logout -->
+<div class="px-4 pt-6 mt-auto border-t border-zinc-100">
+<button class="w-full flex items-center gap-3 px-4 py-3 text-error bg-error-container/20 hover:bg-error-container/40 rounded-xl transition-all duration-200 group active:scale-95">
+<span class="material-symbols-outlined text-xl" data-icon="logout">logout</span>
+<span class="text-sm font-bold uppercase tracking-widest">Sign Out</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col h-screen overflow-hidden">
+<!-- TopAppBar (From JSON) -->
+<header class="bg-white flex items-center justify-between px-6 py-4 w-full h-16 border-b border-zinc-100 shadow-sm z-40 sticky top-0">
+<div class="flex items-center gap-4">
+<button class="p-2 transition-all duration-200 active:opacity-70 hover:bg-zinc-50 rounded-full">
+<span class="material-symbols-outlined text-zinc-900" data-icon="menu">menu</span>
+</button>
+<h1 class="font-inter text-sm font-semibold uppercase tracking-wider text-zinc-900">Profile</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-lg font-bold text-zinc-900">JA <span class="text-secondary font-medium">| ADMIN</span></span>
+<button class="p-2 transition-all duration-200 active:opacity-70 hover:bg-zinc-50 rounded-full relative">
+<span class="material-symbols-outlined text-zinc-900" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-amber-600 rounded-full"></span>
+</button>
+</div>
+</header>
+<!-- Page Content -->
+<div class="flex-1 overflow-y-auto bg-surface px-margin py-xxl">
+<div class="max-w-max_width mx-auto">
+<!-- Welcome Section -->
+<div class="mb-xl">
+<p class="text-label-caps text-secondary mb-xs">Association Dashboard</p>
+<h2 class="font-headline-lg text-primary">Overview for Jeevan Jacob</h2>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- Stats Card 1 -->
+<div class="md:col-span-4 bg-surface-container-low p-lg rounded-xl flex flex-col justify-between h-48 border border-white">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-secondary" data-icon="diamond" style="font-variation-settings: 'FILL' 1;">diamond</span>
+<span class="text-label-sm text-on-surface-variant font-bold">+14% vs LY</span>
+</div>
+<div>
+<p class="text-headline-display text-primary leading-none">1,284</p>
+<p class="text-label-sm text-zinc-500 mt-2 uppercase">Total Products Listed</p>
+</div>
+</div>
+<!-- Stats Card 2 -->
+<div class="md:col-span-4 bg-tertiary p-lg rounded-xl flex flex-col justify-between h-48 text-on-tertiary">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-on-tertiary" data-icon="verified_user">verified_user</span>
+<span class="bg-secondary-container text-on-secondary-container text-[10px] px-2 py-0.5 rounded font-bold">PREMIUM</span>
+</div>
+<div>
+<p class="text-headline-display leading-none text-white">99.8%</p>
+<p class="text-label-sm text-zinc-400 mt-2 uppercase">Quality Certification Rate</p>
+</div>
+</div>
+<!-- Stats Card 3 -->
+<div class="md:col-span-4 bg-surface-container-low p-lg rounded-xl flex flex-col justify-between h-48 border border-white">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-secondary" data-icon="person_search">person_search</span>
+<span class="text-label-sm text-amber-600 font-bold">Action Required</span>
+</div>
+<div>
+<p class="text-headline-display text-primary leading-none">12</p>
+<p class="text-label-sm text-zinc-500 mt-2 uppercase">Pending User Approvals</p>
+</div>
+</div>
+<!-- Featured Section (Asymmetric) -->
+<div class="md:col-span-8 bg-white p-lg rounded-xl border border-zinc-100 shadow-sm min-h-[400px] flex flex-col">
+<div class="flex justify-between items-center mb-xl">
+<h3 class="font-headline-md text-primary">Market Intelligence</h3>
+<button class="px-4 py-2 border border-secondary text-secondary rounded font-label-sm uppercase tracking-wider hover:bg-secondary-container/10 transition-colors">Generate Report</button>
+</div>
+<div class="flex-1 bg-surface-container-low rounded-lg relative overflow-hidden">
+<img alt="Market Graph" class="w-full h-full object-cover opacity-20" data-alt="abstract architectural visualization of a modern gallery with minimalist lines, soft ambient lighting, and neutral stone textures" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCiqBSEww0vFRRShsoa4xCpjKk_2S_WDLmEcIznCy5-1rsJJ4VSbPRai3jmoI36glD5RmT_CUnzzrYoMkcudiLjNQO2Bl1Y81UKLTmjwTV1093oksy17fk_B8u-DvApOp3srww9w0Ws8H9pC5gS1BefkUQ43nygY_PBERDrT11rLupmThBKD62ulXLWWOHkBLTEfStHE-0vnd6oeA86ZrmG1qULd2bpgnt1dE6VCD_3BL_TSRFr9wSCvNdu-xqcu_SXhogMrCmW7MY"/>
+<div class="absolute inset-0 p-lg flex flex-col justify-end">
+<div class="bg-white/80 backdrop-blur-md p-md rounded-lg max-w-xs shadow-lg border border-white/50">
+<p class="text-label-sm font-bold text-primary uppercase mb-1">Live Market Index</p>
+<p class="text-body-lg text-secondary font-semibold">Gold Standard: +0.45%</p>
+<p class="text-sm text-zinc-500 mt-1">Trading activity is currently high in European sectors.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Side Notifications Card -->
+<div class="md:col-span-4 bg-surface-container p-lg rounded-xl flex flex-col h-full">
+<h3 class="font-headline-md text-primary mb-lg">Recent Alerts</h3>
+<div class="space-y-md">
+<div class="flex gap-4 p-md bg-white rounded shadow-sm border-l-4 border-secondary">
+<span class="material-symbols-outlined text-secondary" data-icon="campaign">campaign</span>
+<div>
+<p class="text-sm font-bold text-primary">Policy Update</p>
+<p class="text-xs text-zinc-500">New export regulations for silver items in Q3.</p>
+</div>
+</div>
+<div class="flex gap-4 p-md bg-white rounded shadow-sm border-l-4 border-amber-600">
+<span class="material-symbols-outlined text-amber-600" data-icon="warning">warning</span>
+<div>
+<p class="text-sm font-bold text-primary">Plan Expiring</p>
+<p class="text-xs text-zinc-500">Your Enterprise membership expires in 4 days.</p>
+</div>
+</div>
+<div class="flex gap-4 p-md bg-white/50 rounded border border-white">
+<span class="material-symbols-outlined text-zinc-400" data-icon="done_all">done_all</span>
+<div>
+<p class="text-sm font-medium text-zinc-500">Inventory Sync</p>
+<p class="text-xs text-zinc-400">Successfully updated 428 SKUs.</p>
+</div>
+</div>
+</div>
+<button class="mt-auto text-center py-3 text-label-caps text-secondary hover:underline">View All Alerts</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile only as per Responsive Pivot Rule) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-16 pb-safe px-4 bg-white border-t border-zinc-100 shadow-[0px_-2px_10px_rgba(0,0,0,0.02)] z-50">
+<a class="flex flex-col items-center justify-center text-zinc-400 font-medium scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="trending_up">trending_up</span>
+<span class="text-[11px] font-inter">Market</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 font-medium scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="handshake">handshake</span>
+<span class="text-[11px] font-inter">Trade</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-400 font-medium scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="text-[11px] font-inter">Vault</span>
+</a>
+<a class="flex flex-col items-center justify-center text-amber-600 font-bold scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="person">person</span>
+<span class="text-[11px] font-inter">Profile</span>
+</a>
+</nav>
+</body></html>
