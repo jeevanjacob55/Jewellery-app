@@ -6,6 +6,7 @@ import { useSession } from "../session/SessionProvider";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { AssociationRatesScreen } from "../screens/dashboard/AssociationRatesScreen";
 import { HomeDashboardScreen } from "../screens/dashboard/HomeDashboardScreen";
+import { RateDetailsScreen } from "../screens/dashboard/RateDetailsScreen";
 import { StateRatesScreen } from "../screens/dashboard/StateRatesScreen";
 import { CompanyProfileScreen } from "../screens/directory/CompanyProfileScreen";
 import { MarketTiersScreen } from "../screens/directory/MarketTiersScreen";
@@ -59,8 +60,9 @@ export function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-          <Stack.Screen name="AssociationRates" component={AssociationRatesScreen} options={{ title: "Other Associations" }} />
-          <Stack.Screen name="StateRates" component={StateRatesScreen} options={{ title: "Other States" }} />
+          <Stack.Screen name="AssociationRates" component={AssociationRatesScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="StateRates" component={StateRatesScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="RateDetails" component={RateDetailsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CompanyProfile" component={CompanyProfileScreen} options={{ title: "Company Profile" }} />
           <Stack.Screen name="ProductSearch" component={ProductSearchScreen} options={{ title: "Product Search" }} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />

@@ -1,21 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 
-import { getJson } from "../../api/client";
+import { getStateRates } from "../../api/rates";
+import { AppScreen } from "../../components/AppScreen";
 import { ScreenState } from "../../components/ScreenState";
 import { useSession } from "../../session/SessionProvider";
-import { colors, radii, spacing, typography } from "../../theme/tokens";
+import { colors, spacing } from "../../theme/tokens";
 import { StateRatesData, StateRatesSummary } from "../../types/api";
-import { formatCurrency } from "../../utils/format";
+import { AssociationStateCard, LoadingSkeleton, PriceScreenHeader, PriceSearchBar, StateTabs } from "./PriceCards";
 
 export function StateRatesScreen() {
+  const navigation = useNavigation<any>();
   const { guestSession, me } = useSession();
   const [stateRates, setStateRates] = useState<StateRatesData | null>(null);
+  const [query, setQuery] = useState("");
   const [selectedStateId, setSelectedStateId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function loadStateRates(isRefresh = false) {
+  async function loadStateBoards(isRefresh = false) {
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -23,18 +28,19 @@ export function StateRatesScreen() {
     }
 
     try {
-      const nextStateRates = await getJson<StateRatesData>("/dashboard/state-rates/");
+      const nextStateRates = await getStateRates();
       setStateRates(nextStateRates);
+      setError(null);
       setSelectedStateId((current) => {
         if (current && nextStateRates.states.some((state) => state.id === current)) {
           return current;
         }
 
         const preferredStateName = me?.hierarchy.state ?? guestSession?.guest_profile?.state?.name ?? null;
-        const preferredStateId =
-          nextStateRates.states.find((state) => state.name === preferredStateName)?.id ?? nextStateRates.states[0]?.id ?? null;
-        return preferredStateId;
+        return nextStateRates.states.find((state) => state.name === preferredStateName)?.id ?? nextStateRates.states[0]?.id ?? null;
       });
+    } catch {
+      setError("We could not load the state boards right now.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -42,173 +48,190 @@ export function StateRatesScreen() {
   }
 
   useEffect(() => {
-    loadStateRates();
+    void loadStateBoards();
   }, []);
 
-  const selectedState = useMemo<StateRatesSummary | null>(() => {
+  const filteredStates = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
     if (!stateRates) {
+      return [];
+    }
+    if (!normalizedQuery) {
+      return stateRates.states;
+    }
+
+    return stateRates.states
+      .map((state) => {
+        const stateMatches = state.name.toLowerCase().includes(normalizedQuery);
+        const filteredAssociations = state.associations.filter(
+          (association) =>
+            association.name.toLowerCase().includes(normalizedQuery) || association.state_name.toLowerCase().includes(normalizedQuery)
+        );
+        if (stateMatches) {
+          return state;
+        }
+        return {
+          ...state,
+          associations: filteredAssociations,
+        };
+      })
+      .filter((state) => state.associations.length || state.name.toLowerCase().includes(normalizedQuery));
+  }, [query, stateRates]);
+
+  useEffect(() => {
+    if (!filteredStates.length) {
+      return;
+    }
+    if (selectedStateId && filteredStates.some((state) => state.id === selectedStateId)) {
+      return;
+    }
+    setSelectedStateId(filteredStates[0].id);
+  }, [filteredStates, selectedStateId]);
+
+  const selectedState = useMemo<StateRatesSummary | null>(() => {
+    if (!filteredStates.length) {
       return null;
     }
-    return stateRates.states.find((state) => state.id === selectedStateId) ?? stateRates.states[0] ?? null;
-  }, [selectedStateId, stateRates]);
-
-  if (loading && !stateRates) {
-    return <ScreenState title="Loading state boards" detail="Preparing state-wise association rates from the backend." loading />;
-  }
-
-  if (!stateRates) {
-    return <ScreenState title="State boards unavailable" detail="We could not load state-wise association rates right now." />;
-  }
+    return filteredStates.find((state) => state.id === selectedStateId) ?? filteredStates[0] ?? null;
+  }, [filteredStates, selectedStateId]);
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadStateRates(true)} />}
-    >
-      <Text style={styles.eyebrow}>Registered States</Text>
-      <Text style={styles.title}>Other States</Text>
-      <Text style={styles.context}>Choose a state to compare the latest association prices registered in your backend.</Text>
+    <AppScreen safeAreaEdges={["top", "bottom"]} backgroundColor={colors.background}>
+      <PriceScreenHeader
+        title="Other States"
+        onBack={() => navigation.goBack()}
+        onNotifications={() => navigation.navigate("NotificationSettings")}
+      />
 
-      <View style={styles.stateChipWrap}>
-        {stateRates.states.map((state) => (
-          <Pressable
-            key={state.id}
-            style={[styles.stateChip, selectedState?.id === state.id && styles.stateChipActive]}
-            onPress={() => setSelectedStateId(state.id)}
-          >
-            <Text style={[styles.stateChipText, selectedState?.id === state.id && styles.stateChipTextActive]}>{state.name}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {selectedState ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateCardLabel}>Selected State</Text>
-          <Text style={styles.stateCardTitle}>{selectedState.name}</Text>
-          <Text style={styles.stateCardSubtitle}>{selectedState.associations.length} associations with current rates</Text>
-        </View>
-      ) : null}
-
-      {selectedState?.associations.length ? (
-        selectedState.associations.map((association) => (
-          <View key={association.id} style={styles.associationCard}>
-            <Text style={styles.associationName}>{association.name}</Text>
-            <View style={styles.rateRow}>
-              <Text style={styles.rateLabel}>Gold 22K</Text>
-              <Text style={styles.rateValue}>{formatCurrency(association.gold_22k, 0)}</Text>
-            </View>
-            <View style={styles.rateRow}>
-              <Text style={styles.rateLabel}>Gold 24K</Text>
-              <Text style={styles.rateValue}>{formatCurrency(association.gold_24k, 0)}</Text>
-            </View>
-            <View style={styles.rateRow}>
-              <Text style={styles.rateLabel}>Silver</Text>
-              <Text style={styles.rateValue}>{formatCurrency(association.silver, 0)}</Text>
-            </View>
-          </View>
-        ))
+      {loading && !stateRates ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          <LoadingSkeleton variant="state-list" />
+        </ScrollView>
+      ) : !stateRates ? (
+        <ScreenState title="State boards unavailable" detail={error ?? "Try again in a moment."} />
       ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No association rates for this state</Text>
-          <Text style={styles.emptyDetail}>Once association boards are seeded or updated for this state, they will appear here.</Text>
-        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadStateBoards(true)} />}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.sectionIntro}>
+            <Text style={styles.contextText}>Compare rates by state</Text>
+          </View>
+
+          <PriceSearchBar value={query} onChangeText={setQuery} placeholder="Search state or association..." />
+
+          {filteredStates.length ? (
+            <>
+              <View style={styles.tabsWrap}>
+                <StateTabs states={filteredStates.map((state) => ({ id: state.id, name: state.name }))} selectedStateId={selectedState?.id ?? null} onSelect={setSelectedStateId} />
+              </View>
+
+              {selectedState ? (
+                <>
+                  <View style={styles.stateHeaderRow}>
+                    <Text style={styles.stateSectionTitle}>{selectedState.name} Associations</Text>
+                    <Text style={styles.stateSectionBadge}>Latest Rates</Text>
+                  </View>
+
+                  <View style={styles.cardList}>
+                    {selectedState.associations.length ? (
+                      selectedState.associations.map((association) => (
+                        <AssociationStateCard
+                          key={association.id}
+                          association={association}
+                          onPress={() =>
+                            navigation.navigate("RateDetails", {
+                              associationId: association.id,
+                              associationName: association.name,
+                            })
+                          }
+                        />
+                      ))
+                    ) : (
+                      <View style={styles.emptyState}>
+                        <Text style={styles.emptyTitle}>No association rates for this selection</Text>
+                        <Text style={styles.emptyDetail}>Try another state tab or adjust the search term to find more boards.</Text>
+                      </View>
+                    )}
+                  </View>
+                </>
+              ) : null}
+            </>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No state boards matched your search</Text>
+              <Text style={styles.emptyDetail}>Try a different state or association name to continue browsing live rates.</Text>
+            </View>
+          )}
+        </ScrollView>
       )}
-    </ScrollView>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
-  eyebrow: { color: colors.mutedText, ...typography.eyebrow, marginTop: spacing.sm },
-  title: { color: colors.text, ...typography.sectionTitle },
-  context: { color: colors.mutedText, ...typography.body, marginTop: -spacing.sm },
-  stateChipWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  stateChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+  scroll: {
+    flex: 1,
   },
-  stateChipActive: {
-    backgroundColor: "#1C1917",
-    borderColor: "#1C1917",
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
   },
-  stateChipText: {
-    color: colors.text,
-    fontWeight: "700",
-  },
-  stateChipTextActive: {
-    color: colors.surface,
-  },
-  stateCard: {
-    backgroundColor: "#0A0E1A",
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-  },
-  stateCardLabel: {
-    color: "#F1C40F",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.3,
-    textTransform: "uppercase",
-  },
-  stateCardTitle: {
-    color: colors.surface,
-    fontSize: 26,
-    fontWeight: "800",
-    marginTop: spacing.sm,
-  },
-  stateCardSubtitle: {
-    color: "rgba(255,255,255,0.74)",
-    marginTop: spacing.sm,
-    ...typography.body,
-  },
-  associationCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-  },
-  associationName: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "800",
+  sectionIntro: {
     marginBottom: spacing.md,
   },
-  rateRow: {
+  contextText: {
+    color: "#5F6161",
+    fontSize: 16,
+    lineHeight: 25,
+  },
+  tabsWrap: {
+    marginTop: spacing.lg,
+  },
+  stateHeaderRow: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "flex-end",
     gap: spacing.md,
-    marginBottom: spacing.sm,
   },
-  rateLabel: {
-    color: colors.mutedText,
+  stateSectionTitle: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 24,
     fontWeight: "600",
   },
-  rateValue: {
-    color: colors.text,
-    fontWeight: "800",
+  stateSectionBadge: {
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  cardList: {
+    gap: spacing.md,
   },
   emptyState: {
+    marginTop: spacing.xl,
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+    borderRadius: 12,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
   },
   emptyTitle: {
     color: colors.text,
-    fontWeight: "800",
     fontSize: 18,
-    marginBottom: spacing.sm,
+    fontWeight: "700",
   },
   emptyDetail: {
     color: colors.mutedText,
-    ...typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.sm,
   },
 });

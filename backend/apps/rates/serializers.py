@@ -4,7 +4,10 @@ from rest_framework import serializers
 class DashboardHeadlineRateSerializer(serializers.Serializer):
     value = serializers.FloatField()
     trend = serializers.CharField()
-
+    change_value = serializers.FloatField()
+    change_percent = serializers.FloatField()
+    change_label = serializers.CharField()
+    change_percent_label = serializers.CharField()
 
 class DashboardHeadlineRatesSerializer(serializers.Serializer):
     gold_22k = DashboardHeadlineRateSerializer()
@@ -25,17 +28,23 @@ class DashboardAssociationContextSerializer(serializers.Serializer):
 class DashboardAssociationRateSummarySerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
+    state_name = serializers.CharField()
+    updated_at_label = serializers.CharField()
     gold_22k = serializers.FloatField()
     gold_24k = serializers.FloatField()
     silver = serializers.FloatField()
+    headline_rates = DashboardHeadlineRatesSerializer()
 
 
 class StateAssociationRateSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
+    state_name = serializers.CharField()
+    updated_at_label = serializers.CharField()
     gold_22k = serializers.FloatField()
     gold_24k = serializers.FloatField()
     silver = serializers.FloatField()
+    headline_rates = DashboardHeadlineRatesSerializer()
 
 
 class StateRateSummarySerializer(serializers.Serializer):
@@ -62,3 +71,41 @@ class DashboardResponseSerializer(serializers.Serializer):
 
 class StateRatesResponseSerializer(serializers.Serializer):
     states = StateRateSummarySerializer(many=True)
+
+
+class AssociationRateDetailContextSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    state_name = serializers.CharField()
+
+
+class AssociationRateDetailGroupItemSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    label = serializers.CharField()
+    unit_label = serializers.CharField()
+    value = serializers.FloatField()
+    trend = serializers.CharField()
+    change_value = serializers.FloatField()
+    change_percent = serializers.FloatField()
+    change_label = serializers.CharField()
+    change_percent_label = serializers.CharField()
+
+
+class AssociationRateDetailGroupSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    title = serializers.CharField()
+    icon_key = serializers.CharField()
+    items = AssociationRateDetailGroupItemSerializer(many=True)
+
+
+class AssociationRateDetailNoticeSerializer(serializers.Serializer):
+    eyebrow = serializers.CharField()
+    body = serializers.CharField()
+
+
+class AssociationRateDetailResponseSerializer(serializers.Serializer):
+    association = AssociationRateDetailContextSerializer()
+    updated_at_label = serializers.CharField()
+    hero_badge_label = serializers.CharField()
+    rate_groups = AssociationRateDetailGroupSerializer(many=True)
+    notice = AssociationRateDetailNoticeSerializer()

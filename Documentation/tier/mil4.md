@@ -147,3 +147,16 @@ If there is still no frontend test harness for this area, use TypeScript validat
 - The fairness window is 7 days by default.
 - Reporting remains company-level only; product-level exposure tracking stays deferred.
 - Full management UI for tiers, zones, eligibility rules, overrides, and company visibility remains a later milestone.
+mplemented Milestone 4 across backend fairness/reporting and the thin mobile admin insights surface.
+
+Backend changes landed in services.py, views.py, serializers.py, models.py, settings.py, urls.py, and migration 0010_exposureledger_reporting_indexes.py. Weighted company zones now support rolling-window fairness behind DIRECTORY_MARKET_FAIRNESS_ENABLED, ledger rows include selection_reason, preview supports hero_days, and there are new read-only admin report endpoints for summary and under-served companies.
+
+Mobile changes landed in admin.ts, api.ts, AdminToolsScreens.tsx, MemberProfileScreen.tsx, and RootNavigator.tsx. Admin users now get a read-only Market Insights screen with live lineup preview, hero schedule, zone/tier summaries, and under-served companies.
+
+Verification passed:
+
+backend\venv\Scripts\python.exe -m compileall backend\apps\directory backend\config
+.\venv\Scripts\python.exe manage.py test apps.directory.tests
+.\venv\Scripts\python.exe manage.py test apps.admin_ops.tests_seed
+npm.cmd run lint
+I left the existing unrelated local changes and untracked files alone, including the already-dirty MarketTiersScreen.tsx.

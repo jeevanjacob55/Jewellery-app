@@ -143,6 +143,8 @@ class DashboardApiTests(APITestCase):
         self.assertEqual(response.data["headline_rates"]["gold_22k"]["value"], 5450.0)
         self.assertEqual(response.data["headline_rates"]["gold_22k"]["trend"], "up")
         self.assertEqual(response.data["other_associations"][0]["name"], "AKGSMA")
+        self.assertEqual(response.data["other_associations"][0]["state_name"], "Kerala")
+        self.assertEqual(response.data["other_associations"][0]["headline_rates"]["gold_22k"]["trend"], "flat")
 
         self.client.force_authenticate(user=akgsma_member)
         response = self.client.get(reverse("dashboard"))
@@ -239,3 +241,63 @@ class DashboardApiTests(APITestCase):
         self.assertEqual([state["name"] for state in response.data["states"]], ["Kerala", "Tamil Nadu"])
         self.assertEqual([association["name"] for association in response.data["states"][0]["associations"]], ["AKGSMA", "KGSMA"])
         self.assertEqual(response.data["states"][1]["associations"][0]["gold_24k"], 5950.0)
+        self.assertEqual(response.data["states"][1]["associations"][0]["state_name"], "Tamil Nadu")
+        self.assertEqual(response.data["states"][1]["associations"][0]["headline_rates"]["gold_24k"]["trend"], "flat")
+
+    def test_association_rate_detail_returns_gold_and_silver_groups(self):
+        kerala = RegionState.objects.create(name="Kerala")
+        kgsma = Association.objects.create(state=kerala, name="KGSMA")
+        previous_time = timezone.make_aware(datetime(2026, 4, 20, 9, 0))
+        latest_time = timezone.make_aware(datetime(2026, 4, 21, 9, 0))
+
+        AssociationRate.objects.create(
+            association=kgsma,
+            region_label="KGSMA Previous",
+            gold_22k="5440.00",
+            gold_24k="5890.00",
+            silver="74.25",
+            effective_at=previous_time,
+        )
+        AssociationRate.objects.create(
+            association=kgsma,
+            region_label="KGSMA Latest",
+            gold_22k="5455.00",
+            gold_24k="5910.00",
+            silver="74.50",
+            effective_at=latest_time,
+        )
+
+        response = self.client.get(reverse("dashboard_association_rate_detail", args=[kgsma.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["association"]["name"], "KGSMA")
+        self.assertEqual(response.data["association"]["state_name"], "Kerala")
+        self.assertEqual(response.data["hero_badge_label"], "Live Market")
+        self.assertEqual([group["title"] for group in response.data["rate_groups"]], ["Gold Bullion Rates", "Silver Market"])
+        self.assertEqual(response.data["rate_groups"][0]["items"][0]["label"], "24K Purity (999)")
+        self.assertEqual(response.data["rate_groups"][0]["items"][0]["trend"], "up")
+        self.assertEqual(response.data["rate_groups"][1]["items"][0]["label"], "Silver Market Rate")
+        self.assertEqual(response.data["notice"]["eyebrow"], "Institutional Notice")
+
+    def test_association_rate_detail_returns_404_for_invalid_association(self):
+        response = self.client.get(reverse("dashboard_association_rate_detail", args=[999999]))
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_association_rate_detail_uses_flat_trend_when_no_previous_rate_exists(self):
+        kerala = RegionState.objects.create(name="Kerala")
+        association = Association.objects.create(state=kerala, name="Solo Association")
+        AssociationRate.objects.create(
+            association=association,
+            region_label="Solo Latest",
+            gold_22k="5450.00",
+            gold_24k="5900.00",
+            silver="75.00",
+            effective_at=timezone.make_aware(datetime(2026, 4, 21, 10, 30)),
+        )
+
+        response = self.client.get(reverse("dashboard_association_rate_detail", args=[association.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["rate_groups"][0]["items"][0]["trend"], "flat")
+        self.assertEqual(response.data["rate_groups"][0]["items"][0]["change_percent_label"], "0.00%")

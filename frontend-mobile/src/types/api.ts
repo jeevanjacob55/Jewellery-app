@@ -189,22 +189,12 @@ export interface RegionState {
 export interface DashboardData {
   association: { id: number | null; name: string };
   updated_at_label: string;
-  headline_rates: {
-    gold_22k: { value: number; trend: string };
-    gold_24k: { value: number; trend: string };
-    silver: { value: number; trend: string };
-  };
+  headline_rates: DashboardHeadlineRates;
   comparisons: Array<{
     label: string;
     gold_22k: number;
   }>;
-  other_associations: Array<{
-    id: number;
-    name: string;
-    gold_22k: number;
-    gold_24k: number;
-    silver: number;
-  }>;
+  other_associations: DashboardAssociationRateSummary[];
   global_trends: {
     usd_inr: number;
     gold_oz: number;
@@ -213,12 +203,41 @@ export interface DashboardData {
   quick_actions: string[];
 }
 
-export interface StateAssociationRates {
+export interface DashboardRateMetric {
+  value: number;
+  trend: string;
+  change_value: number;
+  change_percent: number;
+  change_label: string;
+  change_percent_label: string;
+}
+
+export interface DashboardHeadlineRates {
+  gold_22k: DashboardRateMetric;
+  gold_24k: DashboardRateMetric;
+  silver: DashboardRateMetric;
+}
+
+export interface DashboardAssociationRateSummary {
   id: number;
   name: string;
+  state_name: string;
+  updated_at_label: string;
   gold_22k: number;
   gold_24k: number;
   silver: number;
+  headline_rates: DashboardHeadlineRates;
+}
+
+export interface StateAssociationRates {
+  id: number;
+  name: string;
+  state_name: string;
+  updated_at_label: string;
+  gold_22k: number;
+  gold_24k: number;
+  silver: number;
+  headline_rates: DashboardHeadlineRates;
 }
 
 export interface StateRatesSummary {
@@ -229,6 +248,44 @@ export interface StateRatesSummary {
 
 export interface StateRatesData {
   states: StateRatesSummary[];
+}
+
+export interface AssociationRateDetailContext {
+  id: number;
+  name: string;
+  state_name: string;
+}
+
+export interface AssociationRateDetailItem {
+  key: string;
+  label: string;
+  unit_label: string;
+  value: number;
+  trend: string;
+  change_value: number;
+  change_percent: number;
+  change_label: string;
+  change_percent_label: string;
+}
+
+export interface AssociationRateDetailGroup {
+  key: string;
+  title: string;
+  icon_key: string;
+  items: AssociationRateDetailItem[];
+}
+
+export interface AssociationRateDetailNotice {
+  eyebrow: string;
+  body: string;
+}
+
+export interface AssociationRateDetailResponse {
+  association: AssociationRateDetailContext;
+  updated_at_label: string;
+  hero_badge_label: string;
+  rate_groups: AssociationRateDetailGroup[];
+  notice: AssociationRateDetailNotice;
 }
 
 export interface CompanyVerification {

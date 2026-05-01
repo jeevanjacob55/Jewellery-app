@@ -104,7 +104,72 @@ Hero zone behavior:
   - `admin_priority`
   - `created_at`
   - `id`
+scope.
 
+What Changed
+
+Zone runtime controls added in backend/apps/directory/models.py (line 85) and backend/apps/directory/migrations/0008_market_zone_runtime_controls.py (line 1):
+MarketZone.serving_mode
+MarketZone.slot_interval_hours
+MarketZone.cooldown_override_hours
+seeded defaults for hero_spotlight, featured_companies, rising_companies, latest_products
+Zone-first market feed with safe fallback added in backend/apps/directory/views.py (line 118) and backend/apps/directory/services.py (line 131):
+DIRECTORY_MARKET_ZONE_FEED_ENABLED flag
+fallback to legacy MarketRow payload on disable or internal error
+scheduled hero selection
+deterministic weighted company ordering
+active pin / boost / block override handling
+live ExposureLedger writes from the public feed only
+last_featured_at updates for live hero serves only
+latest_products stays dormant
+Admin backend APIs added in backend/apps/admin_ops/urls.py (line 31) and backend/apps/directory/views.py (line 434):
+GET/POST /admin/market-zones/
+PATCH /admin/market-zones/<id>/
+GET/PATCH /admin/market-zones/<id>/eligibility-rules/
+GET/POST /admin/placement-overrides/
+PATCH /admin/placement-overrides/<id>/
+PATCH /admin/directory/companies/<company_id>/market-visibility/
+GET /admin/market-preview/
+Serializers extended in backend/apps/directory/serializers.py (line 99):
+tier visibility-policy fields exposed on tier read/write
+serializers for zones, rules, overrides, company market visibility, preview
+market row response now supports optional zone_key and serving_mode
+Optional mobile API typing updated in frontend-mobile/src/types/api.ts (line 73) so the current app can accept the additive row metadata without breaking.
+Tests
+
+Added/extended backend coverage in backend/apps/directory/tests.py (line 761) for:
+zone admin CRUD
+eligibility-rule updates
+placement overrides
+company market visibility
+zone feed cutover and fallback
+wildcard hero slots
+cooldown behavior
+weighted ordering with pin/boost/block
+preview side-effect safety
+exposure logging
+Verified seed coverage still passes in backend/apps/admin_ops/tests_seed.py (line 1)
+Verification
+
+backend\venv\Scripts\python.exe -m compileall backend\apps\directory backend\apps\admin_ops backend\config
+.\venv\Scripts\python.exe manage.py test apps.directory.tests
+.\venv\Scripts\python.exe manage.py test apps.admin_ops.tests_seed
+Both test suites passed. The logged “falling back to legacy market-row feed” trace is expected from the fallback test that intentionally forces a zone-feed failure.
+
+I left unrelated untracked Documentation/ files and backend/media/ assets alone.
+
+9 files changed
++1025
+-10
+Undo
+
+Review
+backend/apps/admin_ops/urls.py
+backend/apps/directory/migrations/0008_market_zone_runtime_controls.py
+backend/apps/directory/models.py
+backend/apps/directory/serializers.py
+backend/apps/directory/services.py
+backend
 Weighted company-zone behavior for `featured_companies` and `rising_companies`:
 - deterministic ordering, not randomized in this milestone
 - score by:
