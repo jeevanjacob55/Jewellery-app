@@ -14,7 +14,7 @@ import { ProductSearchScreen } from "../screens/directory/ProductSearchScreen";
 import { MeetingDetailScreen } from "../screens/news/MeetingDetailScreen";
 import { NewsAlertsScreen } from "../screens/news/NewsAlertsScreen";
 import { NewsDetailScreen } from "../screens/news/NewsDetailScreen";
-import { ManageNewsScreen, ManageUsersScreen, PendingApprovalsScreen } from "../screens/profile/AdminToolsScreens";
+import { ManageNewsScreen, ManageUsersScreen, MarketInsightsScreen, PendingApprovalsScreen } from "../screens/profile/AdminToolsScreens";
 import { CompanyPlanScreen } from "../screens/profile/CompanyPlanScreen";
 import { CompanyProductsScreen } from "../screens/profile/CompanyProductsScreen";
 import { EditProfileScreen } from "../screens/profile/EditProfileScreen";
@@ -74,6 +74,7 @@ export function RootNavigator() {
           <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ title: "Pending Approvals" }} />
           <Stack.Screen name="ManageUsers" component={ManageUsersScreen} options={{ title: "Manage Users" }} />
           <Stack.Screen name="ManageNews" component={ManageNewsScreen} options={{ title: "Manage News" }} />
+          <Stack.Screen name="MarketInsights" component={MarketInsightsScreen} options={{ title: "Market Insights" }} />
           <Stack.Screen name="ReverseSearch" component={ReverseSearchScreen} options={{ title: "Reverse Search" }} />
         </>
       )}

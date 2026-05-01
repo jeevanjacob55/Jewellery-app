@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+
+from django.conf import settings
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils.text import slugify
@@ -16,9 +19,11 @@ from .models import (
     Company,
     CompanyImage,
     MarketRow,
+    MarketZone,
     CompanyTier,
     Enquiry,
     MediaAsset,
+    PlacementOverride,
     Product,
     ProductAttributeDefinition,
     ProductAttributeValue,
@@ -26,16 +31,24 @@ from .models import (
     ProductImage,
     ProductSubCategory,
     ProductWishlist,
+    ZoneEligibilityRule,
 )
 from .serializers import (
     CompanySerializer,
+    CompanyMarketVisibilitySerializer,
     CompanyTierAssignmentConfirmSerializer,
     CompanyTierAssignmentSerializer,
     CompanyTierSerializer,
     CompanyTierWriteSerializer,
     EnquirySerializer,
     MarketFeedSerializer,
+    MarketPreviewSerializer,
+    MarketReportSummarySerializer,
     MarketRowWriteSerializer,
+    MarketZoneSerializer,
+    MarketZoneWriteSerializer,
+    MarketUnderServedReportSerializer,
+    PlacementOverrideSerializer,
     ProductFilterCategorySerializer,
     ProductDetailSerializer,
     ProductEnquiryWriteSerializer,
@@ -44,8 +57,24 @@ from .serializers import (
     ProductSearchResultSerializer,
     ProductSerializer,
     ProductWriteSerializer,
+    ZoneEligibilityRuleBulkUpdateSerializer,
+    ZoneEligibilityRuleSerializer,
 )
-from .services import TierValidationError, apply_tier_change_with_selected_products, build_downgrade_warning, user_can_manage_company
+from .services import (
+    TierValidationError,
+    apply_tier_change_with_selected_products,
+    build_latest_products_row,
+    build_market_category_row,
+    build_market_preview_payload,
+    build_market_report_summary,
+    build_downgrade_warning,
+    build_market_zone_feed,
+    build_under_served_report,
+    user_can_manage_company,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_public_company_queryset():
@@ -94,6 +123,69 @@ def resolve_subcategory_param(param: str | None, *, category: ProductCategory | 
 
 
 def build_market_feed_payload() -> dict:
+    if not settings.DIRECTORY_MARKET_ZONE_FEED_ENABLED:
+        return build_legacy_market_feed_payload()
+
+    if not settings.DIRECTORY_MARKET_MIXED_FEED_ENABLED:
+        return build_zone_market_feed_payload()
+
+    try:
+        return build_mixed_market_feed_payload()
+    except Exception:
+        logger.exception("Falling back to zone market feed after mixed market feed failure.")
+        return build_zone_market_feed_payload()
+
+
+def build_zone_market_feed_payload() -> dict:
+    try:
+        result = build_market_zone_feed(get_public_company_queryset(), write_exposure=True)
+    except Exception:
+        logger.exception("Falling back to legacy market-row feed after zone market feed failure.")
+        return build_legacy_market_feed_payload()
+    return {"rows": result.rows}
+
+
+def build_mixed_market_feed_payload() -> dict:
+    company_result = build_market_zone_feed(get_public_company_queryset(), write_exposure=True)
+    company_rows_by_key = {
+        row["zone_key"]: row
+        for row in company_result.rows
+        if row.get("zone_key") in {"hero_spotlight", "featured_companies", "rising_companies"}
+    }
+
+    category_row = build_market_category_row(
+        list(ProductCategory.objects.filter(is_active=True).order_by("display_order", "name", "id"))
+    )
+    latest_products_zone = MarketZone.objects.filter(
+        key="latest_products",
+        is_enabled=True,
+        serving_mode=MarketZone.ServingMode.LATEST_PRODUCTS,
+    ).first()
+    latest_products_row = None
+    if latest_products_zone is not None:
+        latest_products = list(
+            get_public_product_queryset()
+            .filter(company__is_market_visible=True, company__tier_ref__is_active=True)
+            .order_by("-created_at", "-id")[: latest_products_zone.capacity]
+        )
+        latest_products_row = build_latest_products_row(latest_products_zone, latest_products)
+
+    ordered_rows = []
+    for zone_key in ["hero_spotlight", "featured_companies"]:
+        row = company_rows_by_key.get(zone_key)
+        if row and row["resolved_items"]:
+            ordered_rows.append(row)
+    if category_row is not None:
+        ordered_rows.append(category_row)
+    rising_row = company_rows_by_key.get("rising_companies")
+    if rising_row and rising_row["resolved_items"]:
+        ordered_rows.append(rising_row)
+    if latest_products_row is not None:
+        ordered_rows.append(latest_products_row)
+    return {"rows": ordered_rows}
+
+
+def build_legacy_market_feed_payload() -> dict:
     company_queryset = get_public_company_queryset()
     rows = list(MarketRow.objects.filter(is_enabled=True).order_by("sort_order", "id"))
 
@@ -370,6 +462,61 @@ class AdminCompanyTierListCreateView(APIView):
         return Response(CompanyTierSerializer(tier).data, status=status.HTTP_201_CREATED)
 
 
+class AdminMarketZoneListCreateView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        zones = MarketZone.objects.all().order_by("sort_order", "id")
+        return Response(MarketZoneSerializer(zones, many=True).data)
+
+    def post(self, request):
+        serializer = MarketZoneWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        zone = serializer.save()
+        return Response(MarketZoneSerializer(zone).data, status=status.HTTP_201_CREATED)
+
+
+class AdminMarketZoneDetailView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def patch(self, request, zone_id: int):
+        zone = get_object_or_404(MarketZone, pk=zone_id)
+        serializer = MarketZoneWriteSerializer(zone, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_zone = serializer.save()
+        return Response(MarketZoneSerializer(updated_zone).data)
+
+
+class AdminMarketZoneEligibilityRuleView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request, zone_id: int):
+        zone = get_object_or_404(MarketZone, pk=zone_id)
+        rules = zone.eligibility_rules.select_related("tier").order_by("tier__display_priority", "id")
+        return Response(ZoneEligibilityRuleSerializer(rules, many=True).data)
+
+    def patch(self, request, zone_id: int):
+        zone = get_object_or_404(MarketZone, pk=zone_id)
+        serializer = ZoneEligibilityRuleBulkUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        rules_by_id = {
+            rule.id: rule
+            for rule in zone.eligibility_rules.select_related("tier").all()
+        }
+        updated_rules: list[ZoneEligibilityRule] = []
+        for payload in serializer.validated_data["rules"]:
+            rule = rules_by_id.get(payload["id"])
+            if rule is None:
+                return Response({"rules": [f"Rule {payload['id']} does not belong to this zone."]}, status=status.HTTP_400_BAD_REQUEST)
+            for field_name, value in payload.items():
+                if field_name != "id":
+                    setattr(rule, field_name, value)
+            rule.save()
+            updated_rules.append(rule)
+        return Response(ZoneEligibilityRuleSerializer(updated_rules, many=True).data)
+
+
 class AdminMarketRowListCreateView(APIView):
     permission_classes = [IsSuperAdmin]
 
@@ -404,6 +551,31 @@ class AdminCompanyTierDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         updated_tier = serializer.save()
         return Response(CompanyTierSerializer(updated_tier).data)
+
+
+class AdminPlacementOverrideListCreateView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        overrides = PlacementOverride.objects.all().order_by("-priority", "starts_at", "id")
+        return Response(PlacementOverrideSerializer(overrides, many=True).data)
+
+    def post(self, request):
+        serializer = PlacementOverrideSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        override = serializer.save()
+        return Response(PlacementOverrideSerializer(override).data, status=status.HTTP_201_CREATED)
+
+
+class AdminPlacementOverrideDetailView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def patch(self, request, override_id: int):
+        override = get_object_or_404(PlacementOverride, pk=override_id)
+        serializer = PlacementOverrideSerializer(override, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_override = serializer.save()
+        return Response(PlacementOverrideSerializer(updated_override).data)
 
 
 class AdminCompanyTierToggleView(APIView):
@@ -461,3 +633,57 @@ class AdminCompanyTierAssignmentConfirmView(APIView):
             return Response({"retain_active_product_ids": [str(exc)]}, status=status.HTTP_400_BAD_REQUEST)
         company.refresh_from_db()
         return Response(CompanySerializer(company).data)
+
+
+class AdminCompanyMarketVisibilityView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def patch(self, request, company_id: int):
+        company = get_object_or_404(Company.objects.select_related("tier_ref"), pk=company_id)
+        serializer = CompanyMarketVisibilitySerializer(company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_company = serializer.save()
+        return Response(CompanySerializer(updated_company).data)
+
+
+class AdminMarketPreviewView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        try:
+            hero_days = int(request.query_params.get("hero_days", "0"))
+        except ValueError:
+            return Response({"hero_days": ["Hero days must be a whole number."]}, status=status.HTTP_400_BAD_REQUEST)
+        if hero_days < 0 or hero_days > 14:
+            return Response({"hero_days": ["Hero days must be between 0 and 14."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        payload = build_market_preview_payload(get_public_company_queryset(), hero_days=hero_days)
+        return Response(MarketPreviewSerializer(payload).data)
+
+
+class AdminMarketReportSummaryView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        try:
+            days = int(request.query_params.get("days", "7"))
+        except ValueError:
+            return Response({"days": ["Days must be a whole number."]}, status=status.HTTP_400_BAD_REQUEST)
+        if days <= 0 or days > 90:
+            return Response({"days": ["Days must be between 1 and 90."]}, status=status.HTTP_400_BAD_REQUEST)
+        payload = build_market_report_summary(days=days)
+        return Response(MarketReportSummarySerializer(payload).data)
+
+
+class AdminMarketUnderServedReportView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        try:
+            days = int(request.query_params.get("days", "7"))
+        except ValueError:
+            return Response({"days": ["Days must be a whole number."]}, status=status.HTTP_400_BAD_REQUEST)
+        if days <= 0 or days > 90:
+            return Response({"days": ["Days must be between 1 and 90."]}, status=status.HTTP_400_BAD_REQUEST)
+        payload = build_under_served_report(get_public_company_queryset(), days=days)
+        return Response(MarketUnderServedReportSerializer(payload).data)

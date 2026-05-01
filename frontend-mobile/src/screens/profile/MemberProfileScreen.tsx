@@ -102,6 +102,15 @@ export function MemberProfileScreen() {
             },
           },
           {
+            key: "market-insights",
+            label: "Market Insights",
+            icon: "query-stats",
+            onPress: () => {
+              setDrawerVisible(false);
+              navigation.navigate("MarketInsights");
+            },
+          },
+          {
             key: "manage-users",
             label: "Manage Users",
             icon: "group",

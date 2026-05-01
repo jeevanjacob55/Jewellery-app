@@ -5,7 +5,7 @@ from django.core.management import call_command
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
-from apps.directory.models import Company, CompanyTier
+from apps.directory.models import Company, CompanyTier, MarketZone, ZoneEligibilityRule
 from apps.news.models import Alert
 from apps.regions.models import Association, RegionState
 
@@ -54,6 +54,7 @@ class SeedDemoDataCommandTests(APITestCase):
         self.assertTrue(Company.objects.filter(name="Heritage Gold House").exists())
         self.assertEqual(get_user_model().objects.filter(username__startswith="demo_").count(), 15)
         self.assertEqual(CompanyTier.objects.filter(slug__in=["prime-signature", "prime-classic", "prime-premier", "prime-elite", "prime-circle", "prime-unique"]).count(), 6)
+        self.assertEqual(MarketZone.objects.filter(key__in=["hero_spotlight", "featured_companies", "rising_companies", "latest_products"]).count(), 4)
 
     def test_seed_demo_data_command_prints_demo_password(self):
         stdout = StringIO()
@@ -64,6 +65,48 @@ class SeedDemoDataCommandTests(APITestCase):
 
 
 class SeededApiIntegrationTests(APITestCase):
+    def test_market_visibility_foundation_seeded(self):
+        expected_tier_slugs = [
+            "prime-signature",
+            "prime-classic",
+            "prime-premier",
+            "prime-elite",
+            "prime-circle",
+            "prime-unique",
+        ]
+        expected_zone_keys = [
+            "hero_spotlight",
+            "featured_companies",
+            "rising_companies",
+            "latest_products",
+        ]
+
+        self.assertEqual(CompanyTier.objects.filter(slug__in=expected_tier_slugs).count(), 6)
+        self.assertEqual(MarketZone.objects.filter(key__in=expected_zone_keys).count(), 4)
+        self.assertTrue(
+            ZoneEligibilityRule.objects.filter(
+                zone__key="hero_spotlight",
+                tier__slug="prime-signature",
+                is_eligible=True,
+                is_wildcard=False,
+            ).exists()
+        )
+        self.assertTrue(
+            ZoneEligibilityRule.objects.filter(
+                zone__key="hero_spotlight",
+                tier__slug="prime-circle",
+                is_eligible=True,
+                is_wildcard=True,
+            ).exists()
+        )
+        self.assertTrue(
+            ZoneEligibilityRule.objects.filter(
+                zone__key="latest_products",
+                tier__slug="prime-unique",
+                is_eligible=True,
+            ).exists()
+        )
+
     def test_seeded_endpoints_return_realistic_member_facing_payloads(self):
         call_command("seed_demo_data", "--reset")
 
@@ -97,12 +140,10 @@ class SeededApiIntegrationTests(APITestCase):
             )
         )
         self.assertEqual(market_response.status_code, 200)
-        self.assertGreaterEqual(len(market_response.data["featured_companies"]), 3)
-        self.assertGreaterEqual(len(market_response.data["pro_companies"]), 4)
-        self.assertGreaterEqual(len(market_response.data["normal_companies"]), 3)
-        self.assertGreaterEqual(len(market_response.data["categories"]), 6)
-        self.assertTrue(all(item["hero_image_url"] for item in market_response.data["featured_companies"]))
-        self.assertTrue(all(item["image_url"] for item in market_response.data["latest_products"]))
+        self.assertGreaterEqual(len(market_response.data["rows"]), 3)
+        self.assertEqual([row["title"] for row in market_response.data["rows"]], ["Premium Companies", "Pro Companies", "Normal Companies"])
+        self.assertTrue(all(row["items"] for row in market_response.data["rows"]))
+        self.assertTrue(all(item["hero_image_url"] for item in market_response.data["rows"][0]["items"]))
         self.assertEqual(product_filter_config_response.status_code, 200)
         self.assertTrue(any(category["slug"] == "chains" for category in product_filter_config_response.data["categories"]))
         self.assertEqual(product_search_response.status_code, 200)
@@ -112,6 +153,8 @@ class SeededApiIntegrationTests(APITestCase):
         self.assertGreaterEqual(len(ads_response.data["results"]), 1)
         self.assertTrue(all(item["image_url"] for item in ads_response.data["results"]))
         self.assertEqual(CompanyTier.objects.count(), 6)
+        self.assertEqual(MarketZone.objects.count(), 4)
+        self.assertGreaterEqual(ZoneEligibilityRule.objects.count(), 24)
         self.assertTrue(Company.objects.exclude(tier_ref=None).count() >= 10)
         self.assertEqual(services_response.status_code, 200)
         self.assertGreater(len(services_response.data["overview"]), 0)

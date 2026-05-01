@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getMarketFeed } from "../../api/market";
 import { AppScreen } from "../../components/AppScreen";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
-import { MarketCompanyCard, MarketFeedData, MarketRow } from "../../types/api";
+import { MarketCategoryCard, MarketCompanyCard, MarketFeedData, MarketProductCard, MarketRow } from "../../types/api";
 
 function SkeletonBlock({ height, width = "100%", rounded = radii.md }: { height: number; width?: number | `${number}%`; rounded?: number }) {
   return <View style={[styles.skeletonBlock, { height, width, borderRadius: rounded }]} />;
@@ -108,6 +108,19 @@ export function MarketTiersScreen() {
     });
   }
 
+  function openCategoryResults(category: MarketCategoryCard) {
+    navigation.navigate("ProductSearch", {
+      categoryName: category.slug,
+    });
+  }
+
+  function openProductDetail(product: MarketProductCard) {
+    navigation.navigate("ProductDetail", {
+      productId: product.id,
+      companyId: product.company_id,
+    });
+  }
+
   if (isLoading && !marketFeed) {
     return (
       <AppScreen safeAreaEdges={["top"]} backgroundColor={colors.background} scrollable>
@@ -127,7 +140,7 @@ export function MarketTiersScreen() {
       <View style={styles.headerCopy}>
         <Text style={styles.eyebrow}>Trade Showcase</Text>
         <Text style={styles.title}>Market</Text>
-        <Text style={styles.subtitle}>Browse companies by tier, then step straight into each company's live product catalog.</Text>
+        <Text style={styles.subtitle}>Browse companies, categories, and the latest live products from across the market.</Text>
       </View>
 
       {error ? (
@@ -141,22 +154,64 @@ export function MarketTiersScreen() {
       ) : null}
 
       {(marketFeed?.rows ?? []).map((row) => (
-        <MarketRowSection key={row.id} row={row} onPressCompany={(company) => openCompanyCatalog(company, row)} />
+        <MarketRowSection
+          key={`${row.row_type}-${row.id}`}
+          row={row}
+          onPressCompany={(company) => openCompanyCatalog(company, row)}
+          onPressCategory={openCategoryResults}
+          onPressProduct={openProductDetail}
+        />
       ))}
 
       {!error && !(marketFeed?.rows?.length ?? 0) ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>Nothing is live in the market yet.</Text>
-          <Text style={styles.emptyDetail}>Once approved companies are assigned to active rows, they'll appear here automatically.</Text>
+          <Text style={styles.emptyDetail}>Once market content is live, company highlights, categories, and products will appear here automatically.</Text>
         </View>
       ) : null}
     </AppScreen>
   );
 }
 
-function MarketRowSection({ row, onPressCompany }: { row: MarketRow; onPressCompany: (company: MarketCompanyCard) => void }) {
+function MarketRowSection({
+  row,
+  onPressCompany,
+  onPressCategory,
+  onPressProduct,
+}: {
+  row: MarketRow;
+  onPressCompany: (company: MarketCompanyCard) => void;
+  onPressCategory: (category: MarketCategoryCard) => void;
+  onPressProduct: (product: MarketProductCard) => void;
+}) {
   if (!row.items.length) {
     return null;
+  }
+
+  if (row.row_type === "category_collection") {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{row.title}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowScroller}>
+          {row.items.map((category) => (
+            <CategoryCard key={`${row.id}-${category.id}`} category={category} onPress={() => onPressCategory(category)} />
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (row.row_type === "product_collection") {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{row.title}</Text>
+        <View style={styles.productGridWrap}>
+          {row.items.map((product) => (
+            <ProductCard key={`${row.id}-${product.id}`} product={product} onPress={() => onPressProduct(product)} />
+          ))}
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -180,6 +235,43 @@ function MarketRowSection({ row, onPressCompany }: { row: MarketRow; onPressComp
         </ScrollView>
       )}
     </View>
+  );
+}
+
+function CategoryCard({ category, onPress }: { category: MarketCategoryCard; onPress: () => void }) {
+  return (
+    <Pressable style={styles.categoryCard} onPress={onPress}>
+      <View style={styles.categoryIconBadge}>
+        <Text style={styles.categoryIconText}>{getBadgeLabel(category.icon_key)}</Text>
+      </View>
+      <Text style={styles.categoryName}>{category.name}</Text>
+    </Pressable>
+  );
+}
+
+function ProductCard({ product, onPress }: { product: MarketProductCard; onPress: () => void }) {
+  return (
+    <Pressable style={styles.productCard} onPress={onPress}>
+      <View style={styles.productMedia}>
+        {product.image_url ? (
+          <Image source={{ uri: product.image_url }} style={styles.productMediaImage} />
+        ) : (
+          <View style={styles.productMediaFallback}>
+            <Text style={styles.productMediaFallbackText}>{getInitials(product.company_name)}</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.productCopy}>
+        <Text style={styles.productName} numberOfLines={2}>
+          {product.title}
+        </Text>
+        <Text style={styles.productMeta}>{product.purity}</Text>
+        <Text style={styles.productMeta}>{product.weight_grams}g</Text>
+        <Text style={styles.productCompany} numberOfLines={1}>
+          {product.company_name}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -249,6 +341,16 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+function getBadgeLabel(value: string) {
+  return value
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
@@ -281,6 +383,38 @@ const styles = StyleSheet.create({
   rowScroller: {
     gap: spacing.md,
     paddingRight: spacing.sm,
+  },
+  categoryCard: {
+    width: 118,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  categoryIconBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryIconText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  categoryName: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    minHeight: 36,
   },
   heroCard: {
     width: 300,
@@ -402,6 +536,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.md,
   },
+  productGridWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
   gridCard: {
     width: "47%",
     backgroundColor: colors.surface,
@@ -451,6 +590,52 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.8,
+  },
+  productCard: {
+    width: "47%",
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+  },
+  productMedia: {
+    height: 150,
+    backgroundColor: colors.surfaceAlt,
+  },
+  productMediaImage: {
+    width: "100%",
+    height: "100%",
+  },
+  productMediaFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  productMediaFallbackText: {
+    color: colors.mutedText,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  productCopy: {
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  productName: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+    minHeight: 38,
+  },
+  productMeta: {
+    color: colors.mutedText,
+    fontSize: 12,
+  },
+  productCompany: {
+    marginTop: spacing.xs,
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "700",
   },
   errorCard: {
     backgroundColor: colors.surface,

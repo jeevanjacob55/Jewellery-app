@@ -18,6 +18,10 @@ class CompanyTier(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     is_free = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    base_weight = models.PositiveIntegerField(default=1)
+    hero_eligible = models.BooleanField(default=False)
+    premium_floor_share = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    cooldown_hours = models.PositiveIntegerField(default=0)
     display_priority = models.PositiveIntegerField(default=0)
     visibility_type = models.CharField(max_length=20, choices=VisibilityType.choices)
 
@@ -38,6 +42,8 @@ class Company(models.Model):
     daily_capacity = models.CharField(max_length=100, blank=True)
     specialization = models.CharField(max_length=255, blank=True)
     admin_priority = models.PositiveIntegerField(default=0)
+    is_market_visible = models.BooleanField(default=True)
+    last_featured_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_approved = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -74,6 +80,106 @@ class MarketRow(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class MarketZone(models.Model):
+    class Layout(models.TextChoices):
+        HERO_COMPANY = "hero_company", "Hero Company"
+        GRID_COMPANY = "grid_company", "Grid Company"
+        RAIL_COMPANY = "rail_company", "Rail Company"
+        RAIL_PRODUCT = "rail_product", "Rail Product"
+        GRID_PRODUCT = "grid_product", "Grid Product"
+
+    class ServingMode(models.TextChoices):
+        SCHEDULED_HERO = "scheduled_hero", "Scheduled Hero"
+        WEIGHTED_COMPANIES = "weighted_companies", "Weighted Companies"
+        LATEST_PRODUCTS = "latest_products", "Latest Products"
+        DORMANT = "dormant", "Dormant"
+
+    key = models.SlugField(max_length=80, unique=True)
+    title = models.CharField(max_length=140)
+    description = models.TextField(blank=True)
+    layout = models.CharField(max_length=40, choices=Layout.choices, default=Layout.RAIL_COMPANY)
+    sort_order = models.PositiveIntegerField(default=0)
+    capacity = models.PositiveIntegerField(default=1)
+    is_enabled = models.BooleanField(default=True)
+    serving_mode = models.CharField(max_length=40, choices=ServingMode.choices, default=ServingMode.DORMANT)
+    slot_interval_hours = models.PositiveIntegerField(default=0)
+    cooldown_override_hours = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class ZoneEligibilityRule(models.Model):
+    zone = models.ForeignKey(MarketZone, on_delete=models.CASCADE, related_name="eligibility_rules")
+    tier = models.ForeignKey(CompanyTier, on_delete=models.CASCADE, related_name="zone_eligibility_rules")
+    is_eligible = models.BooleanField(default=True)
+    is_wildcard = models.BooleanField(default=False)
+    weight_multiplier = models.DecimalField(max_digits=6, decimal_places=2, default=1)
+    guaranteed_share = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+
+    class Meta:
+        ordering = ["zone__sort_order", "tier__display_priority", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["zone", "tier"], name="uniq_zone_tier_eligibility_rule"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.zone.key} / {self.tier.slug}"
+
+
+class PlacementOverride(models.Model):
+    class Action(models.TextChoices):
+        PIN = "pin", "Pin"
+        BOOST = "boost", "Boost"
+        BLOCK = "block", "Block"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="placement_overrides")
+    zone = models.ForeignKey(MarketZone, on_delete=models.CASCADE, related_name="placement_overrides")
+    action = models.CharField(max_length=20, choices=Action.choices)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    priority = models.PositiveIntegerField(default=0)
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-priority", "starts_at", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.company.name} / {self.zone.key} / {self.action}"
+
+
+class ExposureLedger(models.Model):
+    class EventType(models.TextChoices):
+        SERVED = "served", "Served"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="exposure_events")
+    tier = models.ForeignKey(CompanyTier, on_delete=models.SET_NULL, null=True, blank=True, related_name="exposure_events")
+    zone = models.ForeignKey(MarketZone, on_delete=models.SET_NULL, null=True, blank=True, related_name="exposure_events")
+    event_type = models.CharField(max_length=30, choices=EventType.choices, default=EventType.SERVED)
+    served_at = models.DateTimeField()
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-served_at", "-id"]
+        indexes = [
+            models.Index(fields=["served_at"], name="directory_exp_served_idx"),
+            models.Index(fields=["zone", "served_at"], name="directory_exp_zone_served_idx"),
+            models.Index(fields=["tier", "served_at"], name="directory_exp_tier_served_idx"),
+            models.Index(fields=["company", "zone", "served_at"], name="dir_exp_comp_zone_serv_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.company_id}:{self.zone_id}:{self.event_type}"
 
 
 class CompanyVerification(models.Model):

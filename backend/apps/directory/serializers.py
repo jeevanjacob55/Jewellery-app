@@ -9,13 +9,16 @@ from .models import (
     CompanyVerification,
     Enquiry,
     MarketRow,
+    MarketZone,
     MediaAsset,
+    PlacementOverride,
     Product,
     ProductAttributeDefinition,
     ProductAttributeValue,
     ProductCategory,
     ProductSubCategory,
     ProductWishlist,
+    ZoneEligibilityRule,
 )
 from .services import (
     TierValidationError,
@@ -249,15 +252,57 @@ class MarketCompanyCardSerializer(serializers.ModelSerializer):
         return get_company_is_verified(obj)
 
 
-class MarketRowSerializer(serializers.ModelSerializer):
-    items = serializers.SerializerMethodField()
+class MarketCategoryCardSerializer(serializers.ModelSerializer):
+    slug = serializers.SerializerMethodField()
+    icon_key = serializers.SerializerMethodField()
 
     class Meta:
-        model = MarketRow
-        fields = ["id", "title", "row_type", "layout", "sort_order", "is_enabled", "items"]
+        model = ProductCategory
+        fields = ["id", "name", "slug", "icon_key"]
 
-    def get_items(self, obj: MarketRow):
-        return MarketCompanyCardSerializer(getattr(obj, "resolved_items", []), many=True).data
+    def get_slug(self, obj: ProductCategory) -> str:
+        return get_category_slug(obj)
+
+    def get_icon_key(self, obj: ProductCategory) -> str:
+        return obj.icon_key or get_market_category_icon_key(obj.name)
+
+
+class MarketProductCardSerializer(serializers.ModelSerializer):
+    title = serializers.CharField(source="name", read_only=True)
+    image_url = serializers.SerializerMethodField()
+    company_id = serializers.IntegerField(source="company.id", read_only=True)
+    company_name = serializers.CharField(source="company.name", read_only=True)
+
+    class Meta:
+        model = Product
+        fields = ["id", "title", "image_url", "purity", "weight_grams", "company_id", "company_name"]
+
+    def get_image_url(self, obj: Product) -> str | None:
+        return get_product_image_url(obj)
+
+
+class MarketRowSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    row_type = serializers.CharField()
+    layout = serializers.CharField()
+    sort_order = serializers.IntegerField()
+    is_enabled = serializers.BooleanField()
+    zone_key = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    serving_mode = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    items = serializers.SerializerMethodField()
+
+    def get_items(self, obj):
+        row_type = obj.get("row_type") if isinstance(obj, dict) else getattr(obj, "row_type", None)
+        if isinstance(obj, dict):
+            items = obj.get("resolved_items", obj.get("items", []))
+        else:
+            items = getattr(obj, "resolved_items", [])
+        if row_type == "category_collection":
+            return MarketCategoryCardSerializer(items, many=True).data
+        if row_type == "product_collection":
+            return MarketProductCardSerializer(items, many=True).data
+        return MarketCompanyCardSerializer(items, many=True).data
 
 
 class MarketFeedSerializer(serializers.Serializer):
@@ -474,6 +519,10 @@ class CompanyTierSerializer(serializers.ModelSerializer):
             "price",
             "is_free",
             "is_active",
+            "base_weight",
+            "hero_eligible",
+            "premium_floor_share",
+            "cooldown_hours",
             "display_priority",
             "visibility_type",
             "current_company_count",
@@ -497,6 +546,10 @@ class CompanyTierWriteSerializer(serializers.ModelSerializer):
             "price",
             "is_free",
             "is_active",
+            "base_weight",
+            "hero_eligible",
+            "premium_floor_share",
+            "cooldown_hours",
             "display_priority",
             "visibility_type",
         ]
@@ -512,6 +565,196 @@ class MarketRowWriteSerializer(serializers.ModelSerializer):
         if value != MarketRow.RowType.COMPANY_TIER:
             raise serializers.ValidationError("Only company-tier market rows are supported in Phase 1.")
         return value
+
+
+class MarketZoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MarketZone
+        fields = [
+            "id",
+            "key",
+            "title",
+            "description",
+            "layout",
+            "capacity",
+            "sort_order",
+            "is_enabled",
+            "serving_mode",
+            "slot_interval_hours",
+            "cooldown_override_hours",
+        ]
+
+
+class MarketZoneWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MarketZone
+        fields = [
+            "key",
+            "title",
+            "description",
+            "layout",
+            "capacity",
+            "sort_order",
+            "is_enabled",
+            "serving_mode",
+            "slot_interval_hours",
+            "cooldown_override_hours",
+        ]
+
+    def validate(self, attrs):
+        serving_mode = attrs.get("serving_mode", getattr(self.instance, "serving_mode", MarketZone.ServingMode.DORMANT))
+        capacity = attrs.get("capacity", getattr(self.instance, "capacity", 1))
+        slot_interval_hours = attrs.get("slot_interval_hours", getattr(self.instance, "slot_interval_hours", 0))
+
+        if serving_mode == MarketZone.ServingMode.SCHEDULED_HERO:
+            if capacity != 1:
+                raise serializers.ValidationError({"capacity": "Hero zones must have a capacity of 1."})
+            if slot_interval_hours <= 0:
+                raise serializers.ValidationError({"slot_interval_hours": "Hero zones require a positive slot interval."})
+        return attrs
+
+
+class ZoneEligibilityRuleSerializer(serializers.ModelSerializer):
+    zone_id = serializers.IntegerField(source="zone.id", read_only=True)
+    tier_id = serializers.IntegerField(source="tier.id", read_only=True)
+    tier_slug = serializers.CharField(source="tier.slug", read_only=True)
+
+    class Meta:
+        model = ZoneEligibilityRule
+        fields = [
+            "id",
+            "zone_id",
+            "tier_id",
+            "tier_slug",
+            "is_eligible",
+            "is_wildcard",
+            "weight_multiplier",
+            "guaranteed_share",
+        ]
+
+
+class ZoneEligibilityRuleUpdateItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField(min_value=1)
+    is_eligible = serializers.BooleanField(required=False)
+    is_wildcard = serializers.BooleanField(required=False)
+    weight_multiplier = serializers.DecimalField(max_digits=6, decimal_places=2, required=False)
+    guaranteed_share = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+
+    def validate(self, attrs):
+        if len(attrs) == 1:
+            raise serializers.ValidationError("At least one updatable field must be supplied for each rule.")
+        return attrs
+
+
+class ZoneEligibilityRuleBulkUpdateSerializer(serializers.Serializer):
+    rules = ZoneEligibilityRuleUpdateItemSerializer(many=True)
+
+
+class PlacementOverrideSerializer(serializers.ModelSerializer):
+    company_id = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all(), source="company")
+    zone_id = serializers.PrimaryKeyRelatedField(queryset=MarketZone.objects.all(), source="zone")
+
+    class Meta:
+        model = PlacementOverride
+        fields = [
+            "id",
+            "company_id",
+            "zone_id",
+            "action",
+            "starts_at",
+            "ends_at",
+            "priority",
+            "notes",
+            "is_active",
+        ]
+        read_only_fields = ["id"]
+
+    def validate(self, attrs):
+        starts_at = attrs.get("starts_at", getattr(self.instance, "starts_at", None))
+        ends_at = attrs.get("ends_at", getattr(self.instance, "ends_at", None))
+        if starts_at and ends_at and ends_at <= starts_at:
+            raise serializers.ValidationError({"ends_at": "Override end time must be later than the start time."})
+        return attrs
+
+
+class CompanyMarketVisibilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = ["is_market_visible", "admin_priority"]
+
+
+class MarketPreviewSerializer(serializers.Serializer):
+    rows = MarketRowSerializer(many=True)
+    candidate_count = serializers.IntegerField()
+    applied_override_count = serializers.IntegerField()
+    fallback_used = serializers.BooleanField()
+    hero_schedule = serializers.SerializerMethodField()
+
+    def get_hero_schedule(self, obj):
+        items = obj.get("hero_schedule", [])
+        return MarketHeroScheduleEntrySerializer(items, many=True).data
+
+
+class MarketHeroScheduleEntrySerializer(serializers.Serializer):
+    slot_key = serializers.CharField()
+    slot_index = serializers.IntegerField()
+    serves_at = serializers.DateTimeField()
+    zone_key = serializers.CharField()
+    title = serializers.CharField()
+    wildcard_slot = serializers.BooleanField()
+    selection_reason = serializers.CharField(allow_null=True)
+    company = MarketCompanyCardSerializer(allow_null=True)
+
+
+class MarketReportTopCompanySerializer(serializers.Serializer):
+    company_id = serializers.IntegerField()
+    name = serializers.CharField()
+    tier_name = serializers.CharField()
+    total_serves = serializers.IntegerField()
+
+
+class MarketReportZoneSummarySerializer(serializers.Serializer):
+    zone_key = serializers.CharField()
+    title = serializers.CharField()
+    total_serves = serializers.IntegerField()
+    selection_reasons = serializers.DictField(child=serializers.IntegerField())
+    top_companies = MarketReportTopCompanySerializer(many=True)
+
+
+class MarketReportTierSummarySerializer(serializers.Serializer):
+    tier_id = serializers.IntegerField(allow_null=True)
+    tier_slug = serializers.CharField(allow_null=True)
+    tier_name = serializers.CharField(allow_null=True)
+    total_serves = serializers.IntegerField()
+
+
+class MarketReportSummarySerializer(serializers.Serializer):
+    days = serializers.IntegerField()
+    window_start = serializers.DateTimeField()
+    window_end = serializers.DateTimeField()
+    fairness_enabled = serializers.BooleanField()
+    zones = MarketReportZoneSummarySerializer(many=True)
+    tiers = MarketReportTierSummarySerializer(many=True)
+
+
+class MarketUnderServedEntrySerializer(serializers.Serializer):
+    company_id = serializers.IntegerField()
+    company_name = serializers.CharField()
+    tier_id = serializers.IntegerField()
+    tier_name = serializers.CharField()
+    zone_key = serializers.CharField()
+    zone_title = serializers.CharField()
+    actual_serves = serializers.IntegerField()
+    target_serves = serializers.DecimalField(max_digits=10, decimal_places=2)
+    deficit = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+class MarketUnderServedReportSerializer(serializers.Serializer):
+    days = serializers.IntegerField()
+    window_start = serializers.DateTimeField()
+    window_end = serializers.DateTimeField()
+    fairness_enabled = serializers.BooleanField()
+    results = MarketUnderServedEntrySerializer(many=True)
 
 
 class ProductEnquiryWriteSerializer(serializers.Serializer):

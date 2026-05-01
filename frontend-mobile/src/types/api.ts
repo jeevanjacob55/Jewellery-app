@@ -292,21 +292,134 @@ export interface MarketCompanyCard {
   tier_visibility_type: string;
 }
 
-export type MarketRowType = "company_tier" | "featured_product_collection" | "category_collection";
-export type MarketRowLayout = "hero_company" | "grid_company" | "rail_company";
+export interface MarketCategoryCard {
+  id: number;
+  name: string;
+  slug: string;
+  icon_key: string;
+}
 
-export interface MarketRow {
+export interface MarketProductCard {
+  id: number;
+  title: string;
+  image_url: string | null;
+  purity: string;
+  weight_grams: string;
+  company_id: number;
+  company_name: string;
+}
+
+export type MarketRowType = "company_tier" | "category_collection" | "product_collection";
+export type MarketRowLayout = "hero_company" | "grid_company" | "rail_company" | "rail_category" | "grid_product";
+export type MarketServingMode = "scheduled_hero" | "weighted_companies" | "latest_products" | "dormant";
+
+interface MarketRowBase {
   id: number;
   title: string;
   row_type: MarketRowType;
   layout: MarketRowLayout;
   sort_order: number;
   is_enabled: boolean;
+}
+
+export interface MarketCompanyRow extends MarketRowBase {
+  row_type: "company_tier";
+  layout: "hero_company" | "grid_company" | "rail_company";
+  zone_key?: string | null;
+  serving_mode?: MarketServingMode | null;
   items: MarketCompanyCard[];
 }
 
+export interface MarketCategoryRow extends MarketRowBase {
+  row_type: "category_collection";
+  layout: "rail_category";
+  zone_key?: null;
+  serving_mode?: null;
+  items: MarketCategoryCard[];
+}
+
+export interface MarketProductRow extends MarketRowBase {
+  row_type: "product_collection";
+  layout: "grid_product";
+  zone_key?: string | null;
+  serving_mode?: MarketServingMode | null;
+  items: MarketProductCard[];
+}
+
+export type MarketRow = MarketCompanyRow | MarketCategoryRow | MarketProductRow;
+
 export interface MarketFeedData {
   rows: MarketRow[];
+}
+
+export interface AdminMarketHeroScheduleEntry {
+  slot_key: string;
+  slot_index: number;
+  serves_at: string;
+  zone_key: string;
+  title: string;
+  wildcard_slot: boolean;
+  selection_reason: string | null;
+  company: MarketCompanyCard | null;
+}
+
+export interface AdminMarketPreviewResponse {
+  rows: MarketRow[];
+  candidate_count: number;
+  applied_override_count: number;
+  fallback_used: boolean;
+  hero_schedule: AdminMarketHeroScheduleEntry[];
+}
+
+export interface AdminMarketReportTopCompany {
+  company_id: number;
+  name: string;
+  tier_name: string;
+  total_serves: number;
+}
+
+export interface AdminMarketZoneSummary {
+  zone_key: string;
+  title: string;
+  total_serves: number;
+  selection_reasons: Record<string, number>;
+  top_companies: AdminMarketReportTopCompany[];
+}
+
+export interface AdminMarketTierSummary {
+  tier_id: number | null;
+  tier_slug: string | null;
+  tier_name: string | null;
+  total_serves: number;
+}
+
+export interface AdminMarketReportSummaryResponse {
+  days: number;
+  window_start: string;
+  window_end: string;
+  fairness_enabled: boolean;
+  zones: AdminMarketZoneSummary[];
+  tiers: AdminMarketTierSummary[];
+}
+
+export interface AdminMarketUnderServedEntry {
+  company_id: number;
+  company_name: string;
+  tier_id: number;
+  tier_name: string;
+  zone_key: string;
+  zone_title: string;
+  actual_serves: number;
+  target_serves: string;
+  deficit: string;
+}
+
+export interface AdminMarketUnderServedReportResponse {
+  days: number;
+  window_start: string;
+  window_end: string;
+  fairness_enabled: boolean;
+  results: AdminMarketUnderServedEntry[];
 }
 
 export type ProductFilterAttributeType = "select" | "range" | "number";
