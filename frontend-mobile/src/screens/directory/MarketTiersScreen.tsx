@@ -418,13 +418,15 @@ function NewArrivalsSection({
 }
 
 function GeneralDirectorySection({ row, onPressCompany }: { row: MarketRow; onPressCompany: CompanyPressHandler }) {
+  const navigation = useNavigation<any>();
+
   if (row.row_type !== "company_tier" || !row.items.length) {
     return null;
   }
 
   return (
     <View style={styles.section}>
-      <SectionHeader title="General Directory" />
+      <SectionHeader title="General Directory" actionLabel="View All" onPressAction={() => navigation.navigate("ProductSearch")} />
       <View style={styles.gridWrap}>
         {row.items.map((company) => (
           <GridCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company, row)} />
