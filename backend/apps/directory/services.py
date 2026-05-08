@@ -11,7 +11,8 @@ from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
 
-from apps.accounts.models import UserRole
+from apps.accounts.models import MemberProfile, UserRole
+from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 from .models import Company, CompanyTier, ExposureLedger, MarketZone, PlacementOverride, Product, ProductCategory, ZoneEligibilityRule
 
@@ -40,16 +41,85 @@ ZERO_DECIMAL = Decimal("0")
 HUNDRED_DECIMAL = Decimal("100")
 
 
+def _company_names_for_member_profiles(queryset) -> list[str]:
+    return list(
+        queryset.exclude(company_name="")
+        .values_list("company_name", flat=True)
+        .distinct()
+    )
+
+
+def get_admin_manageable_company_queryset(user):
+    if not user or not user.is_authenticated:
+        return Company.objects.none()
+    if getattr(user, "is_super_admin_user", False):
+        return Company.objects.all()
+
+    state_role = user.scoped_roles.filter(
+        role=UserRole.Role.STATE_ADMIN,
+        scope_type=UserRole.ScopeType.STATE,
+    ).order_by("id").first()
+    if state_role and state_role.scope_id:
+        state = RegionState.objects.filter(pk=state_role.scope_id).first()
+        if state is not None:
+            return Company.objects.filter(state__iexact=state.name)
+
+    association_role = user.scoped_roles.filter(
+        role=UserRole.Role.ASSOCIATION_ADMIN,
+        scope_type=UserRole.ScopeType.ASSOCIATION,
+    ).order_by("id").first()
+    if association_role and association_role.scope_id:
+        association = Association.objects.filter(pk=association_role.scope_id).first()
+        if association is not None:
+            company_names = _company_names_for_member_profiles(
+                MemberProfile.objects.filter(association=association)
+            )
+            return Company.objects.filter(name__in=company_names)
+
+    district_role = user.scoped_roles.filter(
+        role=UserRole.Role.DISTRICT_ADMIN,
+        scope_type=UserRole.ScopeType.DISTRICT_OPERATIONAL_UNIT,
+    ).order_by("id").first()
+    if district_role and district_role.scope_id:
+        district_operational_unit = DistrictOperationalUnit.objects.filter(pk=district_role.scope_id).first()
+        if district_operational_unit is not None:
+            company_names = _company_names_for_member_profiles(
+                MemberProfile.objects.filter(district_operational_unit=district_operational_unit)
+            )
+            return Company.objects.filter(name__in=company_names)
+
+    unit_role = user.scoped_roles.filter(
+        role=UserRole.Role.UNIT_ADMIN,
+        scope_type=UserRole.ScopeType.UNIT,
+    ).order_by("id").first()
+    if unit_role and unit_role.scope_id:
+        unit = Unit.objects.filter(pk=unit_role.scope_id).first()
+        if unit is not None:
+            company_names = _company_names_for_member_profiles(MemberProfile.objects.filter(unit=unit))
+            return Company.objects.filter(name__in=company_names)
+
+    return Company.objects.none()
+
+
+def get_manageable_company_queryset(user):
+    admin_queryset = get_admin_manageable_company_queryset(user)
+    if admin_queryset.exists():
+        return admin_queryset
+    if not user or not user.is_authenticated:
+        return Company.objects.none()
+    company_role = user.scoped_roles.filter(
+        role=UserRole.Role.COMPANY_ADMIN,
+        scope_type=UserRole.ScopeType.COMPANY,
+    ).order_by("id").first()
+    if company_role and company_role.scope_id:
+        return Company.objects.filter(pk=company_role.scope_id)
+    return Company.objects.none()
+
+
 def user_can_manage_company(user, company_id: int) -> bool:
     if not user or not user.is_authenticated:
         return False
-    if getattr(user, "is_super_admin_user", False):
-        return True
-    return user.has_scoped_role(
-        UserRole.Role.COMPANY_ADMIN,
-        scope_type=UserRole.ScopeType.COMPANY,
-        scope_id=company_id,
-    )
+    return get_manageable_company_queryset(user).filter(pk=company_id).exists()
 
 
 def get_company_active_product_count(company: Company, *, exclude_product_id: int | None = None) -> int:

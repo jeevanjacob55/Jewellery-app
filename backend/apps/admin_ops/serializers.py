@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.directory.serializers import AdminCompanyProfileListItemSerializer
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 from apps.regions.serializers import AssociationSerializer, DistrictOperationalUnitSerializer, RegionStateSerializer, UnitSerializer
 
@@ -112,6 +113,10 @@ class AdminOverviewResponseSerializer(serializers.Serializer):
     pending_work = AdminOverviewWorkItemSerializer(many=True)
     recent_activity = AdminOverviewActivityItemSerializer(many=True)
     quick_actions = AdminOverviewQuickActionSerializer(many=True)
+
+
+class AdminCompanyProfilesResponseSerializer(serializers.Serializer):
+    companies = AdminCompanyProfileListItemSerializer(many=True)
 
 
 def build_bulk_create_result(*, names: list[str], existing_lookup: dict[str, object], create_callback) -> dict[str, object]:

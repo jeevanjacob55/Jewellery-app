@@ -30,6 +30,9 @@ All seeded demo users share the same password:
 | `demo_akgsma_member` | `member` | Rahul Nambiar | `akgsma-member@demo-jewellery.app` | AKGSMA member. Corporate email `member@malabargoldline.example`, jeweller ID `JWL-DEMO-2001` |
 | `demo_tnja_member` | `member` | Priya Sundar | `tnja-member@demo-jewellery.app` | Tamil Nadu Jewellers Association member. Corporate email `member@chennaitrade.example`, jeweller ID `JWL-DEMO-3001` |
 | `demo_kgta_member` | `member` | Aditya Rao | `kgta-member@demo-jewellery.app` | Karnataka Gold Traders Association member. Corporate email `member@bengalurubullion.example`, jeweller ID `JWL-DEMO-4001` |
+| `demo_heritage_company_admin` | `company_admin` | Harini Menon | `heritage-company-admin@demo-jewellery.app` | Scoped to `Heritage Gold House` for company-admin verification |
+| `demo_coastal_company_admin` | `company_admin` | Arjun Paul | `coastal-company-admin@demo-jewellery.app` | Scoped to `Coastal Bullion Works` for company-admin verification |
+| `demo_metro_company_admin` | `company_admin` | Divya Sundar | `metro-company-admin@demo-jewellery.app` | Scoped to `Metro Diamond Studio` for company-admin verification |
 | `demo_supplier` | `supplier` | Rohit Varma | `supplier@demo-jewellery.app` | Verified member, onboarding complete |
 | `demo_advertiser` | `advertiser` | Leena Joseph | `advertiser@demo-jewellery.app` | Verified member, onboarding complete |
 

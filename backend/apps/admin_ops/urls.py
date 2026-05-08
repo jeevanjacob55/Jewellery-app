@@ -20,6 +20,7 @@ from apps.directory.views import (
 )
 
 from .views import (
+    AdminCompanyProfilesView,
     AdminOverviewView,
     AssociationCreateView,
     DistrictUnitBulkCreateView,
@@ -29,6 +30,7 @@ from .views import (
 
 urlpatterns = [
     path("", AdminOverviewView.as_view(), name="admin_overview"),
+    path("company-profiles/", AdminCompanyProfilesView.as_view(), name="admin_company_profiles"),
     path("hierarchy/", HierarchyManagementView.as_view(), name="admin_hierarchy"),
     path("directory/tiers/", AdminCompanyTierListCreateView.as_view(), name="admin_directory_tier_list_create"),
     path("directory/tiers/<int:tier_id>/", AdminCompanyTierDetailView.as_view(), name="admin_directory_tier_detail"),

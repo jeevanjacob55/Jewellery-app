@@ -332,6 +332,32 @@ class CompanyManagementDetailSerializer(serializers.Serializer):
     products = CompanyManagementProductSerializer(many=True)
 
 
+class AdminCompanyProfileListItemSerializer(serializers.ModelSerializer):
+    tier_name = serializers.CharField(source="tier_ref.name", read_only=True)
+    product_count = serializers.SerializerMethodField()
+    logo_image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Company
+        fields = [
+            "id",
+            "name",
+            "city",
+            "state",
+            "tier_name",
+            "is_approved",
+            "is_market_visible",
+            "product_count",
+            "logo_image_url",
+        ]
+
+    def get_product_count(self, obj: Company) -> int:
+        return obj.products.count()
+
+    def get_logo_image_url(self, obj: Company) -> str | None:
+        return get_company_image_url(obj, is_logo=True)
+
+
 class CompanyManagementUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company

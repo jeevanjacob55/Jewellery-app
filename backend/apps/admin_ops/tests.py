@@ -39,7 +39,7 @@ class AdminOverviewTests(APITestCase):
             scope_type=UserRole.ScopeType.ASSOCIATION,
             scope_id=self.association.id,
         )
-        UserRole.objects.create(
+        self.company_role = UserRole.objects.create(
             user=self.company_admin,
             role=UserRole.Role.COMPANY_ADMIN,
             scope_type=UserRole.ScopeType.COMPANY,
@@ -77,6 +77,8 @@ class AdminOverviewTests(APITestCase):
             is_active=True,
             is_approved=True,
         )
+        self.company_role.scope_id = self.company.id
+        self.company_role.save(update_fields=["scope_id"])
         Product.objects.create(
             company=self.company,
             category=self.category,
@@ -278,6 +280,23 @@ class AdminOverviewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["pending_work"], [])
         self.assertEqual(response.data["recent_activity"], [])
+
+    def test_association_admin_company_profiles_list_is_scope_aware(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.get(reverse("admin_company_profiles"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["companies"]), 1)
+        self.assertEqual(response.data["companies"][0]["name"], "Heritage Gold House")
+        self.assertEqual(response.data["companies"][0]["product_count"], 1)
+
+    def test_company_admin_cannot_access_admin_company_profiles_list(self):
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.get(reverse("admin_company_profiles"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class HierarchyManagementApiTests(APITestCase):

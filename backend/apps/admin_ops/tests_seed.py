@@ -52,7 +52,7 @@ class SeedDemoDataCommandTests(APITestCase):
 
         self.assertFalse(Company.objects.filter(name="Temporary Local Entry").exists())
         self.assertTrue(Company.objects.filter(name="Heritage Gold House").exists())
-        self.assertEqual(get_user_model().objects.filter(username__startswith="demo_").count(), 15)
+        self.assertEqual(get_user_model().objects.filter(username__startswith="demo_").count(), 18)
         self.assertEqual(CompanyTier.objects.filter(slug__in=["prime-signature", "prime-classic", "prime-premier", "prime-elite", "prime-circle", "prime-unique"]).count(), 6)
         self.assertEqual(MarketZone.objects.filter(key__in=["hero_spotlight", "featured_companies", "rising_companies", "latest_products"]).count(), 4)
 

@@ -47,6 +47,9 @@ DEMO_USERNAMES = [
     "demo_akgsma_member",
     "demo_tnja_member",
     "demo_kgta_member",
+    "demo_heritage_company_admin",
+    "demo_coastal_company_admin",
+    "demo_metro_company_admin",
     "demo_supplier",
     "demo_advertiser",
 ]
@@ -161,6 +164,7 @@ def seed_demo_data(reset: bool = False) -> dict[str, object]:
         hierarchy = _seed_regions()
         users = _seed_users(hierarchy)
         _seed_directory(users)
+        _seed_company_admin_users(users, hierarchy)
         _seed_rates()
         _seed_services()
         _seed_news()
@@ -337,6 +341,45 @@ def _seed_users(hierarchy: dict[str, dict[str, object]]) -> dict[str, object]:
                 "last_name": "Rao",
                 "role": user_model.Role.MEMBER,
                 "jeweller_id": "JWL-DEMO-4001",
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "heritage_company_admin",
+            "lookup": {"username": "demo_heritage_company_admin"},
+            "defaults": {
+                "email": "heritage-company-admin@demo-jewellery.app",
+                "corporate_email": "admin@heritagegold.example",
+                "first_name": "Harini",
+                "last_name": "Menon",
+                "role": user_model.Role.MEMBER,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "coastal_company_admin",
+            "lookup": {"username": "demo_coastal_company_admin"},
+            "defaults": {
+                "email": "coastal-company-admin@demo-jewellery.app",
+                "corporate_email": "admin@coastalbullion.example",
+                "first_name": "Arjun",
+                "last_name": "Paul",
+                "role": user_model.Role.MEMBER,
+                "is_verified_member": True,
+                "onboarding_completed": True,
+            },
+        },
+        {
+            "key": "metro_company_admin",
+            "lookup": {"username": "demo_metro_company_admin"},
+            "defaults": {
+                "email": "metro-company-admin@demo-jewellery.app",
+                "corporate_email": "admin@metrodiamond.example",
+                "first_name": "Divya",
+                "last_name": "Sundar",
+                "role": user_model.Role.MEMBER,
                 "is_verified_member": True,
                 "onboarding_completed": True,
             },
@@ -1202,6 +1245,79 @@ def _seed_directory(users: dict[str, object]) -> None:
             public_url=_build_logo_url(company.name),
         )
         _upsert(CompanyImage, {"company": company, "is_logo": True}, {"asset": logo_asset})
+
+
+def _seed_company_admin_users(users: dict[str, object], hierarchy: dict[str, dict[str, object]]) -> None:
+    company_admin_specs = [
+        {
+            "user_key": "heritage_company_admin",
+            "company_name": "Heritage Gold House",
+            "phone_number": "9001001001",
+            "state": hierarchy["states"]["Kerala"],
+            "association": hierarchy["associations"]["KGSMA"],
+            "district_operational_unit": hierarchy["district_units"]["Ernakulam District Unit"],
+            "unit": hierarchy["units"]["Kadavanthra Unit"],
+            "membership_tier": "Platinum",
+        },
+        {
+            "user_key": "coastal_company_admin",
+            "company_name": "Coastal Bullion Works",
+            "phone_number": "9001001002",
+            "state": hierarchy["states"]["Kerala"],
+            "association": hierarchy["associations"]["KGSMA"],
+            "district_operational_unit": hierarchy["district_units"]["Ernakulam District Unit"],
+            "unit": hierarchy["units"]["Kadavanthra Unit"],
+            "membership_tier": "Gold",
+        },
+        {
+            "user_key": "metro_company_admin",
+            "company_name": "Metro Diamond Studio",
+            "phone_number": "9001001003",
+            "state": hierarchy["states"]["Tamil Nadu"],
+            "association": hierarchy["associations"]["Tamil Nadu Jewellers Association"],
+            "district_operational_unit": hierarchy["district_units"]["Chennai District Unit"],
+            "unit": hierarchy["units"]["T Nagar Unit"],
+            "membership_tier": "Gold",
+        },
+    ]
+
+    for spec in company_admin_specs:
+        user = users[spec["user_key"]]
+        company = Company.objects.filter(name=spec["company_name"]).order_by("id").first()
+        if company is None:
+            continue
+
+        _upsert(
+            MemberProfile,
+            {"user": user},
+            {
+                "phone_number": spec["phone_number"],
+                "company_name": company.name,
+                "state": spec["state"],
+                "association": spec["association"],
+                "district_operational_unit": spec["district_operational_unit"],
+                "unit": spec["unit"],
+                "membership_tier": spec["membership_tier"],
+            },
+        )
+        _upsert(
+            NotificationPreference,
+            {"user": user},
+            {
+                "rate_alerts": True,
+                "news_alerts": True,
+                "ad_alerts": False,
+                "meeting_alerts": True,
+            },
+        )
+        _upsert(
+            UserRole,
+            {"user": user, "role": UserRole.Role.COMPANY_ADMIN},
+            {
+                "scope_type": UserRole.ScopeType.COMPANY,
+                "scope_id": company.id,
+            },
+        )
 
 
 def _seed_rates() -> None:

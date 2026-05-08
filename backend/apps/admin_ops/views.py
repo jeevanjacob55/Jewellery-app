@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import MemberAccessRequest, UserRole
 from apps.ads.models import Advertisement
 from apps.directory.models import Company, Product
+from apps.directory.services import get_admin_manageable_company_queryset
 from apps.news.models import Meeting, News
 from apps.news.services import can_user_review_news
 from apps.rates.models import AssociationRate
@@ -19,6 +20,7 @@ from apps.regions.models import Association, DistrictOperationalUnit, RegionStat
 from .models import AuditLog
 from .permissions import HasAdminAccess, IsSuperAdmin
 from .serializers import (
+    AdminCompanyProfilesResponseSerializer,
     AdminOverviewResponseSerializer,
     AssociationCreateSerializer,
     DistrictUnitBulkCreateSerializer,
@@ -401,6 +403,23 @@ class AdminOverviewView(APIView):
     def get(self, request):
         payload = build_admin_overview_payload(request.user)
         return Response(AdminOverviewResponseSerializer(payload).data)
+
+
+class AdminCompanyProfilesView(APIView):
+    permission_classes = [HasAdminAccess]
+
+    def get(self, request):
+        _resolve_admin_scope(request.user)
+        queryset = (
+            get_admin_manageable_company_queryset(request.user)
+            .select_related("verification", "tier_ref")
+            .prefetch_related("products", "images__asset")
+            .order_by("name", "id")
+        )
+        payload = {
+            "companies": list(queryset),
+        }
+        return Response(AdminCompanyProfilesResponseSerializer(payload).data)
 
 
 class HierarchyManagementView(APIView):

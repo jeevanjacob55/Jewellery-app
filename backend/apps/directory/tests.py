@@ -8,7 +8,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.accounts.models import UserRole
+from apps.accounts.models import MemberProfile, UserRole
+from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 from .models import (
     Company,
@@ -37,12 +38,21 @@ class DirectoryApiTests(APITestCase):
         user_model = get_user_model()
         self.user = user_model.objects.create_user(username="media_owner", password="DemoPass123!")
         self.company_admin = user_model.objects.create_user(username="company_admin", password="DemoPass123!")
+        self.association_admin = user_model.objects.create_user(username="association_admin", password="DemoPass123!")
         self.super_admin = user_model.objects.create_user(
             username="super_admin",
             password="DemoPass123!",
             role=user_model.Role.SUPER_ADMIN,
             is_staff=True,
         )
+        self.kerala = RegionState.objects.create(name="Kerala")
+        self.tamil_nadu = RegionState.objects.create(name="Tamil Nadu")
+        self.kgsma = Association.objects.create(state=self.kerala, name="KGSMA")
+        self.tnja = Association.objects.create(state=self.tamil_nadu, name="TNJA")
+        self.ernakulam = DistrictOperationalUnit.objects.create(association=self.kgsma, name="Ernakulam District Unit")
+        self.chennai_district = DistrictOperationalUnit.objects.create(association=self.tnja, name="Chennai District Unit")
+        self.kadavanthra = Unit.objects.create(district_operational_unit=self.ernakulam, name="Kadavanthra Unit")
+        self.t_nagar = Unit.objects.create(district_operational_unit=self.chennai_district, name="T Nagar Unit")
         UserRole.objects.create(
             user=self.super_admin,
             role=UserRole.Role.SUPER_ADMIN,
@@ -92,6 +102,20 @@ class DirectoryApiTests(APITestCase):
             role=UserRole.Role.COMPANY_ADMIN,
             scope_type=UserRole.ScopeType.COMPANY,
             scope_id=self.company.id,
+        )
+        UserRole.objects.create(
+            user=self.association_admin,
+            role=UserRole.Role.ASSOCIATION_ADMIN,
+            scope_type=UserRole.ScopeType.ASSOCIATION,
+            scope_id=self.kgsma.id,
+        )
+        MemberProfile.objects.create(
+            user=self.user,
+            company_name=self.company.name,
+            state=self.kerala,
+            association=self.kgsma,
+            district_operational_unit=self.ernakulam,
+            unit=self.kadavanthra,
         )
         CompanyVerification.objects.create(
             company=self.company,
@@ -313,6 +337,54 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(self.company.about, "Updated profile copy for wholesale buyers.")
         self.assertEqual(self.company.specialization, "Bridal jewellery")
         self.assertEqual(self.company.daily_capacity, "18kg")
+
+    def test_association_admin_can_get_company_management_detail_for_company_in_scope(self):
+        self.client.force_authenticate(user=self.association_admin)
+
+        response = self.client.get(reverse("company_manage_detail", args=[self.company.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["company"]["name"], self.company.name)
+
+    def test_association_admin_cannot_get_company_management_detail_for_company_out_of_scope(self):
+        other_company = self._create_company_with_product(
+            name="Chennai Crown Jewels",
+            tier=self.pro_tier,
+            category_name="Rings",
+            product_name="Chennai Crown Ring",
+            product_public_url="https://example.com/chennai-product.jpg",
+            company_public_url="https://example.com/chennai-company.jpg",
+        )
+        MemberProfile.objects.create(
+            user=get_user_model().objects.create_user(username="tnja_member", password="DemoPass123!"),
+            company_name=other_company.name,
+            state=self.tamil_nadu,
+            association=self.tnja,
+            district_operational_unit=self.chennai_district,
+            unit=self.t_nagar,
+        )
+        self.client.force_authenticate(user=self.association_admin)
+
+        response = self.client.get(reverse("company_manage_detail", args=[other_company.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_association_admin_can_patch_company_management_fields_for_company_in_scope(self):
+        self.client.force_authenticate(user=self.association_admin)
+
+        response = self.client.patch(
+            reverse("company_manage_detail", args=[self.company.id]),
+            {
+                "about": "Admin updated profile copy.",
+                "daily_capacity": "20kg",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.about, "Admin updated profile copy.")
+        self.assertEqual(self.company.daily_capacity, "20kg")
 
     def test_company_admin_can_finalize_media_asset_and_replace_logo(self):
         self.client.force_authenticate(user=self.company_admin)
