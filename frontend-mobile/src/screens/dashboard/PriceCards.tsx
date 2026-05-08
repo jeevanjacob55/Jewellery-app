@@ -46,6 +46,7 @@ type AssociationCompactCardProps = {
 type AssociationStateCardProps = {
   association: StateAssociationRates;
   onPress: () => void;
+  badgeLabel?: string;
 };
 
 type RateDetailsHeroCardProps = {
@@ -139,13 +140,15 @@ export function AssociationCompactCard({ association, onPress }: AssociationComp
   );
 }
 
-export function AssociationStateCard({ association, onPress }: AssociationStateCardProps) {
+export function AssociationStateCard({ association, onPress, badgeLabel = "Live Rates" }: AssociationStateCardProps) {
   return (
     <Pressable style={styles.stateCard} onPress={onPress}>
       <View>
         <View style={styles.stateCardHeader}>
           <Text style={styles.stateCardTitle}>{association.name}</Text>
-          <Text style={styles.stateBadge}>Latest Rates</Text>
+          <View style={styles.stateBadgePill}>
+            <Text style={styles.stateBadge}>{badgeLabel}</Text>
+          </View>
         </View>
         <View style={styles.stateMetricsRow}>
           <StateMetricBlock label="GOLD 22K" metric={association.headline_rates.gold_22k} />
@@ -318,7 +321,7 @@ function StateMetricBlock({ label, metric }: { label: string; metric: DashboardR
     <View style={styles.stateMetricBlock}>
       <Text style={styles.stateMetricLabel}>{label}</Text>
       <View style={styles.stateMetricValueRow}>
-        <Text style={styles.stateMetricValue}>{formatCompactCurrency(metric.value)}</Text>
+        <Text style={styles.stateMetricValue}>{`Rs. ${formatCompactCurrency(metric.value)}`}</Text>
         <MaterialIcons
           name={metric.trend === "up" ? "arrow-drop-up" : metric.trend === "down" ? "arrow-drop-down" : "remove"}
           size={18}
@@ -389,7 +392,7 @@ const styles = StyleSheet.create({
     height: 48,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#EEF2F6",
     borderRadius: radii.md,
     paddingLeft: 48,
     paddingRight: 16,
@@ -403,6 +406,7 @@ const styles = StyleSheet.create({
   },
   tabsContent: {
     paddingBottom: spacing.sm,
+    paddingRight: spacing.lg,
     gap: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
@@ -414,8 +418,7 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
     fontSize: 12,
     fontWeight: "700",
-    letterSpacing: 0.9,
-    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   tabLabelActive: {
     color: "#D97706",
@@ -434,10 +437,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: "transparent",
+    borderColor: "rgba(229, 226, 225, 0.4)",
     shadowColor: "#000000",
     shadowOpacity: 0.05,
-    shadowRadius: 14,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
     gap: spacing.md,
@@ -452,6 +455,7 @@ const styles = StyleSheet.create({
   compactTitle: {
     color: colors.text,
     fontSize: 18,
+    lineHeight: 25,
     fontWeight: "600",
   },
   compactMetaRow: {
@@ -470,7 +474,7 @@ const styles = StyleSheet.create({
   },
   compactMetaText: {
     color: "#747878",
-    fontSize: 13,
+    fontSize: 14,
   },
   dot: {
     width: 4,
@@ -482,7 +486,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   metricRow: {
-    minHeight: 28,
+    minHeight: 30,
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 4,
@@ -503,13 +507,14 @@ const styles = StyleSheet.create({
   metricLabel: {
     flex: 1.2,
     color: colors.text,
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 21,
   },
   metricValue: {
     flex: 0.9,
     color: colors.text,
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "500",
     textAlign: "right",
   },
   metricTrendCell: {
@@ -536,11 +541,13 @@ const styles = StyleSheet.create({
   },
   stateCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: "rgba(241, 245, 249, 0.9)",
     shadowColor: "#000000",
     shadowOpacity: 0.05,
-    shadowRadius: 14,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
     gap: spacing.lg,
@@ -548,8 +555,9 @@ const styles = StyleSheet.create({
   stateCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
+    alignItems: "flex-start",
     gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   stateCardTitle: {
     flex: 1,
@@ -558,11 +566,17 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     fontWeight: "600",
   },
+  stateBadgePill: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   stateBadge: {
-    color: "#94A3B8",
-    fontSize: 12,
+    color: "#64748B",
+    fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 0.9,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   stateMetricsRow: {

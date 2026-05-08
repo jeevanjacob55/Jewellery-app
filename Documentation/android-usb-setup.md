@@ -62,7 +62,9 @@ EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api
 Notes:
 
 - `10.0.2.2` is for the Android emulator, not a physical phone.
+- `10.0.3.2` is the Genymotion host alias, not a physical phone.
 - If you change `.env`, restart Expo and rebuild the app.
+- `frontend-mobile/.env.example` includes the AVD, Genymotion, and USB variants.
 
 ## 5. Start the backend
 
@@ -94,13 +96,27 @@ adb devices
 adb -s <device-serial> reverse tcp:8000 tcp:8000
 ```
 
+Repo shortcut:
+
+```powershell
+cd frontend-mobile
+npm.cmd run usb:prepare
+```
+
+This helper script:
+
+- checks that `adb` is available
+- checks that an authorized device is connected
+- applies `adb reverse tcp:8000 tcp:8000`
+- reminds you to use `http://127.0.0.1:8000/api` in `frontend-mobile/.env`
+
 ## 7. Build and run the Android app
 
 In a third terminal:
 
 ```powershell
 cd frontend-mobile
-npm run android -- --device
+npm.cmd run android:device
 ```
 
 What to expect:
@@ -158,5 +174,5 @@ adb reverse --remove tcp:8000
 ```powershell
 cd frontend-mobile
 npx expo start --clear
-npm run android -- --device
+npm.cmd run android:device
 ```

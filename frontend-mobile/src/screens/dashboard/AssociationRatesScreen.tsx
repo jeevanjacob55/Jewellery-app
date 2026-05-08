@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 import { getAssociationRates } from "../../api/rates";
@@ -13,6 +13,7 @@ import { AssociationCompactCard, LoadingSkeleton, PriceScreenHeader, PriceSearch
 export function AssociationRatesScreen() {
   const navigation = useNavigation<any>();
   const { status } = useSession();
+  const { width } = useWindowDimensions();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,15 @@ export function AssociationRatesScreen() {
     return associations.filter((association) => association.name.toLowerCase().includes(normalizedQuery));
   }, [dashboard?.other_associations, query]);
 
+  const associationColumns = width >= 1080 ? 3 : width >= 760 ? 2 : 1;
+  const associationCardWidth = useMemo(() => {
+    const horizontalPadding = spacing.lg * 2;
+    const availableWidth = Math.max(width - horizontalPadding, 0);
+    return associationColumns === 1
+      ? availableWidth
+      : (availableWidth - spacing.md * (associationColumns - 1)) / associationColumns;
+  }, [associationColumns, width]);
+
   return (
     <AppScreen safeAreaEdges={["top", "bottom"]} backgroundColor={colors.background}>
       <PriceScreenHeader
@@ -79,20 +89,23 @@ export function AssociationRatesScreen() {
           <PriceSearchBar value={query} onChangeText={setQuery} placeholder="Search association name..." />
 
           {filteredAssociations.length ? (
-            <View style={styles.cardList}>
+            <View style={styles.cardGrid}>
               {filteredAssociations.map((association) => (
-                <AssociationCompactCard
-                  key={association.id}
-                  association={association}
-                  onPress={() =>
-                    navigation.navigate("RateDetails", {
-                      associationId: association.id,
-                      associationName: association.name,
-                    })
-                  }
-                />
+                <View key={association.id} style={[styles.cardSlot, { width: associationCardWidth }]}>
+                  <AssociationCompactCard
+                    association={association}
+                    onPress={() =>
+                      navigation.navigate("RateDetails", {
+                        associationId: association.id,
+                        associationName: association.name,
+                      })
+                    }
+                  />
+                </View>
               ))}
-              <PromoBanner />
+              <View style={[styles.cardSlot, { width: associationCardWidth }]}>
+                <PromoBanner />
+              </View>
             </View>
           ) : (
             <View style={styles.emptyState}>
@@ -123,9 +136,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 25,
   },
-  cardList: {
+  cardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
     marginTop: spacing.lg,
+  },
+  cardSlot: {
+    maxWidth: "100%",
   },
   emptyState: {
     marginTop: spacing.xl,

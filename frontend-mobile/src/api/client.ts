@@ -1,6 +1,9 @@
 import { AuthTokens } from "../types/api";
 
 const DEFAULT_API_BASE_URL = "http://10.0.2.2:8000/api";
+const REQUEST_TIMEOUT_MS = 10000;
+const NETWORK_ERROR_MESSAGE =
+  "Unable to reach the backend. Check EXPO_PUBLIC_API_BASE_URL and confirm your phone can access your computer.";
 
 type ApiClientConfig = {
   getTokens?: () => AuthTokens | null;
@@ -11,6 +14,25 @@ type ApiClientConfig = {
 let config: ApiClientConfig = {};
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+
+async function fetchWithTimeout(input: string, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(NETWORK_ERROR_MESSAGE);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 function resolveUrl(pathOrUrl: string): string {
   try {
@@ -39,7 +61,7 @@ type RequestOptions = {
 };
 
 async function refreshAccessToken(refresh: string): Promise<AuthTokens | null> {
-  const response = await fetch(`${API_BASE_URL}/auth/refresh/`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/refresh/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh }),
@@ -63,11 +85,20 @@ async function requestJson<T>(path: string, options: RequestOptions = {}): Promi
     headers.Authorization = `Bearer ${tokens.access}`;
   }
 
-  const response = await fetch(resolveUrl(`${API_BASE_URL}${path}`), {
-    method: options.method ?? "GET",
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response;
+
+  try {
+    response = await fetchWithTimeout(resolveUrl(`${API_BASE_URL}${path}`), {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(NETWORK_ERROR_MESSAGE);
+  }
 
   if (response.status === 401 && options.authenticated && !options.retrying && tokens?.refresh) {
     const refreshedTokens = await refreshAccessToken(tokens.refresh);
@@ -115,7 +146,7 @@ export function patchJson<T>(path: string, body: unknown, authenticated = false)
 }
 
 export async function uploadBinary(uploadUrl: string, body: Blob, mimeType: string): Promise<void> {
-  const response = await fetch(resolveUrl(uploadUrl), {
+  const response = await fetchWithTimeout(resolveUrl(uploadUrl), {
     method: "PUT",
     headers: {
       "Content-Type": mimeType,

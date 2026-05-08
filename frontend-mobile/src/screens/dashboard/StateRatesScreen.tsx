@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 import { getStateRates } from "../../api/rates";
@@ -13,6 +13,7 @@ import { AssociationStateCard, LoadingSkeleton, PriceScreenHeader, PriceSearchBa
 export function StateRatesScreen() {
   const navigation = useNavigation<any>();
   const { guestSession, me } = useSession();
+  const { width } = useWindowDimensions();
   const [stateRates, setStateRates] = useState<StateRatesData | null>(null);
   const [query, setQuery] = useState("");
   const [selectedStateId, setSelectedStateId] = useState<number | null>(null);
@@ -95,6 +96,13 @@ export function StateRatesScreen() {
     return filteredStates.find((state) => state.id === selectedStateId) ?? filteredStates[0] ?? null;
   }, [filteredStates, selectedStateId]);
 
+  const stateCardColumns = width >= 900 ? 2 : 1;
+  const stateCardWidth = useMemo(() => {
+    const horizontalPadding = spacing.lg * 2;
+    const availableWidth = Math.max(width - horizontalPadding, 0);
+    return stateCardColumns === 1 ? availableWidth : (availableWidth - spacing.lg) / stateCardColumns;
+  }, [stateCardColumns, width]);
+
   return (
     <AppScreen safeAreaEdges={["top", "bottom"]} backgroundColor={colors.background}>
       <PriceScreenHeader
@@ -135,19 +143,20 @@ export function StateRatesScreen() {
                     <Text style={styles.stateSectionBadge}>Latest Rates</Text>
                   </View>
 
-                  <View style={styles.cardList}>
+                  <View style={styles.cardGrid}>
                     {selectedState.associations.length ? (
                       selectedState.associations.map((association) => (
-                        <AssociationStateCard
-                          key={association.id}
-                          association={association}
-                          onPress={() =>
-                            navigation.navigate("RateDetails", {
-                              associationId: association.id,
-                              associationName: association.name,
-                            })
-                          }
-                        />
+                        <View key={association.id} style={[styles.cardSlot, { width: stateCardWidth }]}>
+                          <AssociationStateCard
+                            association={association}
+                            onPress={() =>
+                              navigation.navigate("RateDetails", {
+                                associationId: association.id,
+                                associationName: association.name,
+                              })
+                            }
+                          />
+                        </View>
                       ))
                     ) : (
                       <View style={styles.emptyState}>
@@ -190,9 +199,11 @@ const styles = StyleSheet.create({
   },
   tabsWrap: {
     marginTop: spacing.lg,
+    marginHorizontal: -spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
   stateHeaderRow: {
-    marginTop: spacing.lg,
+    marginTop: spacing.xl,
     marginBottom: spacing.lg,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -203,6 +214,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 24,
+    lineHeight: 31,
     fontWeight: "600",
   },
   stateSectionBadge: {
@@ -212,8 +224,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  cardList: {
-    gap: spacing.md,
+  cardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.lg,
+  },
+  cardSlot: {
+    maxWidth: "100%",
   },
   emptyState: {
     marginTop: spacing.xl,

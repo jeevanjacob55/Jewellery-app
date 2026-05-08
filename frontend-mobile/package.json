@@ -4,10 +4,15 @@
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
-    "start": "expo start",
+    "start": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-expo-lan.ps1",
+    "start:clear": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-expo-lan.ps1 -Clear",
+    "start:tunnel": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-expo-tunnel.ps1 -Clear",
+    "start:dev-client": "expo start --dev-client --lan",
     "android": "expo run:android",
+    "android:device": "expo run:android --device",
     "lint": "tsc --noEmit",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "usb:prepare": "powershell -ExecutionPolicy Bypass -File .\\scripts\\android-usb-prepare.ps1"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
@@ -16,6 +21,8 @@
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
     "expo": "^51.0.28",
+    "expo-dev-client": "~4.0.29",
+    "expo-font": "~12.0.10",
     "expo-image-picker": "~15.0.7",
     "expo-status-bar": "^1.12.1",
     "react": "18.2.0",
