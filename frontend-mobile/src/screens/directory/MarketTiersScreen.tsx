@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  FlatList,
   Image,
   ImageBackground,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,6 +25,7 @@ const SECTION_GOLD = "#775A19";
 const SECTION_MUTED = "#7E7576";
 const SECTION_BORDER = "#CFC4C5";
 const SECTION_CIRCLE = "#EFEDED";
+const FEATURED_AUTO_SCROLL_MS = 4500;
 
 function SkeletonBlock({ height, width = "100%", rounded = radii.md }: { height: number; width?: number | `${number}%`; rounded?: number }) {
   return <View style={[styles.skeletonBlock, { height, width, borderRadius: rounded }]} />;
@@ -39,8 +44,8 @@ function MarketSkeleton() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
           {[0, 1, 2, 3].map((item) => (
             <View key={`category-skeleton-${item}`} style={styles.categorySkeletonItem}>
-              <SkeletonBlock height={64} width={64} rounded={32} />
-              <SkeletonBlock height={14} width={56} />
+              <SkeletonBlock height={50} width={50} rounded={25} />
+              <SkeletonBlock height={12} width={46} />
             </View>
           ))}
         </ScrollView>
@@ -51,7 +56,7 @@ function MarketSkeleton() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowScroller}>
           {[0, 1].map((item) => (
             <View key={`rail-skeleton-${item}`} style={styles.railSkeletonCard}>
-              <SkeletonBlock height={160} rounded={0} />
+              <SkeletonBlock height={108} rounded={0} />
               <View style={styles.railSkeletonCopy}>
                 <SkeletonBlock height={16} width="76%" />
                 <SkeletonBlock height={12} width="42%" />
@@ -276,6 +281,42 @@ function SectionHeader({
 }
 
 function FeaturedPartnersSection({ row, onPressCompany }: { row: MarketRow; onPressCompany: CompanyPressHandler }) {
+  const listRef = useRef<FlatList<MarketCompanyCard> | null>(null);
+  const { width } = useWindowDimensions();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
+  const cardWidth = Math.max(width - spacing.lg * 2, 280);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [row.items.length]);
+
+  useEffect(() => {
+    if (row.row_type !== "company_tier" || row.items.length < 2 || isUserInteracting) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setActiveIndex((currentIndex) => {
+        const nextIndex = (currentIndex + 1) % row.items.length;
+        listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+        return nextIndex;
+      });
+    }, FEATURED_AUTO_SCROLL_MS);
+
+    return () => clearInterval(timer);
+  }, [isUserInteracting, row.items.length, row.row_type]);
+
+  function handleMomentumEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    if (row.row_type !== "company_tier" || !row.items.length) {
+      return;
+    }
+
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / cardWidth);
+    setActiveIndex(Math.max(0, Math.min(nextIndex, row.items.length - 1)));
+    setIsUserInteracting(false);
+  }
+
   if (row.row_type !== "company_tier" || !row.items.length) {
     return null;
   }
@@ -283,11 +324,30 @@ function FeaturedPartnersSection({ row, onPressCompany }: { row: MarketRow; onPr
   return (
     <View style={styles.section}>
       <SectionHeader title="Featured Partners" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroller} pagingEnabled decelerationRate="fast">
-        {row.items.map((company) => (
-          <HeroCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company, row)} />
-        ))}
-      </ScrollView>
+      <View style={styles.featuredShell}>
+        <FlatList
+          ref={listRef}
+          data={row.items}
+          keyExtractor={(company) => `${row.id}-${company.company_id}`}
+          horizontal
+          pagingEnabled
+          decelerationRate="fast"
+          snapToInterval={cardWidth}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.featuredScroller}
+          onScrollBeginDrag={() => setIsUserInteracting(true)}
+          onMomentumScrollEnd={handleMomentumEnd}
+          getItemLayout={(_, index) => ({ length: cardWidth, offset: cardWidth * index, index })}
+          renderItem={({ item }) => <HeroCompanyCard company={item} width={cardWidth} onPress={() => onPressCompany(item, row)} />}
+        />
+        {row.items.length > 1 ? (
+          <View style={styles.featuredDots}>
+            {row.items.map((company, index) => (
+              <View key={`featured-dot-${company.company_id}`} style={[styles.featuredDot, index === activeIndex ? styles.featuredDotActive : null]} />
+            ))}
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -304,7 +364,7 @@ function ProductCategoriesSection({
   }
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, styles.categorySection]}>
       <SectionHeader title="Product Categories" eyebrow />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
         {row.items.map((category) => (
@@ -391,7 +451,7 @@ function FallbackSection({
 
   if (row.row_type === "category_collection") {
     return (
-      <View style={styles.section}>
+      <View style={[styles.section, styles.categorySection]}>
         <SectionHeader title={row.title} eyebrow />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
           {row.items.map((category) => (
@@ -479,11 +539,11 @@ function ProductCard({ product, onPress }: { product: MarketProductCard; onPress
   );
 }
 
-function HeroCompanyCard({ company, onPress }: { company: MarketCompanyCard; onPress: () => void }) {
+function HeroCompanyCard({ company, width, onPress }: { company: MarketCompanyCard; width?: number; onPress: () => void }) {
   const locationLabel = getLocationLabel(company.city, company.state);
 
   return (
-    <Pressable style={styles.heroCard} onPress={onPress}>
+    <Pressable style={[styles.heroCard, width ? { width } : null]} onPress={onPress}>
       <ImageBackground source={company.hero_image_url ? { uri: company.hero_image_url } : undefined} style={styles.heroImage} imageStyle={styles.heroImageStyle}>
         <View style={styles.heroOverlay} />
         <View style={styles.heroContent}>
@@ -571,7 +631,7 @@ function getLocationLabel(city?: string | null, state?: string | null) {
 const styles = StyleSheet.create({
   content: {
     paddingTop: spacing.lg,
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   section: {
     gap: spacing.sm,
@@ -585,8 +645,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: "#000000",
-    fontSize: 24,
-    lineHeight: 31,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "600",
     flex: 1,
   },
@@ -604,28 +664,50 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "600",
   },
-  featuredScroller: {
-    paddingHorizontal: spacing.lg,
+  featuredShell: {
+    gap: spacing.sm,
   },
-  rowScroller: {
-    gap: spacing.lg,
+  featuredScroller: {
     paddingHorizontal: spacing.lg,
     paddingRight: spacing.lg * 2,
   },
-  categoryScroller: {
+  featuredDots: {
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: spacing.lg,
+  },
+  featuredDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(119,90,25,0.22)",
+  },
+  featuredDotActive: {
+    width: 18,
+    backgroundColor: SECTION_GOLD,
+  },
+  rowScroller: {
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingRight: spacing.lg * 2,
   },
+  categorySection: {
+    gap: 6,
+  },
+  categoryScroller: {
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingRight: spacing.lg,
+  },
   categoryCard: {
-    width: 72,
+    width: 55,
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 5,
   },
   categoryIconBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: SECTION_CIRCLE,
     borderWidth: 1,
     borderColor: SECTION_BORDER,
@@ -634,23 +716,23 @@ const styles = StyleSheet.create({
   },
   categoryIconText: {
     color: SECTION_GOLD,
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "700",
   },
   categoryName: {
     color: "#000000",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "500",
     textAlign: "center",
-    minHeight: 36,
+    minHeight: 30,
   },
   heroCard: {
     width: 320,
     marginRight: spacing.md,
   },
   heroImage: {
-    minHeight: 320,
+    minHeight: 248,
     justifyContent: "flex-end",
     overflow: "hidden",
   },
@@ -664,8 +746,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.35)",
   },
   heroContent: {
-    padding: spacing.lg,
-    gap: spacing.sm,
+    padding: spacing.md,
+    gap: spacing.xs,
   },
   heroBadge: {
     alignSelf: "flex-start",
@@ -687,29 +769,29 @@ const styles = StyleSheet.create({
   },
   heroName: {
     color: colors.surface,
-    fontSize: 32,
-    lineHeight: 38,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: "600",
   },
   heroMeta: {
     color: "rgba(255,255,255,0.8)",
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 20,
   },
   railCard: {
-    width: 256,
+    width: 188,
     flexShrink: 0,
     backgroundColor: colors.surface,
     borderRadius: radii.md,
     overflow: "hidden",
     shadowColor: "#000000",
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   railMedia: {
-    height: 160,
+    height: 108,
     backgroundColor: SECTION_CIRCLE,
   },
   railMediaImage: {
@@ -723,31 +805,32 @@ const styles = StyleSheet.create({
   },
   railMediaFallbackText: {
     color: SECTION_MUTED,
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "600",
   },
   railCopy: {
-    padding: spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     gap: 2,
   },
   railName: {
     color: "#000000",
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: "600",
   },
   railMeta: {
     color: SECTION_MUTED,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "500",
   },
   productGridWrap: {
     paddingHorizontal: spacing.lg,
     flexDirection: "row",
     flexWrap: "wrap",
-    columnGap: spacing.lg,
-    rowGap: spacing.lg,
+    columnGap: spacing.md,
+    rowGap: spacing.md,
   },
   productCard: {
     width: "46%",
@@ -802,8 +885,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     flexDirection: "row",
     flexWrap: "wrap",
-    columnGap: spacing.lg,
-    rowGap: spacing.lg,
+    columnGap: spacing.md,
+    rowGap: spacing.md,
   },
   gridCard: {
     width: "46%",
@@ -927,18 +1010,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#ECE7E7",
   },
   categorySkeletonItem: {
-    width: 72,
+    width: 55,
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 5,
   },
   railSkeletonCard: {
-    width: 256,
+    width: 188,
     backgroundColor: colors.surface,
     borderRadius: radii.md,
     overflow: "hidden",
   },
   railSkeletonCopy: {
-    padding: spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     gap: spacing.xs,
   },
   productSkeletonCard: {
