@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Image,
   ImageBackground,
@@ -17,6 +17,11 @@ import { AppScreen } from "../../components/AppScreen";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
 import { MarketCategoryCard, MarketCompanyCard, MarketFeedData, MarketProductCard, MarketRow } from "../../types/api";
 
+const SECTION_GOLD = "#775A19";
+const SECTION_MUTED = "#7E7576";
+const SECTION_BORDER = "#CFC4C5";
+const SECTION_CIRCLE = "#EFEDED";
+
 function SkeletonBlock({ height, width = "100%", rounded = radii.md }: { height: number; width?: number | `${number}%`; rounded?: number }) {
   return <View style={[styles.skeletonBlock, { height, width, borderRadius: rounded }]} />;
 }
@@ -24,31 +29,75 @@ function SkeletonBlock({ height, width = "100%", rounded = radii.md }: { height:
 function MarketSkeleton() {
   return (
     <View style={styles.content}>
-      <View style={styles.headerCopy}>
-        <SkeletonBlock height={14} width="24%" rounded={999} />
-        <SkeletonBlock height={34} width="54%" />
-        <SkeletonBlock height={18} width="88%" />
+      <View style={styles.section}>
+        <SkeletonBlock height={28} width="46%" />
+        <SkeletonBlock height={320} rounded={radii.md} />
       </View>
 
-      {[0, 1, 2].map((row) => (
-        <View key={`row-${row}`} style={styles.section}>
-          <SkeletonBlock height={22} width="36%" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowScroller}>
-            {[0, 1].map((item) => (
-              <View key={`item-${row}-${item}`} style={styles.heroSkeletonCard}>
-                <SkeletonBlock height={168} rounded={radii.lg} />
-                <View style={styles.heroSkeletonText}>
-                  <SkeletonBlock height={18} width="72%" />
-                  <SkeletonBlock height={14} width="40%" />
-                </View>
+      <View style={styles.section}>
+        <SkeletonBlock height={12} width="34%" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
+          {[0, 1, 2, 3].map((item) => (
+            <View key={`category-skeleton-${item}`} style={styles.categorySkeletonItem}>
+              <SkeletonBlock height={64} width={64} rounded={32} />
+              <SkeletonBlock height={14} width={56} />
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      <View style={styles.section}>
+        <SkeletonBlock height={28} width="54%" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowScroller}>
+          {[0, 1].map((item) => (
+            <View key={`rail-skeleton-${item}`} style={styles.railSkeletonCard}>
+              <SkeletonBlock height={160} rounded={0} />
+              <View style={styles.railSkeletonCopy}>
+                <SkeletonBlock height={16} width="76%" />
+                <SkeletonBlock height={12} width="42%" />
               </View>
-            ))}
-          </ScrollView>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <SkeletonBlock height={28} width="44%" />
+          <SkeletonBlock height={14} width={56} />
         </View>
-      ))}
+        <View style={styles.productGridWrap}>
+          {[0, 1, 2, 3].map((item) => (
+            <View key={`product-skeleton-${item}`} style={styles.productSkeletonCard}>
+              <SkeletonBlock height={160} rounded={radii.md} />
+              <View style={styles.productSkeletonCopy}>
+                <SkeletonBlock height={12} width="48%" />
+                <SkeletonBlock height={16} width="82%" />
+                <SkeletonBlock height={12} width="70%" />
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <SkeletonBlock height={28} width="48%" />
+        <View style={styles.gridWrap}>
+          {[0, 1, 2, 3].map((item) => (
+            <View key={`grid-skeleton-${item}`} style={styles.directorySkeletonCard}>
+              <SkeletonBlock height={64} width={64} rounded={32} />
+              <SkeletonBlock height={16} width="88%" />
+              <SkeletonBlock height={12} width="62%" />
+              <SkeletonBlock height={22} width="44%" rounded={999} />
+            </View>
+          ))}
+        </View>
+      </View>
     </View>
   );
 }
+
+type CompanyPressHandler = (company: MarketCompanyCard, row: MarketRow) => void;
 
 export function MarketTiersScreen() {
   const navigation = useNavigation<any>();
@@ -121,6 +170,30 @@ export function MarketTiersScreen() {
     });
   }
 
+  const rows = marketFeed?.rows ?? [];
+  const { featuredRow, categoryRow, establishedRow, arrivalsRow, directoryRow, remainingRows } = useMemo(() => {
+    const nextFeaturedRow = rows.find((row) => row.row_type === "company_tier" && row.layout === "hero_company") ?? null;
+    const nextCategoryRow = rows.find((row) => row.row_type === "category_collection") ?? null;
+    const nextEstablishedRow = rows.find((row) => row.row_type === "company_tier" && row.layout === "rail_company") ?? null;
+    const nextArrivalsRow = rows.find((row) => row.row_type === "product_collection") ?? null;
+    const nextDirectoryRow = rows.find((row) => row.row_type === "company_tier" && row.layout === "grid_company") ?? null;
+
+    const usedIds = new Set(
+      [nextFeaturedRow, nextCategoryRow, nextEstablishedRow, nextArrivalsRow, nextDirectoryRow]
+        .filter((row): row is MarketRow => Boolean(row))
+        .map((row) => row.id),
+    );
+
+    return {
+      featuredRow: nextFeaturedRow,
+      categoryRow: nextCategoryRow,
+      establishedRow: nextEstablishedRow,
+      arrivalsRow: nextArrivalsRow,
+      directoryRow: nextDirectoryRow,
+      remainingRows: rows.filter((row) => !usedIds.has(row.id)),
+    };
+  }, [rows]);
+
   if (isLoading && !marketFeed) {
     return (
       <AppScreen safeAreaEdges={["top"]} backgroundColor={colors.background} scrollable>
@@ -128,6 +201,8 @@ export function MarketTiersScreen() {
       </AppScreen>
     );
   }
+
+  const hasVisibleContent = Boolean(featuredRow || categoryRow || establishedRow || arrivalsRow || directoryRow || remainingRows.length);
 
   return (
     <AppScreen
@@ -137,12 +212,6 @@ export function MarketTiersScreen() {
       refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.text} />}
       contentContainerStyle={[styles.content, { paddingBottom: 120 + Math.max(insets.bottom, spacing.md) }]}
     >
-      <View style={styles.headerCopy}>
-        <Text style={styles.eyebrow}>Trade Showcase</Text>
-        <Text style={styles.title}>Market</Text>
-        <Text style={styles.subtitle}>Browse companies, categories, and the latest live products from across the market.</Text>
-      </View>
-
       {error ? (
         <View style={styles.errorCard}>
           <Text style={styles.errorTitle}>Market unavailable</Text>
@@ -153,34 +222,166 @@ export function MarketTiersScreen() {
         </View>
       ) : null}
 
-      {(marketFeed?.rows ?? []).map((row) => (
-        <MarketRowSection
+      {featuredRow ? <FeaturedPartnersSection row={featuredRow} onPressCompany={openCompanyCatalog} /> : null}
+      {establishedRow ? <EstablishedMembersSection row={establishedRow} onPressCompany={openCompanyCatalog} /> : null}
+      {categoryRow?.row_type === "category_collection" ? <ProductCategoriesSection row={categoryRow} onPressCategory={openCategoryResults} /> : null}
+      {arrivalsRow?.row_type === "product_collection" ? <NewArrivalsSection row={arrivalsRow} onPressProduct={openProductDetail} onPressViewAll={() => navigation.navigate("ProductSearch")} /> : null}
+      {directoryRow ? <GeneralDirectorySection row={directoryRow} onPressCompany={openCompanyCatalog} /> : null}
+
+      {remainingRows.map((row) => (
+        <FallbackSection
           key={`${row.row_type}-${row.id}`}
           row={row}
-          onPressCompany={(company) => openCompanyCatalog(company, row)}
+          onPressCompany={openCompanyCatalog}
           onPressCategory={openCategoryResults}
           onPressProduct={openProductDetail}
         />
       ))}
 
-      {!error && !(marketFeed?.rows?.length ?? 0) ? (
+      {!error && !hasVisibleContent ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>Nothing is live in the market yet.</Text>
-          <Text style={styles.emptyDetail}>Once market content is live, company highlights, categories, and products will appear here automatically.</Text>
+          <Text style={styles.emptyDetail}>Once market content is live, featured members, categories, and product listings will appear here automatically.</Text>
         </View>
       ) : null}
     </AppScreen>
   );
 }
 
-function MarketRowSection({
+function SectionHeader({
+  title,
+  eyebrow = false,
+  actionLabel,
+  onPressAction,
+}: {
+  title: string;
+  eyebrow?: boolean;
+  actionLabel?: string;
+  onPressAction?: () => void;
+}) {
+  if (eyebrow) {
+    return <Text style={styles.eyebrowSectionTitle}>{title}</Text>;
+  }
+
+  return (
+    <View style={styles.sectionHeaderRow}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {actionLabel ? (
+        <Pressable onPress={onPressAction} hitSlop={8}>
+          <Text style={styles.sectionAction}>{actionLabel}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function FeaturedPartnersSection({ row, onPressCompany }: { row: MarketRow; onPressCompany: CompanyPressHandler }) {
+  if (row.row_type !== "company_tier" || !row.items.length) {
+    return null;
+  }
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="Featured Partners" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroller} pagingEnabled decelerationRate="fast">
+        {row.items.map((company) => (
+          <HeroCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company, row)} />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function ProductCategoriesSection({
+  row,
+  onPressCategory,
+}: {
+  row: Extract<MarketRow, { row_type: "category_collection" }>;
+  onPressCategory: (category: MarketCategoryCard) => void;
+}) {
+  if (!row.items.length) {
+    return null;
+  }
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="Product Categories" eyebrow />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
+        {row.items.map((category) => (
+          <CategoryCard key={`${row.id}-${category.id}`} category={category} onPress={() => onPressCategory(category)} />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function EstablishedMembersSection({ row, onPressCompany }: { row: MarketRow; onPressCompany: CompanyPressHandler }) {
+  if (row.row_type !== "company_tier" || !row.items.length) {
+    return null;
+  }
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="Established Members" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowScroller}>
+        {row.items.map((company) => (
+          <RailCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company, row)} />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function NewArrivalsSection({
+  row,
+  onPressProduct,
+  onPressViewAll,
+}: {
+  row: Extract<MarketRow, { row_type: "product_collection" }>;
+  onPressProduct: (product: MarketProductCard) => void;
+  onPressViewAll: () => void;
+}) {
+  if (!row.items.length) {
+    return null;
+  }
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="New Arrivals" actionLabel="View All" onPressAction={onPressViewAll} />
+      <View style={styles.productGridWrap}>
+        {row.items.map((product) => (
+          <ProductCard key={`${row.id}-${product.id}`} product={product} onPress={() => onPressProduct(product)} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function GeneralDirectorySection({ row, onPressCompany }: { row: MarketRow; onPressCompany: CompanyPressHandler }) {
+  if (row.row_type !== "company_tier" || !row.items.length) {
+    return null;
+  }
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="General Directory" />
+      <View style={styles.gridWrap}>
+        {row.items.map((company) => (
+          <GridCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company, row)} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function FallbackSection({
   row,
   onPressCompany,
   onPressCategory,
   onPressProduct,
 }: {
   row: MarketRow;
-  onPressCompany: (company: MarketCompanyCard) => void;
+  onPressCompany: CompanyPressHandler;
   onPressCategory: (category: MarketCategoryCard) => void;
   onPressProduct: (product: MarketProductCard) => void;
 }) {
@@ -191,8 +392,8 @@ function MarketRowSection({
   if (row.row_type === "category_collection") {
     return (
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{row.title}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowScroller}>
+        <SectionHeader title={row.title} eyebrow />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
           {row.items.map((category) => (
             <CategoryCard key={`${row.id}-${category.id}`} category={category} onPress={() => onPressCategory(category)} />
           ))}
@@ -204,7 +405,7 @@ function MarketRowSection({
   if (row.row_type === "product_collection") {
     return (
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{row.title}</Text>
+        <SectionHeader title={row.title} />
         <View style={styles.productGridWrap}>
           {row.items.map((product) => (
             <ProductCard key={`${row.id}-${product.id}`} product={product} onPress={() => onPressProduct(product)} />
@@ -216,20 +417,20 @@ function MarketRowSection({
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{row.title}</Text>
+      <SectionHeader title={row.title} />
       {row.layout === "grid_company" ? (
         <View style={styles.gridWrap}>
           {row.items.map((company) => (
-            <GridCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company)} />
+            <GridCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company, row)} />
           ))}
         </View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowScroller}>
           {row.items.map((company) =>
             row.layout === "hero_company" ? (
-              <HeroCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company)} />
+              <HeroCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company, row)} />
             ) : (
-              <RailCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company)} />
+              <RailCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company, row)} />
             ),
           )}
         </ScrollView>
@@ -242,9 +443,11 @@ function CategoryCard({ category, onPress }: { category: MarketCategoryCard; onP
   return (
     <Pressable style={styles.categoryCard} onPress={onPress}>
       <View style={styles.categoryIconBadge}>
-        <Text style={styles.categoryIconText}>{getBadgeLabel(category.icon_key)}</Text>
+        <Text style={styles.categoryIconText}>{getBadgeLabel(category.icon_key || category.name)}</Text>
       </View>
-      <Text style={styles.categoryName}>{category.name}</Text>
+      <Text style={styles.categoryName} numberOfLines={2}>
+        {category.name}
+      </Text>
     </Pressable>
   );
 }
@@ -257,18 +460,19 @@ function ProductCard({ product, onPress }: { product: MarketProductCard; onPress
           <Image source={{ uri: product.image_url }} style={styles.productMediaImage} />
         ) : (
           <View style={styles.productMediaFallback}>
-            <Text style={styles.productMediaFallbackText}>{getInitials(product.company_name)}</Text>
+            <Text style={styles.productMediaFallbackText}>{getInitials(product.title)}</Text>
           </View>
         )}
       </View>
       <View style={styles.productCopy}>
-        <Text style={styles.productName} numberOfLines={2}>
+        <Text style={styles.productAccent} numberOfLines={1}>
+          {product.purity}
+        </Text>
+        <Text style={styles.productName} numberOfLines={1}>
           {product.title}
         </Text>
-        <Text style={styles.productMeta}>{product.purity}</Text>
-        <Text style={styles.productMeta}>{product.weight_grams}g</Text>
-        <Text style={styles.productCompany} numberOfLines={1}>
-          {product.company_name}
+        <Text style={styles.productMeta} numberOfLines={1}>
+          {[product.company_name, product.weight_grams ? `${product.weight_grams}g` : null].filter(Boolean).join(" • ")}
         </Text>
       </View>
     </Pressable>
@@ -276,20 +480,19 @@ function ProductCard({ product, onPress }: { product: MarketProductCard; onPress
 }
 
 function HeroCompanyCard({ company, onPress }: { company: MarketCompanyCard; onPress: () => void }) {
+  const locationLabel = getLocationLabel(company.city, company.state);
+
   return (
     <Pressable style={styles.heroCard} onPress={onPress}>
       <ImageBackground source={company.hero_image_url ? { uri: company.hero_image_url } : undefined} style={styles.heroImage} imageStyle={styles.heroImageStyle}>
         <View style={styles.heroOverlay} />
-        <View style={styles.heroTopTag}>
-          <Text style={styles.heroTopTagText}>Premium</Text>
-        </View>
-        <View style={styles.heroBottom}>
-          <View style={styles.logoBadge}>
-            {company.logo_image_url ? <Image source={{ uri: company.logo_image_url }} style={styles.logoBadgeImage} /> : <Text style={styles.logoBadgeFallback}>{getInitials(company.name)}</Text>}
+        <View style={styles.heroContent}>
+          <View style={styles.heroBadge}>
+            <Text style={styles.heroBadgeText}>Premium Member</Text>
           </View>
           <View style={styles.heroCopy}>
             <Text style={styles.heroName}>{company.name}</Text>
-            <Text style={styles.heroMeta}>{[company.city, company.state].filter(Boolean).join(", ")}</Text>
+            <Text style={styles.heroMeta}>{locationLabel}</Text>
           </View>
         </View>
       </ImageBackground>
@@ -301,14 +504,21 @@ function RailCompanyCard({ company, onPress }: { company: MarketCompanyCard; onP
   return (
     <Pressable style={styles.railCard} onPress={onPress}>
       <View style={styles.railMedia}>
-        {company.hero_image_url ? <Image source={{ uri: company.hero_image_url }} style={styles.railMediaImage} /> : <View style={styles.railMediaFallback}><Text style={styles.railMediaFallbackText}>{getInitials(company.name)}</Text></View>}
+        {company.hero_image_url ? (
+          <Image source={{ uri: company.hero_image_url }} style={styles.railMediaImage} />
+        ) : (
+          <View style={styles.railMediaFallback}>
+            <Text style={styles.railMediaFallbackText}>{getInitials(company.name)}</Text>
+          </View>
+        )}
       </View>
       <View style={styles.railCopy}>
-        <Text style={styles.railName} numberOfLines={2}>
+        <Text style={styles.railName} numberOfLines={1}>
           {company.name}
         </Text>
-        <Text style={styles.railMeta}>{[company.city, company.state].filter(Boolean).join(", ")}</Text>
-        <Text style={styles.railHint}>View products</Text>
+        <Text style={styles.railMeta} numberOfLines={1}>
+          {getLocationLabel(company.city, company.state)}
+        </Text>
       </View>
     </Pressable>
   );
@@ -320,12 +530,14 @@ function GridCompanyCard({ company, onPress }: { company: MarketCompanyCard; onP
       <View style={styles.gridLogoWrap}>
         {company.logo_image_url ? <Image source={{ uri: company.logo_image_url }} style={styles.gridLogo} /> : <Text style={styles.gridLogoFallback}>{getInitials(company.name)}</Text>}
       </View>
-      <Text style={styles.gridName} numberOfLines={2}>
+      <Text style={styles.gridName} numberOfLines={1}>
         {company.name}
       </Text>
-      <Text style={styles.gridMeta}>{[company.city, company.state].filter(Boolean).join(", ")}</Text>
-      <View style={styles.gridFooter}>
-        <Text style={styles.gridFooterText}>{company.is_verified ? "Verified" : "Products"}</Text>
+      <Text style={styles.gridMeta} numberOfLines={1}>
+        {getLocationLabel(company.city, company.state)}
+      </Text>
+      <View style={[styles.verifiedBadge, !company.is_verified ? styles.memberBadge : null]}>
+        <Text style={[styles.verifiedBadgeText, !company.is_verified ? styles.memberBadgeText : null]}>{company.is_verified ? "Verified" : "Member"}</Text>
       </View>
     </Pressable>
   );
@@ -351,150 +563,154 @@ function getBadgeLabel(value: string) {
     .toUpperCase();
 }
 
+function getLocationLabel(city?: string | null, state?: string | null) {
+  const parts = [city, state].filter(Boolean);
+  return parts.length ? parts.join(", ") : "Location unavailable";
+}
+
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     gap: spacing.lg,
   },
-  headerCopy: {
+  section: {
     gap: spacing.sm,
   },
-  eyebrow: {
-    color: colors.mutedText,
-    ...typography.eyebrow,
-  },
-  title: {
-    color: colors.text,
-    ...typography.title,
-  },
-  subtitle: {
-    color: colors.mutedText,
-    ...typography.body,
-  },
-  section: {
+  sectionHeaderRow: {
+    paddingHorizontal: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: spacing.md,
   },
   sectionTitle: {
-    color: colors.text,
-    ...typography.sectionTitle,
-    fontSize: 20,
+    color: "#000000",
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: "600",
+    flex: 1,
+  },
+  eyebrowSectionTitle: {
+    paddingHorizontal: spacing.lg,
+    color: SECTION_MUTED,
+    ...typography.eyebrow,
+    fontSize: 12,
+    lineHeight: 12,
+    letterSpacing: 1,
+  },
+  sectionAction: {
+    color: SECTION_GOLD,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+  },
+  featuredScroller: {
+    paddingHorizontal: spacing.lg,
   },
   rowScroller: {
+    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingRight: spacing.lg * 2,
+  },
+  categoryScroller: {
     gap: spacing.md,
-    paddingRight: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingRight: spacing.lg * 2,
   },
   categoryCard: {
-    width: 118,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
+    width: 72,
     alignItems: "center",
     gap: spacing.sm,
   },
   categoryIconBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surfaceAlt,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: SECTION_CIRCLE,
+    borderWidth: 1,
+    borderColor: SECTION_BORDER,
     alignItems: "center",
     justifyContent: "center",
   },
   categoryIconText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "800",
-    textTransform: "uppercase",
+    color: SECTION_GOLD,
+    fontSize: 18,
+    fontWeight: "700",
   },
   categoryName: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "700",
+    color: "#000000",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
     textAlign: "center",
     minHeight: 36,
   },
   heroCard: {
-    width: 300,
+    width: 320,
+    marginRight: spacing.md,
   },
   heroImage: {
-    height: 230,
-    justifyContent: "space-between",
-    padding: spacing.md,
+    minHeight: 320,
+    justifyContent: "flex-end",
+    overflow: "hidden",
   },
   heroImageStyle: {
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.md,
+    backgroundColor: SECTION_CIRCLE,
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: radii.lg,
-    backgroundColor: "rgba(26, 26, 26, 0.18)",
+    borderRadius: radii.md,
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
-  heroTopTag: {
+  heroContent: {
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  heroBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.9)",
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingVertical: 4,
+    backgroundColor: SECTION_GOLD,
+    borderRadius: radii.sm,
   },
-  heroTopTagText: {
-    color: colors.text,
+  heroBadgeText: {
+    color: colors.surface,
     fontSize: 12,
-    fontWeight: "700",
+    lineHeight: 12,
+    letterSpacing: 1,
+    fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  heroBottom: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    zIndex: 1,
-  },
-  logoBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-  },
-  logoBadgeImage: {
-    width: "100%",
-    height: "100%",
-  },
-  logoBadgeFallback: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
   },
   heroCopy: {
-    flex: 1,
     gap: 2,
   },
   heroName: {
     color: colors.surface,
-    fontSize: 22,
-    fontWeight: "800",
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: "600",
   },
   heroMeta: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 16,
+    lineHeight: 24,
   },
   railCard: {
-    width: 196,
+    width: 256,
+    flexShrink: 0,
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radii.md,
     overflow: "hidden",
+    shadowColor: "#000000",
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   railMedia: {
-    height: 132,
-    backgroundColor: colors.surfaceAlt,
+    height: 160,
+    backgroundColor: SECTION_CIRCLE,
   },
   railMediaImage: {
     width: "100%",
@@ -506,102 +722,44 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   railMediaFallbackText: {
-    color: colors.mutedText,
-    fontSize: 24,
-    fontWeight: "800",
+    color: SECTION_MUTED,
+    fontSize: 28,
+    fontWeight: "600",
   },
   railCopy: {
     padding: spacing.md,
-    gap: spacing.xs,
+    gap: 2,
   },
   railName: {
-    color: colors.text,
+    color: "#000000",
     fontSize: 16,
-    fontWeight: "700",
+    lineHeight: 24,
+    fontWeight: "600",
   },
   railMeta: {
-    color: colors.mutedText,
+    color: SECTION_MUTED,
     fontSize: 13,
-  },
-  railHint: {
-    marginTop: spacing.sm,
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  gridWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
+    lineHeight: 18,
+    fontWeight: "500",
   },
   productGridWrap: {
+    paddingHorizontal: spacing.lg,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.md,
-  },
-  gridCard: {
-    width: "47%",
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  gridLogoWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surfaceAlt,
-  },
-  gridLogo: {
-    width: "100%",
-    height: "100%",
-  },
-  gridLogoFallback: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  gridName: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "700",
-    minHeight: 40,
-  },
-  gridMeta: {
-    color: colors.mutedText,
-    fontSize: 13,
-  },
-  gridFooter: {
-    marginTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.sm,
-  },
-  gridFooterText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
+    columnGap: spacing.lg,
+    rowGap: spacing.lg,
   },
   productCard: {
-    width: "47%",
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: "hidden",
+    width: "46%",
+    gap: spacing.sm,
   },
   productMedia: {
-    height: 150,
-    backgroundColor: colors.surfaceAlt,
+    aspectRatio: 1,
+    borderRadius: radii.md,
+    overflow: "hidden",
+    backgroundColor: "#F5F3F3",
+    borderWidth: 1,
+    borderColor: "rgba(207,196,197,0.3)",
   },
   productMediaImage: {
     width: "100%",
@@ -613,33 +771,114 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   productMediaFallbackText: {
-    color: colors.mutedText,
-    fontSize: 20,
-    fontWeight: "800",
+    color: SECTION_MUTED,
+    fontSize: 24,
+    fontWeight: "700",
   },
   productCopy: {
-    padding: spacing.md,
-    gap: spacing.xs,
+    gap: 2,
+  },
+  productAccent: {
+    color: SECTION_GOLD,
+    fontSize: 12,
+    lineHeight: 12,
+    letterSpacing: 1,
+    fontWeight: "600",
+    textTransform: "uppercase",
   },
   productName: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "700",
-    minHeight: 38,
+    color: "#000000",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600",
   },
   productMeta: {
-    color: colors.mutedText,
-    fontSize: 12,
+    color: SECTION_MUTED,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
   },
-  productCompany: {
-    marginTop: spacing.xs,
-    color: colors.text,
-    fontSize: 12,
+  gridWrap: {
+    paddingHorizontal: spacing.lg,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: spacing.lg,
+    rowGap: spacing.lg,
+  },
+  gridCard: {
+    width: "46%",
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: "rgba(207,196,197,0.2)",
+    alignItems: "center",
+    gap: spacing.xs,
+    shadowColor: "#000000",
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  gridLogoWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: SECTION_CIRCLE,
+    marginBottom: spacing.xs,
+  },
+  gridLogo: {
+    width: "100%",
+    height: "100%",
+  },
+  gridLogoFallback: {
+    color: SECTION_MUTED,
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: "500",
+  },
+  gridName: {
+    color: "#000000",
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "600",
+    width: "100%",
+    textAlign: "center",
+  },
+  gridMeta: {
+    color: SECTION_MUTED,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+    marginBottom: spacing.xs,
+    textAlign: "center",
+  },
+  verifiedBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(254,212,136,0.2)",
+  },
+  verifiedBadgeText: {
+    color: SECTION_GOLD,
+    fontSize: 10,
+    lineHeight: 12,
     fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  memberBadge: {
+    backgroundColor: "#F2F2F2",
+  },
+  memberBadgeText: {
+    color: SECTION_MUTED,
   },
   errorCard: {
+    marginHorizontal: spacing.lg,
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
@@ -667,8 +906,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   emptyCard: {
+    marginHorizontal: spacing.lg,
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.lg,
@@ -686,11 +926,34 @@ const styles = StyleSheet.create({
   skeletonBlock: {
     backgroundColor: "#ECE7E7",
   },
-  heroSkeletonCard: {
-    width: 280,
+  categorySkeletonItem: {
+    width: 72,
+    alignItems: "center",
     gap: spacing.sm,
   },
-  heroSkeletonText: {
+  railSkeletonCard: {
+    width: 256,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    overflow: "hidden",
+  },
+  railSkeletonCopy: {
+    padding: spacing.md,
     gap: spacing.xs,
+  },
+  productSkeletonCard: {
+    width: "46%",
+    gap: spacing.sm,
+  },
+  productSkeletonCopy: {
+    gap: spacing.xs,
+  },
+  directorySkeletonCard: {
+    width: "46%",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.md,
   },
 });
