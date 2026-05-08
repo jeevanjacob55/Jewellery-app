@@ -38,6 +38,31 @@ export type ApiClientConfig = {
   onUnauthorized?: () => void;
 };
 
+export type RateCatalogSubcategory = {
+  id?: number;
+  name: string;
+  unit_label: string;
+  current_value: string | null;
+};
+
+export type RateCatalogCategory = {
+  id?: number;
+  name: string;
+  unit_label: string;
+  current_value: string | null;
+  subcategories: RateCatalogSubcategory[];
+};
+
+export type AssociationRateCatalog = {
+  association: {
+    id: number;
+    name: string;
+    state_name: string;
+  };
+  updated_at_label: string;
+  categories: RateCatalogCategory[];
+};
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
 
 let config: ApiClientConfig = {};
@@ -121,4 +146,15 @@ export async function refreshAccessToken(refresh: string) {
 
 export async function fetchSessionInfo(overrideTokens: Tokens | null = null) {
   return requestJson<SessionInfo>("/me/", {}, false, overrideTokens);
+}
+
+export async function fetchAssociationRateCatalog() {
+  return requestJson<AssociationRateCatalog>("/dashboard/admin/association-rate-catalog/");
+}
+
+export async function saveAssociationRateCatalog(payload: { categories: RateCatalogCategory[] }) {
+  return requestJson<AssociationRateCatalog>("/dashboard/admin/association-rate-catalog/", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }

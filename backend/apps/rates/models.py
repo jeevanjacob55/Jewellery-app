@@ -1,5 +1,6 @@
 from django.db import models
 
+from apps.accounts.models import User
 from apps.regions.models import Association
 
 
@@ -26,3 +27,51 @@ class GlobalTrendSnapshot(models.Model):
     gold_oz = models.DecimalField(max_digits=10, decimal_places=2)
     silver_oz = models.DecimalField(max_digits=10, decimal_places=2)
     captured_at = models.DateTimeField(auto_now_add=True)
+
+
+class AssociationRateCategory(models.Model):
+    association = models.ForeignKey(Association, on_delete=models.CASCADE, related_name="managed_rate_categories")
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=120)
+    unit_label = models.CharField(max_length=60, default="1 Gram")
+    current_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    display_order = models.PositiveIntegerField(default=0)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_rate_categories",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["association", "slug"], name="uniq_rate_category_per_association_slug"),
+        ]
+
+
+class AssociationRateSubcategory(models.Model):
+    category = models.ForeignKey(AssociationRateCategory, on_delete=models.CASCADE, related_name="subcategories")
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=120)
+    unit_label = models.CharField(max_length=60, default="1 Gram")
+    current_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    display_order = models.PositiveIntegerField(default=0)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_rate_subcategories",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["category", "slug"], name="uniq_rate_subcategory_per_category_slug"),
+        ]

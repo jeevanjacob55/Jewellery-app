@@ -5,6 +5,8 @@ import { AdminShell } from "./components/AdminShell";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { LoginPage } from "./pages/LoginPage";
+import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { RateManagementPage } from "./pages/RateManagementPage";
 
 function AppRoutes() {
   const { status } = useAuth();
@@ -34,6 +36,37 @@ function AppRoutes() {
       >
         <Route index element={<Navigate to="/admin/overview" replace />} />
         <Route path="overview" element={<AdminDashboardPage />} />
+        <Route path="rates" element={<RateManagementPage />} />
+        <Route
+          path="company-profiles"
+          element={
+            <PlaceholderPage
+              eyebrow="Phase 1 Placeholder"
+              title="Company Profiles page is ready for the next implementation step."
+              description="This destination is wired into the sidebar and protected shell so the company-profile workflow can be added without changing navigation later."
+            />
+          }
+        />
+        <Route
+          path="advertisements"
+          element={
+            <PlaceholderPage
+              eyebrow="Phase 1 Placeholder"
+              title="Advertisements page is connected as an empty module."
+              description="The sidebar route is live now, and the page is intentionally minimal until the advertisement workflow is built."
+            />
+          }
+        />
+        <Route
+          path="content"
+          element={
+            <PlaceholderPage
+              eyebrow="Phase 1 Placeholder"
+              title="Content page is ready to receive news and meeting tools."
+              description="This empty page keeps the shell structure stable while the content-management flows are implemented later."
+            />
+          }
+        />
       </Route>
       <Route path="/" element={<Navigate to={status === "signedIn" ? "/admin/overview" : "/login"} replace />} />
       <Route path="*" element={<Navigate to={status === "signedIn" ? "/admin/overview" : "/login"} replace />} />

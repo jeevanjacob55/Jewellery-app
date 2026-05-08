@@ -1,14 +1,26 @@
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework import permissions
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import UserRole
+from apps.admin_ops.permissions import HasAdminAccess
 from apps.regions.models import Association, RegionState
 
-from .models import AssociationRate, ExternalMarketRate, GlobalTrendSnapshot
-from .serializers import AssociationRateDetailResponseSerializer, DashboardResponseSerializer, StateRatesResponseSerializer
+from .models import AssociationRate, AssociationRateCategory, AssociationRateSubcategory, ExternalMarketRate, GlobalTrendSnapshot
+from .serializers import (
+    AssociationRateCatalogPayloadSerializer,
+    AssociationRateCatalogResponseSerializer,
+    AssociationRateDetailResponseSerializer,
+    DashboardResponseSerializer,
+    StateRatesResponseSerializer,
+)
 
 
 QUICK_ACTIONS = [
@@ -54,6 +66,12 @@ def _format_effective_label(rate: AssociationRate | None) -> str:
     if rate is None:
         return "Pending"
     return rate.effective_at.strftime("%I:%M %p").lstrip("0")
+
+
+def _format_timestamp_label(value) -> str:
+    if value is None:
+        return "Pending"
+    return timezone.localtime(value).strftime("%I:%M %p").lstrip("0")
 
 
 def _latest_rate_for_association(association: Association | None):
@@ -170,6 +188,176 @@ def _resolve_active_association(request) -> Association | None:
     return None
 
 
+def _resolve_admin_association(request) -> Association:
+    user = request.user
+    scoped_role = (
+        user.scoped_roles.filter(
+            role=UserRole.Role.ASSOCIATION_ADMIN,
+            scope_type=UserRole.ScopeType.ASSOCIATION,
+        )
+        .order_by("id")
+        .first()
+    )
+    if not scoped_role or not scoped_role.scope_id:
+        raise PermissionDenied("Association-admin scope is required for rate management.")
+    association = Association.objects.select_related("state").filter(pk=scoped_role.scope_id).first()
+    if association is None:
+        raise PermissionDenied("Assigned association could not be resolved.")
+    return association
+
+
+def _get_custom_rate_categories(association: Association):
+    return (
+        AssociationRateCategory.objects.filter(association=association)
+        .prefetch_related("subcategories")
+        .order_by("display_order", "id")
+    )
+
+
+def _build_default_rate_catalog(association: Association) -> list[dict]:
+    latest_rate = _latest_rate_for_association(association)
+    categories = [
+        {
+            "name": "Gold",
+            "unit_label": "1 Gram",
+            "current_value": None,
+            "subcategories": [
+                {"name": "22K", "unit_label": "1 Gram", "current_value": float(latest_rate.gold_22k) if latest_rate else None},
+                {"name": "24K", "unit_label": "1 Gram", "current_value": float(latest_rate.gold_24k) if latest_rate else None},
+            ],
+        },
+        {
+            "name": "Silver",
+            "unit_label": "1 Gram",
+            "current_value": float(latest_rate.silver) if latest_rate else None,
+            "subcategories": [],
+        },
+        {
+            "name": "Diamond",
+            "unit_label": "1 Carat",
+            "current_value": None,
+            "subcategories": [],
+        },
+    ]
+    return categories
+
+
+def _serialize_rate_catalog(association: Association) -> dict:
+    categories = list(_get_custom_rate_categories(association))
+    latest_custom_timestamp = None
+    if categories:
+        serialized_categories = []
+        for category in categories:
+            latest_custom_timestamp = max(
+                [value for value in [latest_custom_timestamp, category.updated_at] if value is not None],
+                default=category.updated_at,
+            )
+            serialized_subcategories = []
+            for subcategory in category.subcategories.all():
+                latest_custom_timestamp = max(
+                    [value for value in [latest_custom_timestamp, subcategory.updated_at] if value is not None],
+                    default=subcategory.updated_at,
+                )
+                serialized_subcategories.append(
+                    {
+                        "id": subcategory.id,
+                        "name": subcategory.name,
+                        "unit_label": subcategory.unit_label,
+                        "current_value": float(subcategory.current_value) if subcategory.current_value is not None else None,
+                    }
+                )
+            serialized_categories.append(
+                {
+                    "id": category.id,
+                    "name": category.name,
+                    "unit_label": category.unit_label,
+                    "current_value": float(category.current_value) if category.current_value is not None else None,
+                    "subcategories": serialized_subcategories,
+                }
+            )
+        updated_at_label = _format_timestamp_label(latest_custom_timestamp)
+    else:
+        serialized_categories = _build_default_rate_catalog(association)
+        updated_at_label = _format_effective_label(_latest_rate_for_association(association))
+
+    return {
+        "association": {
+            "id": association.id,
+            "name": association.name,
+            "state_name": association.state.name,
+        },
+        "updated_at_label": updated_at_label,
+        "categories": serialized_categories,
+    }
+
+
+def _match_subcategory_value(*, subcategories_by_slug: dict[str, AssociationRateSubcategory], slugs: tuple[str, ...]) -> float | None:
+    for slug in slugs:
+        subcategory = subcategories_by_slug.get(slug)
+        if subcategory and subcategory.current_value is not None:
+            return float(subcategory.current_value)
+    return None
+
+
+def _derive_legacy_rate_values(association: Association) -> tuple[float | None, float | None, float | None]:
+    categories = list(_get_custom_rate_categories(association))
+    values = {"gold_22k": None, "gold_24k": None, "silver": None}
+
+    for category in categories:
+        category_slug = slugify(category.name)
+        subcategories = list(category.subcategories.all())
+        subcategories_by_slug = {slugify(subcategory.name): subcategory for subcategory in subcategories}
+
+        if category_slug == "gold":
+            values["gold_22k"] = _match_subcategory_value(subcategories_by_slug=subcategories_by_slug, slugs=("22k", "22-k", "916"))
+            values["gold_24k"] = _match_subcategory_value(subcategories_by_slug=subcategories_by_slug, slugs=("24k", "24-k", "999"))
+        elif category_slug == "silver":
+            if category.current_value is not None:
+                values["silver"] = float(category.current_value)
+            else:
+                values["silver"] = _match_subcategory_value(subcategories_by_slug=subcategories_by_slug, slugs=("999", "silver", "925"))
+                if values["silver"] is None and len(subcategories) == 1 and subcategories[0].current_value is not None:
+                    values["silver"] = float(subcategories[0].current_value)
+
+    return values["gold_22k"], values["gold_24k"], values["silver"]
+
+
+def _publish_legacy_association_rate(association: Association) -> AssociationRate | None:
+    previous_rate = _latest_rate_for_association(association)
+    gold_22k, gold_24k, silver = _derive_legacy_rate_values(association)
+
+    if previous_rate is None and None in {gold_22k, gold_24k, silver}:
+        return None
+
+    return AssociationRate.objects.create(
+        association=association,
+        region_label=f"{association.name} Admin Update",
+        gold_22k=gold_22k if gold_22k is not None else previous_rate.gold_22k,
+        gold_24k=gold_24k if gold_24k is not None else previous_rate.gold_24k,
+        silver=silver if silver is not None else previous_rate.silver,
+        effective_at=timezone.now(),
+    )
+
+
+def _category_metric_payload(*, category_slug: str, category_value: float, previous_rate: AssociationRate | None) -> dict:
+    previous_value = None
+    if category_slug == "silver" and previous_rate is not None:
+        previous_value = float(previous_rate.silver)
+    return _build_metric_payload(category_value, previous_value)
+
+
+def _subcategory_metric_payload(*, category_slug: str, subcategory_slug: str, current_value: float, previous_rate: AssociationRate | None) -> dict:
+    previous_value = None
+    if previous_rate is not None and category_slug == "gold":
+        if subcategory_slug in {"24k", "24-k", "999"}:
+            previous_value = float(previous_rate.gold_24k)
+        elif subcategory_slug in {"22k", "22-k", "916"}:
+            previous_value = float(previous_rate.gold_22k)
+    elif previous_rate is not None and category_slug == "silver" and subcategory_slug in {"silver", "999", "925"}:
+        previous_value = float(previous_rate.silver)
+    return _build_metric_payload(current_value, previous_value)
+
+
 def build_dashboard_payload(request) -> dict:
     active_association = _resolve_active_association(request)
     latest_rate = _latest_rate_for_association(active_association)
@@ -234,10 +422,83 @@ class StateRatesView(APIView):
 
 
 def build_association_rate_detail_payload(association: Association) -> dict:
+    custom_categories = list(_get_custom_rate_categories(association))
     latest_rate = _latest_rate_for_association(association)
-    if latest_rate is None:
+    if latest_rate is None and not custom_categories:
         raise AssociationRate.DoesNotExist
     previous_rate = _previous_rate_for_association(association, latest_rate)
+
+    if custom_categories:
+        rate_groups = []
+        for category in custom_categories:
+            category_slug = slugify(category.name)
+            items = []
+            subcategories = list(category.subcategories.all())
+
+            for subcategory in subcategories:
+                if subcategory.current_value is None:
+                    continue
+                current_value = float(subcategory.current_value)
+                items.append(
+                    {
+                        "key": f"{category_slug}-{slugify(subcategory.name)}",
+                        "label": subcategory.name,
+                        "unit_label": subcategory.unit_label,
+                        **_subcategory_metric_payload(
+                            category_slug=category_slug,
+                            subcategory_slug=slugify(subcategory.name),
+                            current_value=current_value,
+                            previous_rate=previous_rate,
+                        ),
+                    }
+                )
+
+            if not items and category.current_value is not None:
+                current_value = float(category.current_value)
+                items.append(
+                    {
+                        "key": category_slug,
+                        "label": f"{category.name} Rate",
+                        "unit_label": category.unit_label,
+                        **_category_metric_payload(
+                            category_slug=category_slug,
+                            category_value=current_value,
+                            previous_rate=previous_rate,
+                        ),
+                    }
+                )
+
+            if not items:
+                continue
+
+            rate_groups.append(
+                {
+                    "key": category_slug,
+                    "title": category.name,
+                    "icon_key": category_slug,
+                    "items": items,
+                }
+            )
+
+        latest_custom_timestamp = max(
+            [value.updated_at for value in custom_categories] +
+            [subcategory.updated_at for value in custom_categories for subcategory in value.subcategories.all()],
+            default=getattr(latest_rate, "effective_at", None),
+        )
+        return {
+            "association": {
+                "id": association.id,
+                "name": association.name,
+                "state_name": association.state.name,
+            },
+            "updated_at_label": _format_timestamp_label(getattr(latest_rate, "effective_at", latest_custom_timestamp) or latest_custom_timestamp),
+            "hero_badge_label": "Live Market",
+            "rate_groups": rate_groups,
+            "notice": {
+                "eyebrow": "Institutional Notice",
+                "body": "Rates displayed are live market indications for association members. Taxes and local making charges may apply at the point of sale.",
+            },
+        }
 
     gold_items = [
         {
@@ -308,3 +569,46 @@ class AssociationRateDetailView(APIView):
         except AssociationRate.DoesNotExist as exc:
             raise Http404("Rate details are not available for this association.") from exc
         return Response(AssociationRateDetailResponseSerializer(payload).data)
+
+
+class AssociationAdminRateCatalogView(APIView):
+    permission_classes = [HasAdminAccess]
+
+    def get(self, request):
+        association = _resolve_admin_association(request)
+        payload = _serialize_rate_catalog(association)
+        return Response(AssociationRateCatalogResponseSerializer(payload).data)
+
+    def put(self, request):
+        association = _resolve_admin_association(request)
+        serializer = AssociationRateCatalogPayloadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            AssociationRateCategory.objects.filter(association=association).delete()
+
+            for category_index, category_data in enumerate(serializer.validated_data["categories"]):
+                category = AssociationRateCategory.objects.create(
+                    association=association,
+                    name=category_data["name"].strip(),
+                    slug=slugify(category_data["name"]),
+                    unit_label=category_data.get("unit_label") or "1 Gram",
+                    current_value=category_data.get("current_value"),
+                    display_order=category_index,
+                    updated_by=request.user,
+                )
+                for subcategory_index, subcategory_data in enumerate(category_data.get("subcategories") or []):
+                    AssociationRateSubcategory.objects.create(
+                        category=category,
+                        name=subcategory_data["name"].strip(),
+                        slug=slugify(subcategory_data["name"]),
+                        unit_label=subcategory_data.get("unit_label") or category.unit_label,
+                        current_value=subcategory_data.get("current_value"),
+                        display_order=subcategory_index,
+                        updated_by=request.user,
+                    )
+
+            _publish_legacy_association_rate(association)
+
+        payload = _serialize_rate_catalog(association)
+        return Response(AssociationRateCatalogResponseSerializer(payload).data)

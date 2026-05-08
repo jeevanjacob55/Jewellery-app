@@ -109,3 +109,47 @@ class AssociationRateDetailResponseSerializer(serializers.Serializer):
     hero_badge_label = serializers.CharField()
     rate_groups = AssociationRateDetailGroupSerializer(many=True)
     notice = AssociationRateDetailNoticeSerializer()
+
+
+class AssociationRateCatalogSubcategorySerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
+    name = serializers.CharField(max_length=120)
+    unit_label = serializers.CharField(max_length=60, required=False, allow_blank=False, default="1 Gram")
+    current_value = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+
+
+class AssociationRateCatalogCategorySerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
+    name = serializers.CharField(max_length=120)
+    unit_label = serializers.CharField(max_length=60, required=False, allow_blank=False, default="1 Gram")
+    current_value = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    subcategories = AssociationRateCatalogSubcategorySerializer(many=True, required=False)
+
+    def validate(self, attrs):
+        subcategories = attrs.get("subcategories") or []
+        seen = set()
+        for subcategory in subcategories:
+            key = subcategory["name"].strip().casefold()
+            if key in seen:
+                raise serializers.ValidationError({"subcategories": "Subcategory names must be unique within a category."})
+            seen.add(key)
+        return attrs
+
+
+class AssociationRateCatalogPayloadSerializer(serializers.Serializer):
+    categories = AssociationRateCatalogCategorySerializer(many=True)
+
+    def validate(self, attrs):
+        seen = set()
+        for category in attrs["categories"]:
+            key = category["name"].strip().casefold()
+            if key in seen:
+                raise serializers.ValidationError({"categories": "Category names must be unique within an association."})
+            seen.add(key)
+        return attrs
+
+
+class AssociationRateCatalogResponseSerializer(serializers.Serializer):
+    association = AssociationRateDetailContextSerializer()
+    updated_at_label = serializers.CharField()
+    categories = AssociationRateCatalogCategorySerializer(many=True)

@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.accounts.models import MemberProfile
+from apps.accounts.models import MemberProfile, UserRole
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 from .models import AssociationRate, ExternalMarketRate, GlobalTrendSnapshot
@@ -301,3 +301,161 @@ class DashboardApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["rate_groups"][0]["items"][0]["trend"], "flat")
         self.assertEqual(response.data["rate_groups"][0]["items"][0]["change_percent_label"], "0.00%")
+
+    def test_association_rate_detail_uses_custom_admin_managed_categories(self):
+        kerala = RegionState.objects.create(name="Kerala")
+        association = Association.objects.create(state=kerala, name="KGSMA")
+        admin_user = get_user_model().objects.create_user(username="rates-admin", password="StrongPass123!")
+        UserRole.objects.create(
+            user=admin_user,
+            role=UserRole.Role.ASSOCIATION_ADMIN,
+            scope_type=UserRole.ScopeType.ASSOCIATION,
+            scope_id=association.id,
+        )
+
+        self.client.force_authenticate(user=admin_user)
+        save_response = self.client.put(
+            reverse("admin_association_rate_catalog"),
+            {
+                "categories": [
+                    {
+                        "name": "Gold",
+                        "unit_label": "1 Gram",
+                        "subcategories": [
+                            {"name": "22K", "unit_label": "1 Gram", "current_value": "5450.00"},
+                            {"name": "24K", "unit_label": "1 Gram", "current_value": "5900.00"},
+                        ],
+                    },
+                    {
+                        "name": "Silver",
+                        "unit_label": "1 Gram",
+                        "current_value": "74.50",
+                        "subcategories": [],
+                    },
+                    {
+                        "name": "Diamond",
+                        "unit_label": "1 Carat",
+                        "current_value": "6250.00",
+                        "subcategories": [],
+                    },
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(save_response.status_code, status.HTTP_200_OK)
+
+        detail_response = self.client.get(reverse("dashboard_association_rate_detail", args=[association.id]))
+
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual([group["title"] for group in detail_response.data["rate_groups"]], ["Gold", "Silver", "Diamond"])
+        self.assertEqual(detail_response.data["rate_groups"][0]["items"][0]["label"], "22K")
+        self.assertEqual(detail_response.data["rate_groups"][1]["items"][0]["label"], "Silver Rate")
+        self.assertEqual(detail_response.data["rate_groups"][2]["items"][0]["unit_label"], "1 Carat")
+
+
+class AssociationAdminRateCatalogApiTests(APITestCase):
+    def setUp(self):
+        self.state = RegionState.objects.create(name="Kerala")
+        self.association = Association.objects.create(state=self.state, name="KGSMA")
+        self.district = DistrictOperationalUnit.objects.create(association=self.association, name="Ernakulam District Unit")
+        self.unit = Unit.objects.create(district_operational_unit=self.district, name="Kadavanthra Unit")
+
+        user_model = get_user_model()
+        self.association_admin = user_model.objects.create_user(username="association-admin", password="StrongPass123!")
+        UserRole.objects.create(
+            user=self.association_admin,
+            role=UserRole.Role.ASSOCIATION_ADMIN,
+            scope_type=UserRole.ScopeType.ASSOCIATION,
+            scope_id=self.association.id,
+        )
+        MemberProfile.objects.create(
+            user=self.association_admin,
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district,
+            unit=self.unit,
+        )
+
+        self.member = user_model.objects.create_user(username="association-member", password="StrongPass123!")
+        MemberProfile.objects.create(
+            user=self.member,
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district,
+            unit=self.unit,
+        )
+
+    def test_association_admin_can_save_rate_catalog_and_members_see_updated_rates(self):
+        self.client.force_authenticate(user=self.association_admin)
+        response = self.client.put(
+            reverse("admin_association_rate_catalog"),
+            {
+                "categories": [
+                    {
+                        "name": "Gold",
+                        "unit_label": "1 Gram",
+                        "subcategories": [
+                            {"name": "18K", "unit_label": "1 Gram", "current_value": "4450.00"},
+                            {"name": "22K", "unit_label": "1 Gram", "current_value": "5455.00"},
+                            {"name": "24K", "unit_label": "1 Gram", "current_value": "5910.00"},
+                        ],
+                    },
+                    {
+                        "name": "Silver",
+                        "unit_label": "1 Gram",
+                        "current_value": "74.75",
+                        "subcategories": [],
+                    },
+                ]
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["association"]["name"], "KGSMA")
+        self.assertEqual(response.data["categories"][0]["subcategories"][1]["name"], "22K")
+
+        self.client.force_authenticate(user=self.member)
+        dashboard_response = self.client.get(reverse("dashboard"))
+        detail_response = self.client.get(reverse("dashboard_association_rate_detail", args=[self.association.id]))
+
+        self.assertEqual(dashboard_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(dashboard_response.data["association"]["name"], "KGSMA")
+        self.assertEqual(dashboard_response.data["headline_rates"]["gold_22k"]["value"], 5455.0)
+        self.assertEqual(dashboard_response.data["headline_rates"]["gold_24k"]["value"], 5910.0)
+        self.assertEqual(dashboard_response.data["headline_rates"]["silver"]["value"], 74.75)
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual([group["title"] for group in detail_response.data["rate_groups"]], ["Gold", "Silver"])
+
+    def test_association_admin_catalog_get_falls_back_to_legacy_rate_defaults(self):
+        AssociationRate.objects.create(
+            association=self.association,
+            region_label="KGSMA Latest",
+            gold_22k="5440.00",
+            gold_24k="5890.00",
+            silver="74.25",
+            effective_at=timezone.make_aware(datetime(2026, 4, 21, 9, 0)),
+        )
+
+        self.client.force_authenticate(user=self.association_admin)
+        response = self.client.get(reverse("admin_association_rate_catalog"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["categories"][0]["name"], "Gold")
+        self.assertEqual(response.data["categories"][0]["subcategories"][0]["current_value"], "5440.00")
+        self.assertEqual(response.data["categories"][1]["current_value"], "74.25")
+
+    def test_non_association_admin_cannot_access_catalog(self):
+        user_model = get_user_model()
+        other_admin = user_model.objects.create_user(username="state-admin", password="StrongPass123!")
+        UserRole.objects.create(
+            user=other_admin,
+            role=UserRole.Role.STATE_ADMIN,
+            scope_type=UserRole.ScopeType.STATE,
+            scope_id=self.state.id,
+        )
+
+        self.client.force_authenticate(user=other_admin)
+        response = self.client.get(reverse("admin_association_rate_catalog"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
