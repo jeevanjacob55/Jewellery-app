@@ -16,6 +16,7 @@ from .models import (
     ProductAttributeDefinition,
     ProductAttributeValue,
     ProductCategory,
+    ProductImage,
     ProductSubCategory,
     ProductWishlist,
     ZoneEligibilityRule,
@@ -188,6 +189,47 @@ class ProductSerializer(serializers.ModelSerializer):
         return get_product_attribute_payload(obj)
 
 
+class CompanyManagementProductImageSerializer(serializers.ModelSerializer):
+    asset_id = serializers.IntegerField(source="asset.id", read_only=True)
+    url = serializers.CharField(source="asset.public_url", read_only=True)
+    original_filename = serializers.CharField(source="asset.original_filename", read_only=True)
+
+    class Meta:
+        model = ProductImage
+        fields = ["asset_id", "url", "original_filename"]
+
+
+class CompanyManagementProductSerializer(serializers.ModelSerializer):
+    category_id = serializers.IntegerField(source="category.id", read_only=True)
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    subcategory_id = serializers.IntegerField(source="subcategory.id", read_only=True, allow_null=True)
+    subcategory_name = serializers.CharField(source="subcategory.name", read_only=True, allow_null=True)
+    image_count = serializers.SerializerMethodField()
+    images = CompanyManagementProductImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "name",
+            "category_id",
+            "category_name",
+            "subcategory_id",
+            "subcategory_name",
+            "weight_grams",
+            "purity",
+            "price",
+            "description",
+            "is_active",
+            "created_at",
+            "image_count",
+            "images",
+        ]
+
+    def get_image_count(self, obj: Product) -> int:
+        return obj.images.count()
+
+
 class CompanySerializer(serializers.ModelSerializer):
     verification = CompanyVerificationSerializer(read_only=True)
     products = ProductSerializer(many=True, read_only=True)
@@ -227,6 +269,96 @@ class CompanySerializer(serializers.ModelSerializer):
 
     def get_logo_image_url(self, obj: Company) -> str | None:
         return get_company_image_url(obj, is_logo=True)
+
+
+class CompanyManagementTierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanyTier
+        fields = [
+            "id",
+            "name",
+            "visibility_type",
+            "max_products",
+            "min_photos_per_product",
+            "max_photos_per_product",
+        ]
+
+
+class CompanyManagementSummarySerializer(serializers.ModelSerializer):
+    verification = CompanyVerificationSerializer(read_only=True)
+    tier = CompanyManagementTierSerializer(source="tier_ref", read_only=True)
+    hero_image_url = serializers.SerializerMethodField()
+    logo_image_url = serializers.SerializerMethodField()
+    active_product_count = serializers.SerializerMethodField()
+    total_product_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Company
+        fields = [
+            "id",
+            "name",
+            "category",
+            "city",
+            "state",
+            "about",
+            "daily_capacity",
+            "specialization",
+            "is_active",
+            "is_approved",
+            "is_market_visible",
+            "hero_image_url",
+            "logo_image_url",
+            "verification",
+            "tier",
+            "active_product_count",
+            "total_product_count",
+        ]
+
+    def get_hero_image_url(self, obj: Company) -> str | None:
+        return get_company_image_url(obj, is_logo=False)
+
+    def get_logo_image_url(self, obj: Company) -> str | None:
+        return get_company_image_url(obj, is_logo=True)
+
+    def get_active_product_count(self, obj: Company) -> int:
+        return obj.products.filter(is_active=True).count()
+
+    def get_total_product_count(self, obj: Company) -> int:
+        return obj.products.count()
+
+
+class CompanyManagementDetailSerializer(serializers.Serializer):
+    company = CompanyManagementSummarySerializer()
+    products = CompanyManagementProductSerializer(many=True)
+
+
+class CompanyManagementUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = ["name", "category", "city", "state", "about", "daily_capacity", "specialization"]
+
+
+class CompanyImageAttachSerializer(serializers.Serializer):
+    SLOT_CHOICES = (("logo", "logo"), ("hero", "hero"))
+
+    asset_id = serializers.PrimaryKeyRelatedField(queryset=MediaAsset.objects.all(), source="asset")
+    slot = serializers.ChoiceField(choices=SLOT_CHOICES)
+
+
+class CompanyMediaAssetFinalizeSerializer(serializers.Serializer):
+    object_key = serializers.CharField(max_length=500)
+    bucket_name = serializers.CharField(max_length=255)
+    original_filename = serializers.CharField(max_length=255)
+    mime_type = serializers.CharField(max_length=120)
+    file_size = serializers.IntegerField(min_value=0)
+    width = serializers.IntegerField(min_value=0)
+    height = serializers.IntegerField(min_value=0)
+
+    def validate_mime_type(self, value: str) -> str:
+        allowed = {"image/jpeg", "image/png", "image/webp"}
+        if value not in allowed:
+            raise serializers.ValidationError("Unsupported image type.")
+        return value
 
 
 class MarketCompanyCardSerializer(serializers.ModelSerializer):

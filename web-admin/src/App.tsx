@@ -4,12 +4,18 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminShell } from "./components/AdminShell";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
+import { CompanyManagementPage } from "./pages/CompanyManagementPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { RateManagementPage } from "./pages/RateManagementPage";
 
+function getDefaultAdminPath(role: string | undefined) {
+  return role === "COMPANY_ADMIN" ? "/admin/company" : "/admin/overview";
+}
+
 function AppRoutes() {
-  const { status } = useAuth();
+  const { session, status } = useAuth();
+  const defaultAdminPath = getDefaultAdminPath(session?.user.role);
 
   if (status === "booting") {
     return (
@@ -25,7 +31,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/login" element={status === "signedIn" ? <Navigate to="/admin/overview" replace /> : <LoginPage />} />
+      <Route path="/login" element={status === "signedIn" ? <Navigate to={defaultAdminPath} replace /> : <LoginPage />} />
       <Route
         path="/admin"
         element={
@@ -34,8 +40,12 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/admin/overview" replace />} />
-        <Route path="overview" element={<AdminDashboardPage />} />
+        <Route index element={<Navigate to={defaultAdminPath} replace />} />
+        <Route
+          path="overview"
+          element={session?.user.role === "COMPANY_ADMIN" ? <Navigate to="/admin/company" replace /> : <AdminDashboardPage />}
+        />
+        <Route path="company" element={<CompanyManagementPage />} />
         <Route path="rates" element={<RateManagementPage />} />
         <Route
           path="company-profiles"
@@ -68,8 +78,8 @@ function AppRoutes() {
           }
         />
       </Route>
-      <Route path="/" element={<Navigate to={status === "signedIn" ? "/admin/overview" : "/login"} replace />} />
-      <Route path="*" element={<Navigate to={status === "signedIn" ? "/admin/overview" : "/login"} replace />} />
+      <Route path="/" element={<Navigate to={status === "signedIn" ? defaultAdminPath : "/login"} replace />} />
+      <Route path="*" element={<Navigate to={status === "signedIn" ? defaultAdminPath : "/login"} replace />} />
     </Routes>
   );
 }

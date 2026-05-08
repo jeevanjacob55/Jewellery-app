@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from apps.admin_ops.permissions import IsSuperAdmin
 
-from config.storage import build_mock_signed_upload
+from config.storage import build_mock_signed_upload, get_mock_upload
 
 from .models import (
     Company,
@@ -35,6 +35,10 @@ from .models import (
 )
 from .serializers import (
     CompanySerializer,
+    CompanyImageAttachSerializer,
+    CompanyManagementDetailSerializer,
+    CompanyManagementUpdateSerializer,
+    CompanyMediaAssetFinalizeSerializer,
     CompanyMarketVisibilitySerializer,
     CompanyTierAssignmentConfirmSerializer,
     CompanyTierAssignmentSerializer,
@@ -96,6 +100,27 @@ def get_public_product_queryset():
     ).select_related("company", "category", "subcategory", "company__tier_ref").prefetch_related(
         Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
         Prefetch("attribute_values", queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by("attribute_definition__display_order", "id")),
+    )
+
+
+def get_company_management_queryset():
+    product_queryset = (
+        Product.objects.select_related("category", "subcategory")
+        .prefetch_related(
+            Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
+            Prefetch(
+                "attribute_values",
+                queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by("attribute_definition__display_order", "id"),
+            ),
+        )
+        .order_by("-created_at", "-id")
+    )
+    return (
+        Company.objects.select_related("verification", "tier_ref")
+        .prefetch_related(
+            Prefetch("products", queryset=product_queryset),
+            Prefetch("images", queryset=CompanyImage.objects.select_related("asset").order_by("is_logo", "id")),
+        )
     )
 
 
@@ -361,10 +386,144 @@ class EnquiryCreateView(APIView):
 
 
 class CompanyImageUploadSessionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request, company_id: int):
+        company = get_object_or_404(Company.objects.only("id"), pk=company_id)
+        if not user_can_manage_company(request.user, company.id):
+            return Response({"detail": "You do not have permission to manage media for this company."}, status=status.HTTP_403_FORBIDDEN)
         filename = request.data.get("filename", "company-image.jpg")
         session = build_mock_signed_upload("companies/gallery", company_id, filename, visibility="public")
         return Response(session.__dict__)
+
+
+class CompanyManagementDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, company_id: int):
+        company = get_object_or_404(get_company_management_queryset(), pk=company_id)
+        if not user_can_manage_company(request.user, company.id):
+            return Response({"detail": "You do not have permission to manage this company."}, status=status.HTTP_403_FORBIDDEN)
+        return Response(CompanyManagementDetailSerializer({"company": company, "products": list(company.products.all())}).data)
+
+    def patch(self, request, company_id: int):
+        company = get_object_or_404(get_company_management_queryset(), pk=company_id)
+        if not user_can_manage_company(request.user, company.id):
+            return Response({"detail": "You do not have permission to manage this company."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = CompanyManagementUpdateSerializer(company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        company.refresh_from_db()
+        refreshed = get_company_management_queryset().get(pk=company.id)
+        return Response(CompanyManagementDetailSerializer({"company": refreshed, "products": list(refreshed.products.all())}).data)
+
+
+class CompanyMediaAssetFinalizeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, company_id: int):
+        company = get_object_or_404(Company.objects.only("id"), pk=company_id)
+        if not user_can_manage_company(request.user, company.id):
+            return Response({"detail": "You do not have permission to manage media for this company."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = CompanyMediaAssetFinalizeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+
+        expected_prefix = f"companies/gallery/{company.id}/"
+        if not payload["object_key"].startswith(expected_prefix):
+            return Response({"object_key": ["Object key does not match the company upload path."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        mock_upload = get_mock_upload(payload["object_key"])
+        if mock_upload is None:
+            return Response({"object_key": ["Uploaded object not found in mock storage."]}, status=status.HTTP_400_BAD_REQUEST)
+        if mock_upload.content_type != payload["mime_type"]:
+            return Response({"mime_type": ["Uploaded file metadata did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
+        if mock_upload.size != payload["file_size"]:
+            return Response({"file_size": ["Uploaded file size did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        media_asset, created = MediaAsset.objects.get_or_create(
+            object_key=payload["object_key"],
+            defaults={
+                "uploader": request.user,
+                "bucket_name": payload["bucket_name"],
+                "original_filename": payload["original_filename"],
+                "mime_type": payload["mime_type"],
+                "public_url": f"https://mock-storage.local/{payload['object_key']}",
+                "width": payload["width"],
+                "height": payload["height"],
+                "file_size": payload["file_size"],
+                "visibility": MediaAsset.Visibility.PUBLIC,
+                "moderation_status": MediaAsset.ModerationStatus.APPROVED,
+            },
+        )
+
+        if not created:
+            media_asset.uploader = request.user
+            media_asset.bucket_name = payload["bucket_name"]
+            media_asset.original_filename = payload["original_filename"]
+            media_asset.mime_type = payload["mime_type"]
+            media_asset.public_url = f"https://mock-storage.local/{payload['object_key']}"
+            media_asset.width = payload["width"]
+            media_asset.height = payload["height"]
+            media_asset.file_size = payload["file_size"]
+            media_asset.visibility = MediaAsset.Visibility.PUBLIC
+            media_asset.moderation_status = MediaAsset.ModerationStatus.APPROVED
+            media_asset.save(
+                update_fields=[
+                    "uploader",
+                    "bucket_name",
+                    "original_filename",
+                    "mime_type",
+                    "public_url",
+                    "width",
+                    "height",
+                    "file_size",
+                    "visibility",
+                    "moderation_status",
+                ]
+            )
+
+        return Response(
+            {
+                "asset_id": media_asset.id,
+                "object_key": media_asset.object_key,
+                "public_url": media_asset.public_url,
+                "original_filename": media_asset.original_filename,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CompanyImageAttachView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, company_id: int):
+        company = get_object_or_404(get_company_management_queryset(), pk=company_id)
+        if not user_can_manage_company(request.user, company.id):
+            return Response({"detail": "You do not have permission to manage media for this company."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = CompanyImageAttachSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        asset: MediaAsset = serializer.validated_data["asset"]
+        is_logo = serializer.validated_data["slot"] == "logo"
+
+        if hasattr(asset, "product_image"):
+            return Response({"asset_id": ["This image asset is already attached to a product."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_attachment = getattr(asset, "company_image", None)
+        if existing_attachment is not None and existing_attachment.company_id != company.id:
+            return Response({"asset_id": ["This image asset is already attached to another company."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        CompanyImage.objects.filter(company=company, is_logo=is_logo).delete()
+        CompanyImage.objects.update_or_create(
+            asset=asset,
+            defaults={"company": company, "is_logo": is_logo},
+        )
+
+        refreshed = get_company_management_queryset().get(pk=company.id)
+        return Response(CompanyManagementDetailSerializer({"company": refreshed, "products": list(refreshed.products.all())}).data, status=status.HTTP_201_CREATED)
 
 
 class CompanyProductListCreateView(APIView):

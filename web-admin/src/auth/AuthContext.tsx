@@ -21,6 +21,13 @@ type StoredSession = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function canAccessConsole(session: SessionInfo) {
+  if (session.user.is_admin) {
+    return true;
+  }
+  return session.user.role === "COMPANY_ADMIN" && session.company !== null;
+}
+
 function readStoredSession(): StoredSession | null {
   const localValue = window.localStorage.getItem(STORAGE_KEY);
   if (localValue) {
@@ -112,7 +119,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
         try {
           const nextSession = await fetchSessionInfo(nextTokens);
-          if (!nextSession.user.is_admin) {
+          if (!canAccessConsole(nextSession)) {
             throw new Error("This account does not have admin console access.");
           }
           if (active) {
@@ -125,7 +132,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setTokens(nextTokens);
           persistTokens(nextTokens, stored.mode);
           const nextSession = await fetchSessionInfo(nextTokens);
-          if (!nextSession.user.is_admin) {
+          if (!canAccessConsole(nextSession)) {
             throw new Error("This account does not have admin console access.");
           }
           if (active) {
@@ -158,7 +165,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       try {
         const nextSession = await fetchSessionInfo(nextTokens);
-        if (!nextSession.user.is_admin) {
+        if (!canAccessConsole(nextSession)) {
           throw new Error("This account does not have admin console access.");
         }
         setSession(nextSession);

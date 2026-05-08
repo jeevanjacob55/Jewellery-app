@@ -67,6 +67,53 @@ class SuperAdminHierarchySerializer(serializers.Serializer):
     states = RegionStateSerializer(many=True)
 
 
+class AdminOverviewScopeSerializer(serializers.Serializer):
+    label = serializers.CharField()
+    scope_type = serializers.CharField()
+    role = serializers.CharField()
+
+
+class AdminOverviewKpisSerializer(serializers.Serializer):
+    pending_approvals = serializers.IntegerField()
+    active_companies = serializers.IntegerField()
+    active_products = serializers.IntegerField()
+    published_news = serializers.IntegerField()
+    upcoming_meetings = serializers.IntegerField()
+    rate_last_updated_at = serializers.DateTimeField(allow_null=True)
+    rate_freshness_label = serializers.CharField()
+
+
+class AdminOverviewWorkItemSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    label = serializers.CharField()
+    count = serializers.IntegerField()
+    route = serializers.CharField(allow_null=True)
+
+
+class AdminOverviewActivityItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    actor_name = serializers.CharField()
+    action = serializers.CharField()
+    entity_type = serializers.CharField()
+    entity_id = serializers.CharField()
+    summary = serializers.CharField()
+    created_at = serializers.DateTimeField()
+
+
+class AdminOverviewQuickActionSerializer(serializers.Serializer):
+    label = serializers.CharField()
+    description = serializers.CharField()
+    route = serializers.CharField()
+
+
+class AdminOverviewResponseSerializer(serializers.Serializer):
+    scope = AdminOverviewScopeSerializer()
+    kpis = AdminOverviewKpisSerializer()
+    pending_work = AdminOverviewWorkItemSerializer(many=True)
+    recent_activity = AdminOverviewActivityItemSerializer(many=True)
+    quick_actions = AdminOverviewQuickActionSerializer(many=True)
+
+
 def build_bulk_create_result(*, names: list[str], existing_lookup: dict[str, object], create_callback) -> dict[str, object]:
     created = []
     skipped_existing = []

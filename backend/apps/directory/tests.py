@@ -267,6 +267,113 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(len(response.data["products"]), 2)
         self.assertEqual({product["category_name"] for product in response.data["products"]}, {"Rings", "Chains"})
 
+    def test_company_admin_can_get_company_management_detail(self):
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.get(reverse("company_manage_detail", args=[self.company.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["company"]["name"], "Heritage Gold House")
+        self.assertEqual(response.data["company"]["tier"]["name"], self.featured_tier.name)
+        self.assertEqual(response.data["company"]["active_product_count"], 2)
+        self.assertEqual(response.data["company"]["total_product_count"], 2)
+        self.assertEqual(response.data["products"][0]["image_count"], 1)
+        self.assertIn("asset_id", response.data["products"][0]["images"][0])
+
+    def test_company_admin_cannot_get_other_company_management_detail(self):
+        other_company = self._create_company_with_product(
+            name="Other Scope House",
+            tier=self.pro_tier,
+            category_name="Rings",
+            product_name="Other Scope Ring",
+            product_public_url="https://example.com/other-scope-product.jpg",
+            company_public_url="https://example.com/other-scope-company.jpg",
+        )
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.get(reverse("company_manage_detail", args=[other_company.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_company_admin_can_patch_company_management_fields(self):
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.patch(
+            reverse("company_manage_detail", args=[self.company.id]),
+            {
+                "about": "Updated profile copy for wholesale buyers.",
+                "specialization": "Bridal jewellery",
+                "daily_capacity": "18kg",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.about, "Updated profile copy for wholesale buyers.")
+        self.assertEqual(self.company.specialization, "Bridal jewellery")
+        self.assertEqual(self.company.daily_capacity, "18kg")
+
+    def test_company_admin_can_finalize_media_asset_and_replace_logo(self):
+        self.client.force_authenticate(user=self.company_admin)
+        upload_session_response = self.client.post(
+            reverse("company_upload_session", args=[self.company.id]),
+            {"filename": "brand-logo.png"},
+            format="json",
+        )
+
+        self.assertEqual(upload_session_response.status_code, status.HTTP_200_OK)
+        mock_upload_response = self.client.put(
+            f"{reverse('mock_upload')}?object_key={upload_session_response.data['object_key']}",
+            b"mock-image-binary",
+            content_type="image/png",
+        )
+        self.assertEqual(mock_upload_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        finalize_response = self.client.post(
+            reverse("company_media_asset_finalize", args=[self.company.id]),
+            {
+                "object_key": upload_session_response.data["object_key"],
+                "bucket_name": upload_session_response.data["bucket_name"],
+                "original_filename": "brand-logo.png",
+                "mime_type": "image/png",
+                "file_size": len(b"mock-image-binary"),
+                "width": 640,
+                "height": 640,
+            },
+            format="json",
+        )
+
+        self.assertEqual(finalize_response.status_code, status.HTTP_201_CREATED)
+        attach_response = self.client.post(
+            reverse("company_image_attach", args=[self.company.id]),
+            {"asset_id": finalize_response.data["asset_id"], "slot": "logo"},
+            format="json",
+        )
+
+        self.assertEqual(attach_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(attach_response.data["company"]["logo_image_url"], finalize_response.data["public_url"])
+        self.assertEqual(CompanyImage.objects.filter(company=self.company, is_logo=True).count(), 1)
+
+    def test_company_upload_session_requires_company_scope(self):
+        other_company = self._create_company_with_product(
+            name="Locked Upload House",
+            tier=self.pro_tier,
+            category_name="Chains",
+            product_name="Locked Upload Chain",
+            product_public_url="https://example.com/locked-upload-product.jpg",
+            company_public_url="https://example.com/locked-upload-company.jpg",
+        )
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.post(
+            reverse("company_upload_session", args=[other_company.id]),
+            {"filename": "not-allowed.png"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_market_feed_returns_row_payload(self):
         self._create_company_with_product(
             name="Metro Diamond Studio",

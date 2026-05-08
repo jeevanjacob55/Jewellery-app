@@ -5,15 +5,16 @@ import { useAuth } from "../auth/AuthContext";
 type NavItem = {
   label: string;
   path: string;
-  associationOnly?: boolean;
+  visibility: "all_admins" | "association_admin" | "company_admin";
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Rate Management", path: "/admin/rates", associationOnly: true },
-  { label: "Overview", path: "/admin/overview" },
-  { label: "Company Profiles", path: "/admin/company-profiles" },
-  { label: "Advertisements", path: "/admin/advertisements" },
-  { label: "Content", path: "/admin/content" },
+  { label: "Overview", path: "/admin/overview", visibility: "all_admins" },
+  { label: "Rate Management", path: "/admin/rates", visibility: "association_admin" },
+  { label: "Company Profiles", path: "/admin/company-profiles", visibility: "all_admins" },
+  { label: "Advertisements", path: "/admin/advertisements", visibility: "all_admins" },
+  { label: "Content", path: "/admin/content", visibility: "all_admins" },
+  { label: "Company Management", path: "/admin/company", visibility: "company_admin" },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -22,14 +23,25 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/company-profiles": "Company Profiles",
   "/admin/advertisements": "Advertisements",
   "/admin/content": "Content",
+  "/admin/company": "Company Management",
 };
 
 export function AdminShell() {
   const { session, logout } = useAuth();
   const location = useLocation();
   const isAssociationAdmin = session?.user.role === "ASSOCIATION_ADMIN";
-  const visibleItems = NAV_ITEMS.filter((item) => !item.associationOnly || isAssociationAdmin);
+  const isCompanyAdmin = session?.user.role === "COMPANY_ADMIN";
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.visibility === "company_admin") {
+      return isCompanyAdmin;
+    }
+    if (item.visibility === "association_admin") {
+      return isAssociationAdmin;
+    }
+    return !isCompanyAdmin;
+  });
   const pageTitle = PAGE_TITLES[location.pathname] ?? "Admin";
+  const scopeLabel = session?.company?.name ?? session?.hierarchy.association ?? session?.hierarchy.state ?? "Platform";
 
   return (
     <div className="admin-app">
@@ -56,14 +68,14 @@ export function AdminShell() {
 
         <div className="admin-sidebar__footer">
           <p className="admin-sidebar__scope-label">Current Scope</p>
-          <strong className="admin-sidebar__scope-value">{session?.hierarchy.association ?? session?.hierarchy.state ?? "Platform"}</strong>
+          <strong className="admin-sidebar__scope-value">{scopeLabel}</strong>
         </div>
       </aside>
 
       <div className="admin-main">
         <header className="admin-shell__header">
           <div>
-            <p className="admin-shell__eyebrow">Protected Admin Shell</p>
+            <p className="admin-shell__eyebrow">{isCompanyAdmin ? "Company Console" : "Protected Admin Shell"}</p>
             <h2 className="admin-shell__title">{pageTitle}</h2>
           </div>
           <div className="admin-shell__actions">
