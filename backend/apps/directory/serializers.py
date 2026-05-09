@@ -5,6 +5,7 @@ from django.utils.text import slugify
 
 from .models import (
     Company,
+    CompanyTierChangeRequest,
     CompanyTier,
     CompanyVerification,
     Enquiry,
@@ -23,6 +24,7 @@ from .models import (
 )
 from .services import (
     TierValidationError,
+    build_downgrade_warning,
     sync_product_images,
     validate_company_can_activate_product,
     validate_company_tier_capacity,
@@ -688,6 +690,248 @@ class CompanyTierSerializer(serializers.ModelSerializer):
 
     def get_current_company_count(self, obj: CompanyTier) -> int:
         return obj.companies.filter(is_active=True, is_approved=True).count()
+
+
+class TierCapabilitySummarySerializer(serializers.Serializer):
+    can_manage_products = serializers.BooleanField()
+    can_activate_products = serializers.BooleanField()
+    can_request_upgrade = serializers.BooleanField()
+    can_request_downgrade = serializers.BooleanField()
+    market_visibility_type = serializers.CharField()
+    hero_eligible = serializers.BooleanField()
+    fairness_weight = serializers.IntegerField()
+    premium_floor_share = serializers.DecimalField(max_digits=5, decimal_places=2)
+    cooldown_hours = serializers.IntegerField()
+
+
+class CompanyTierManagementOverviewSerializer(serializers.Serializer):
+    current_tier = CompanyTierSerializer()
+    company = serializers.SerializerMethodField()
+    capabilities = serializers.SerializerMethodField()
+    active_products = serializers.SerializerMethodField()
+    available_upgrades = CompanyTierSerializer(many=True)
+    available_downgrades = CompanyTierSerializer(many=True)
+    pending_request = serializers.SerializerMethodField()
+    requests = serializers.SerializerMethodField()
+
+    def get_company(self, obj) -> dict:
+        company: Company = obj["company"]
+        return {
+            "id": company.id,
+            "name": company.name,
+            "active_product_count": company.products.filter(is_active=True).count(),
+            "is_active": company.is_active,
+            "is_approved": company.is_approved,
+        }
+
+    def get_capabilities(self, obj) -> dict:
+        tier: CompanyTier = obj["current_tier"]
+        return TierCapabilitySummarySerializer(
+            {
+                "can_manage_products": True,
+                "can_activate_products": bool(obj["company"].is_active and obj["company"].is_approved),
+                "can_request_upgrade": True,
+                "can_request_downgrade": True,
+                "market_visibility_type": tier.visibility_type,
+                "hero_eligible": tier.hero_eligible,
+                "fairness_weight": tier.base_weight,
+                "premium_floor_share": tier.premium_floor_share,
+                "cooldown_hours": tier.cooldown_hours,
+            }
+        ).data
+
+    def get_active_products(self, obj):
+        company: Company = obj["company"]
+        products = company.products.filter(is_active=True).order_by("-created_at", "-id")
+        return CompanyManagementProductSerializer(products, many=True).data
+
+    def get_pending_request(self, obj):
+        request = obj.get("pending_request")
+        if request is None:
+            return None
+        return CompanyTierChangeRequestSerializer(request).data
+
+    def get_requests(self, obj):
+        requests = obj.get("requests", [])
+        return CompanyTierChangeRequestSerializer(requests, many=True).data
+
+
+class CompanyTierChangeRequestSerializer(serializers.ModelSerializer):
+    company = serializers.SerializerMethodField()
+    current_tier = serializers.SerializerMethodField()
+    requested_tier = serializers.SerializerMethodField()
+    requested_by_name = serializers.SerializerMethodField()
+    reviewed_by_name = serializers.SerializerMethodField()
+    active_product_count = serializers.SerializerMethodField()
+    downgrade_context = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CompanyTierChangeRequest
+        fields = [
+            "id",
+            "request_type",
+            "status",
+            "company_note",
+            "admin_note",
+            "current_tier_name",
+            "requested_tier_name",
+            "retain_active_product_ids",
+            "created_at",
+            "updated_at",
+            "reviewed_at",
+            "company",
+            "current_tier",
+            "requested_tier",
+            "requested_by_name",
+            "reviewed_by_name",
+            "active_product_count",
+            "downgrade_context",
+        ]
+
+    def get_company(self, obj: CompanyTierChangeRequest) -> dict:
+        return {
+            "id": obj.company.id,
+            "name": obj.company.name,
+            "state": obj.company.state,
+        }
+
+    def get_current_tier(self, obj: CompanyTierChangeRequest) -> dict:
+        return CompanyTierSerializer(obj.current_tier).data
+
+    def get_requested_tier(self, obj: CompanyTierChangeRequest) -> dict:
+        return CompanyTierSerializer(obj.requested_tier).data
+
+    def get_requested_by_name(self, obj: CompanyTierChangeRequest) -> str:
+        full_name = f"{obj.requested_by.first_name} {obj.requested_by.last_name}".strip()
+        return full_name or obj.requested_by.username
+
+    def get_reviewed_by_name(self, obj: CompanyTierChangeRequest) -> str | None:
+        if obj.reviewed_by is None:
+            return None
+        full_name = f"{obj.reviewed_by.first_name} {obj.reviewed_by.last_name}".strip()
+        return full_name or obj.reviewed_by.username
+
+    def get_active_product_count(self, obj: CompanyTierChangeRequest) -> int:
+        return obj.company.products.filter(is_active=True).count()
+
+    def get_downgrade_context(self, obj: CompanyTierChangeRequest) -> dict | None:
+        if obj.request_type != CompanyTierChangeRequest.RequestType.DOWNGRADE:
+            return None
+        warning = build_downgrade_warning(obj.company, obj.requested_tier)
+        if warning is None:
+            return {
+                "allowed_active_products": obj.requested_tier.max_products,
+                "active_product_ids": list(obj.company.products.filter(is_active=True).values_list("id", flat=True)),
+                "overflow_product_ids": [],
+                "requires_product_selection": False,
+            }
+        return {
+            "allowed_active_products": warning.allowed_active_products,
+            "active_product_ids": warning.active_product_ids,
+            "overflow_product_ids": warning.overflow_product_ids,
+            "requires_product_selection": True,
+        }
+
+
+class CompanyTierChangeRequestCreateSerializer(serializers.Serializer):
+    requested_tier_id = serializers.PrimaryKeyRelatedField(queryset=CompanyTier.objects.all(), source="requested_tier")
+    company_note = serializers.CharField(required=False, allow_blank=True, default="")
+    retain_active_product_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False, default=list)
+
+    def validate(self, attrs):
+        company: Company = self.context["company"]
+        requested_tier: CompanyTier = attrs["requested_tier"]
+
+        if requested_tier.id == company.tier_ref_id:
+            raise serializers.ValidationError({"requested_tier_id": "Choose a different tier before submitting a request."})
+        if not requested_tier.is_active:
+            raise serializers.ValidationError({"requested_tier_id": "Only active tiers can be requested."})
+        if CompanyTierChangeRequest.objects.filter(
+            company=company,
+            status=CompanyTierChangeRequest.Status.PENDING,
+        ).exists():
+            raise serializers.ValidationError("Finish the current pending tier request before creating another one.")
+
+        request_type = (
+            CompanyTierChangeRequest.RequestType.UPGRADE
+            if requested_tier.display_priority < company.tier_ref.display_priority
+            else CompanyTierChangeRequest.RequestType.DOWNGRADE
+        )
+        attrs["request_type"] = request_type
+
+        if request_type == CompanyTierChangeRequest.RequestType.UPGRADE:
+            attrs["retain_active_product_ids"] = []
+            try:
+                validate_company_tier_capacity(requested_tier, exclude_company_id=company.id)
+            except TierValidationError as exc:
+                raise serializers.ValidationError({"requested_tier_id": str(exc)}) from exc
+            return attrs
+
+        warning = build_downgrade_warning(company, requested_tier)
+        retain_active_product_ids = attrs.get("retain_active_product_ids", [])
+        if warning is None:
+            attrs["retain_active_product_ids"] = []
+            return attrs
+        if not retain_active_product_ids:
+            raise serializers.ValidationError(
+                {
+                    "retain_active_product_ids": (
+                        f"Select up to {warning.allowed_active_products} active products to keep enabled for this downgrade."
+                    )
+                }
+            )
+        if len(set(retain_active_product_ids)) > warning.allowed_active_products:
+            raise serializers.ValidationError({"retain_active_product_ids": "Selected products exceed the target tier product limit."})
+        active_product_ids = set(company.products.filter(is_active=True).values_list("id", flat=True))
+        if not set(retain_active_product_ids).issubset(active_product_ids):
+            raise serializers.ValidationError({"retain_active_product_ids": "Selected products must already be active products from this company."})
+        return attrs
+
+    def create(self, validated_data):
+        company: Company = self.context["company"]
+        user = self.context["request"].user
+        requested_tier = validated_data["requested_tier"]
+        return CompanyTierChangeRequest.objects.create(
+            company=company,
+            current_tier=company.tier_ref,
+            requested_tier=requested_tier,
+            requested_by=user,
+            request_type=validated_data["request_type"],
+            company_note=validated_data.get("company_note", "").strip(),
+            current_tier_name=company.tier_ref.name,
+            requested_tier_name=requested_tier.name,
+            retain_active_product_ids=validated_data.get("retain_active_product_ids", []),
+        )
+
+
+class CompanyTierChangeRequestReviewSerializer(serializers.Serializer):
+    admin_note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class CompanyTierAdminDetailSerializer(serializers.Serializer):
+    tier = CompanyTierSerializer()
+    enrolled_companies = serializers.SerializerMethodField()
+    pending_request_count = serializers.IntegerField()
+    recent_requests = serializers.SerializerMethodField()
+
+    def get_enrolled_companies(self, obj):
+        companies = obj.get("enrolled_companies", [])
+        return [
+            {
+                "id": company.id,
+                "name": company.name,
+                "city": company.city,
+                "state": company.state,
+                "is_active": company.is_active,
+                "is_approved": company.is_approved,
+                "active_product_count": company.products.filter(is_active=True).count(),
+            }
+            for company in companies
+        ]
+
+    def get_recent_requests(self, obj):
+        requests = obj.get("recent_requests", [])
+        return CompanyTierChangeRequestSerializer(requests, many=True).data
 
 
 class CompanyTierWriteSerializer(serializers.ModelSerializer):

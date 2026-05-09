@@ -14,6 +14,7 @@ from apps.regions.models import Association, DistrictOperationalUnit, RegionStat
 from .models import (
     Company,
     CompanyImage,
+    CompanyTierChangeRequest,
     CompanyTier,
     CompanyVerification,
     ExposureLedger,
@@ -385,6 +386,94 @@ class DirectoryApiTests(APITestCase):
         self.company.refresh_from_db()
         self.assertEqual(self.company.about, "Admin updated profile copy.")
         self.assertEqual(self.company.daily_capacity, "20kg")
+
+    def test_company_admin_can_fetch_tier_management_overview(self):
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.get(reverse("company_tier_management_overview"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["current_tier"]["id"], self.featured_tier.id)
+        self.assertEqual(response.data["company"]["id"], self.company.id)
+        self.assertIn("available_upgrades", response.data)
+        self.assertIn("available_downgrades", response.data)
+        self.assertIsNone(response.data["pending_request"])
+
+    def test_company_admin_can_create_upgrade_request(self):
+        self.client.force_authenticate(user=self.company_admin)
+        self.company.tier_ref = self.pro_tier
+        self.company.save(update_fields=["tier_ref"])
+
+        response = self.client.post(
+            reverse("company_tier_request_list_create"),
+            {"requested_tier_id": self.featured_tier.id, "company_note": "Need higher visibility placement."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["request"]["request_type"], "upgrade")
+        self.assertEqual(response.data["request"]["status"], "pending")
+
+    def test_company_admin_cannot_create_second_open_tier_request(self):
+        self.client.force_authenticate(user=self.company_admin)
+        self.company.tier_ref = self.pro_tier
+        self.company.save(update_fields=["tier_ref"])
+        self.client.post(
+            reverse("company_tier_request_list_create"),
+            {"requested_tier_id": self.featured_tier.id},
+            format="json",
+        )
+
+        response = self.client.post(
+            reverse("company_tier_request_list_create"),
+            {"requested_tier_id": self.normal_tier.id, "retain_active_product_ids": [self.chain_product.id]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Finish the current pending tier request", str(response.data))
+
+    def test_company_admin_downgrade_request_requires_valid_retained_products(self):
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.post(
+            reverse("company_tier_request_list_create"),
+            {"requested_tier_id": self.normal_tier.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("retain_active_product_ids", response.data)
+
+    def test_company_admin_can_create_downgrade_request_with_retained_products(self):
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.post(
+            reverse("company_tier_request_list_create"),
+            {"requested_tier_id": self.normal_tier.id, "retain_active_product_ids": [self.chain_product.id]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["request"]["request_type"], "downgrade")
+        self.assertEqual(response.data["request"]["retain_active_product_ids"], [self.chain_product.id])
+
+    def test_company_admin_can_cancel_pending_tier_request(self):
+        self.client.force_authenticate(user=self.company_admin)
+        create_response = self.client.post(
+            reverse("company_tier_request_list_create"),
+            {"requested_tier_id": self.pro_tier.id},
+            format="json",
+        )
+
+        response = self.client.post(
+            reverse("company_tier_request_cancel", args=[create_response.data["request"]["id"]]),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["request"]["status"], "cancelled")
 
     def test_company_admin_can_finalize_media_asset_and_replace_logo(self):
         self.client.force_authenticate(user=self.company_admin)
@@ -1179,6 +1268,7 @@ class CompanyTierAdminApiTests(APITestCase):
             scope_id=None,
         )
         self.user = user_model.objects.create_user(username="tier_media_owner", password="DemoPass123!")
+        self.company_admin = user_model.objects.create_user(username="tier_company_admin", password="DemoPass123!")
         self.featured_tier = CompanyTier.objects.get(slug="prime-signature")
         self.featured_tier.max_products = 4
         self.featured_tier.min_photos_per_product = 1
@@ -1249,6 +1339,12 @@ class CompanyTierAdminApiTests(APITestCase):
             is_approved=True,
         )
         CompanyVerification.objects.create(company=self.company, gst_registered=True, bis_hallmarked=True)
+        UserRole.objects.create(
+            user=self.company_admin,
+            role=UserRole.Role.COMPANY_ADMIN,
+            scope_type=UserRole.ScopeType.COMPANY,
+            scope_id=self.company.id,
+        )
         self.category = ProductCategory.objects.create(name="Chains")
         self.product_one = Product.objects.create(
             company=self.company,
@@ -1326,6 +1422,100 @@ class CompanyTierAdminApiTests(APITestCase):
         deactivate_response = self.client.post(reverse("admin_directory_tier_toggle", args=[created_tier_id, "deactivate"]))
         self.assertEqual(deactivate_response.status_code, status.HTTP_200_OK)
         self.assertFalse(deactivate_response.data["is_active"])
+
+    def test_super_admin_can_view_tier_detail_and_requests(self):
+        CompanyTierChangeRequest.objects.create(
+            company=self.company,
+            current_tier=self.featured_tier,
+            requested_tier=self.pro_tier,
+            requested_by=self.company_admin,
+            request_type="upgrade",
+            current_tier_name=self.featured_tier.name,
+            requested_tier_name=self.pro_tier.name,
+        )
+        self.client.force_authenticate(user=self.super_admin)
+
+        response = self.client.get(reverse("admin_directory_tier_detail", args=[self.featured_tier.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["tier"]["id"], self.featured_tier.id)
+        self.assertTrue(any(company["id"] == self.occupied_featured_company.id for company in response.data["enrolled_companies"]))
+        self.assertGreaterEqual(len(response.data["recent_requests"]), 1)
+
+    def test_super_admin_can_approve_upgrade_tier_request(self):
+        tier_request = CompanyTierChangeRequest.objects.create(
+            company=self.company,
+            current_tier=self.featured_tier,
+            requested_tier=self.pro_tier,
+            requested_by=self.company_admin,
+            request_type="upgrade",
+            current_tier_name=self.featured_tier.name,
+            requested_tier_name=self.pro_tier.name,
+        )
+        self.client.force_authenticate(user=self.super_admin)
+
+        response = self.client.post(
+            reverse("admin_directory_tier_request_approve", args=[tier_request.id]),
+            {"admin_note": "Approved after manual review."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.company.refresh_from_db()
+        tier_request.refresh_from_db()
+        self.assertEqual(self.company.tier_ref_id, self.pro_tier.id)
+        self.assertEqual(tier_request.status, "approved")
+
+    def test_super_admin_can_approve_downgrade_tier_request(self):
+        tier_request = CompanyTierChangeRequest.objects.create(
+            company=self.company,
+            current_tier=self.featured_tier,
+            requested_tier=self.normal_tier,
+            requested_by=self.company_admin,
+            request_type="downgrade",
+            current_tier_name=self.featured_tier.name,
+            requested_tier_name=self.normal_tier.name,
+            retain_active_product_ids=[self.product_two.id],
+        )
+        self.client.force_authenticate(user=self.super_admin)
+
+        response = self.client.post(
+            reverse("admin_directory_tier_request_approve", args=[tier_request.id]),
+            {"admin_note": "Downgrade approved."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.company.refresh_from_db()
+        self.product_one.refresh_from_db()
+        self.product_two.refresh_from_db()
+        self.assertEqual(self.company.tier_ref_id, self.normal_tier.id)
+        self.assertFalse(self.product_one.is_active)
+        self.assertTrue(self.product_two.is_active)
+
+    def test_super_admin_can_reject_tier_request(self):
+        tier_request = CompanyTierChangeRequest.objects.create(
+            company=self.company,
+            current_tier=self.featured_tier,
+            requested_tier=self.pro_tier,
+            requested_by=self.company_admin,
+            request_type="upgrade",
+            current_tier_name=self.featured_tier.name,
+            requested_tier_name=self.pro_tier.name,
+        )
+        self.client.force_authenticate(user=self.super_admin)
+
+        response = self.client.post(
+            reverse("admin_directory_tier_request_reject", args=[tier_request.id]),
+            {"admin_note": "Not enough documentation."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.company.refresh_from_db()
+        tier_request.refresh_from_db()
+        self.assertEqual(self.company.tier_ref_id, self.pro_tier.id)
+        self.assertEqual(tier_request.status, "rejected")
 
     def test_super_admin_can_reorder_market_rows(self):
         self.client.force_authenticate(user=self.super_admin)

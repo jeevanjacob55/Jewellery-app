@@ -1497,6 +1497,10 @@ a {
   box-shadow: 0 4px 20px rgba(26, 26, 26, 0.05);
 }
 
+.company-card--full {
+  grid-column: 1 / -1;
+}
+
 .company-card__header {
   display: flex;
   align-items: flex-start;

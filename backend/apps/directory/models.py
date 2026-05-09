@@ -55,6 +55,46 @@ class Company(models.Model):
         return self.name
 
 
+class CompanyTierChangeRequest(models.Model):
+    class RequestType(models.TextChoices):
+        UPGRADE = "upgrade", "Upgrade"
+        DOWNGRADE = "downgrade", "Downgrade"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        CANCELLED = "cancelled", "Cancelled"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="tier_change_requests")
+    current_tier = models.ForeignKey(CompanyTier, on_delete=models.PROTECT, related_name="current_tier_change_requests")
+    requested_tier = models.ForeignKey(CompanyTier, on_delete=models.PROTECT, related_name="requested_tier_change_requests")
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="requested_tier_changes")
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_tier_changes",
+    )
+    request_type = models.CharField(max_length=20, choices=RequestType.choices)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    company_note = models.TextField(blank=True)
+    admin_note = models.TextField(blank=True)
+    current_tier_name = models.CharField(max_length=120)
+    requested_tier_name = models.CharField(max_length=120)
+    retain_active_product_ids = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.company.name}: {self.current_tier_name} -> {self.requested_tier_name}"
+
+
 class MarketRow(models.Model):
     class RowType(models.TextChoices):
         COMPANY_TIER = "company_tier", "Company Tier"

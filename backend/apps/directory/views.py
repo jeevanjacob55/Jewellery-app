@@ -5,8 +5,10 @@ import logging
 from django.conf import settings
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import permissions, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,6 +20,7 @@ from config.storage import build_mock_signed_upload, get_mock_upload
 from .models import (
     Company,
     CompanyImage,
+    CompanyTierChangeRequest,
     MarketRow,
     MarketZone,
     CompanyTier,
@@ -35,6 +38,7 @@ from .models import (
 )
 from .serializers import (
     CompanySerializer,
+    CompanyTierAdminDetailSerializer,
     CompanyImageAttachSerializer,
     CompanyManagementDetailSerializer,
     CompanyManagementUpdateSerializer,
@@ -42,6 +46,10 @@ from .serializers import (
     CompanyMarketVisibilitySerializer,
     CompanyTierAssignmentConfirmSerializer,
     CompanyTierAssignmentSerializer,
+    CompanyTierChangeRequestCreateSerializer,
+    CompanyTierChangeRequestReviewSerializer,
+    CompanyTierChangeRequestSerializer,
+    CompanyTierManagementOverviewSerializer,
     CompanyTierSerializer,
     CompanyTierWriteSerializer,
     EnquirySerializer,
@@ -74,7 +82,9 @@ from .services import (
     build_downgrade_warning,
     build_market_zone_feed,
     build_under_served_report,
+    get_admin_manageable_company_queryset,
     user_can_manage_company,
+    validate_company_tier_capacity,
 )
 
 
@@ -122,6 +132,34 @@ def get_company_management_queryset():
             Prefetch("images", queryset=CompanyImage.objects.select_related("asset").order_by("is_logo", "id")),
         )
     )
+
+
+def get_tier_request_queryset():
+    return CompanyTierChangeRequest.objects.select_related(
+        "company",
+        "current_tier",
+        "requested_tier",
+        "requested_by",
+        "reviewed_by",
+    ).prefetch_related(
+        Prefetch("company__products", queryset=Product.objects.order_by("-created_at", "-id")),
+    )
+
+
+def get_company_admin_company(user) -> Company | None:
+    if not user or not user.is_authenticated:
+        return None
+    company_role = user.scoped_roles.filter(role="company_admin", scope_type="company").order_by("id").first()
+    if company_role is None or not company_role.scope_id:
+        return None
+    return get_company_management_queryset().filter(pk=company_role.scope_id).first()
+
+
+def require_company_admin_company(user) -> Company:
+    company = get_company_admin_company(user)
+    if company is None:
+        raise PermissionDenied("Only company admins linked to a company can manage tier requests.")
+    return company
 
 
 def resolve_category_param(param: str | None) -> ProductCategory | None:
@@ -419,6 +457,74 @@ class CompanyManagementDetailView(APIView):
         return Response(CompanyManagementDetailSerializer({"company": refreshed, "products": list(refreshed.products.all())}).data)
 
 
+class CompanyTierManagementOverviewView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        company = require_company_admin_company(request.user)
+        current_tier = company.tier_ref
+        tiers = list(CompanyTier.objects.filter(is_active=True).order_by("display_priority", "id"))
+        pending_request = (
+            get_tier_request_queryset()
+            .filter(company=company, status=CompanyTierChangeRequest.Status.PENDING)
+            .order_by("-created_at", "-id")
+            .first()
+        )
+        requests = list(get_tier_request_queryset().filter(company=company).order_by("-created_at", "-id")[:10])
+        payload = {
+            "company": company,
+            "current_tier": current_tier,
+            "available_upgrades": [tier for tier in tiers if tier.display_priority < current_tier.display_priority],
+            "available_downgrades": [tier for tier in tiers if tier.display_priority > current_tier.display_priority],
+            "pending_request": pending_request,
+            "requests": requests,
+        }
+        return Response(CompanyTierManagementOverviewSerializer(payload).data)
+
+
+class CompanyTierChangeRequestListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        company = require_company_admin_company(request.user)
+        queryset = get_tier_request_queryset().filter(company=company).order_by("-created_at", "-id")
+        return Response({"results": CompanyTierChangeRequestSerializer(queryset, many=True).data})
+
+    def post(self, request):
+        company = require_company_admin_company(request.user)
+        serializer = CompanyTierChangeRequestCreateSerializer(data=request.data, context={"request": request, "company": company})
+        serializer.is_valid(raise_exception=True)
+        tier_request = serializer.save()
+        refreshed = get_tier_request_queryset().get(pk=tier_request.id)
+        return Response(
+            {
+                "message": "Tier request submitted for manual review.",
+                "request": CompanyTierChangeRequestSerializer(refreshed).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CompanyTierChangeRequestCancelView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, request_id: int):
+        company = require_company_admin_company(request.user)
+        tier_request = get_object_or_404(
+            CompanyTierChangeRequest.objects.filter(company=company, status=CompanyTierChangeRequest.Status.PENDING),
+            pk=request_id,
+        )
+        tier_request.status = CompanyTierChangeRequest.Status.CANCELLED
+        tier_request.save(update_fields=["status", "updated_at"])
+        refreshed = get_tier_request_queryset().get(pk=tier_request.id)
+        return Response(
+            {
+                "message": "Tier request cancelled.",
+                "request": CompanyTierChangeRequestSerializer(refreshed).data,
+            }
+        )
+
+
 class CompanyMediaAssetFinalizeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -704,12 +810,103 @@ class AdminMarketRowDetailView(APIView):
 class AdminCompanyTierDetailView(APIView):
     permission_classes = [IsSuperAdmin]
 
+    def get(self, request, tier_id: int):
+        tier = get_object_or_404(CompanyTier, pk=tier_id)
+        enrolled_companies = list(
+            get_company_management_queryset()
+            .filter(tier_ref=tier)
+            .order_by("name", "id")
+        )
+        recent_requests = list(
+            get_tier_request_queryset()
+            .filter(Q(current_tier=tier) | Q(requested_tier=tier))
+            .order_by("-created_at", "-id")[:10]
+        )
+        pending_request_count = CompanyTierChangeRequest.objects.filter(
+            requested_tier=tier,
+            status=CompanyTierChangeRequest.Status.PENDING,
+        ).count()
+        return Response(
+            CompanyTierAdminDetailSerializer(
+                {
+                    "tier": tier,
+                    "enrolled_companies": enrolled_companies,
+                    "pending_request_count": pending_request_count,
+                    "recent_requests": recent_requests,
+                }
+            ).data
+        )
+
     def patch(self, request, tier_id: int):
         tier = get_object_or_404(CompanyTier, pk=tier_id)
         serializer = CompanyTierWriteSerializer(tier, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         updated_tier = serializer.save()
         return Response(CompanyTierSerializer(updated_tier).data)
+
+
+class AdminCompanyTierRequestListView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        queryset = get_tier_request_queryset().order_by("-created_at", "-id")
+        return Response({"results": CompanyTierChangeRequestSerializer(queryset, many=True).data})
+
+
+class AdminCompanyTierRequestApproveView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request, request_id: int):
+        tier_request = get_object_or_404(
+            get_tier_request_queryset().filter(status=CompanyTierChangeRequest.Status.PENDING),
+            pk=request_id,
+        )
+        serializer = CompanyTierChangeRequestReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if tier_request.request_type == CompanyTierChangeRequest.RequestType.UPGRADE:
+            try:
+                validate_company_tier_capacity(tier_request.requested_tier, exclude_company_id=tier_request.company_id)
+            except TierValidationError as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            tier_request.company.tier_ref = tier_request.requested_tier
+            tier_request.company.save(update_fields=["tier_ref"])
+        else:
+            try:
+                apply_tier_change_with_selected_products(
+                    tier_request.company,
+                    tier_request.requested_tier,
+                    tier_request.retain_active_product_ids,
+                )
+            except TierValidationError as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        tier_request.status = CompanyTierChangeRequest.Status.APPROVED
+        tier_request.reviewed_by = request.user
+        tier_request.admin_note = serializer.validated_data["admin_note"].strip()
+        tier_request.reviewed_at = timezone.now()
+        tier_request.save(update_fields=["status", "reviewed_by", "admin_note", "reviewed_at", "updated_at"])
+        refreshed = get_tier_request_queryset().get(pk=tier_request.id)
+        return Response({"message": "Tier request approved.", "request": CompanyTierChangeRequestSerializer(refreshed).data})
+
+
+class AdminCompanyTierRequestRejectView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request, request_id: int):
+        tier_request = get_object_or_404(
+            get_tier_request_queryset().filter(status=CompanyTierChangeRequest.Status.PENDING),
+            pk=request_id,
+        )
+        serializer = CompanyTierChangeRequestReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        tier_request.status = CompanyTierChangeRequest.Status.REJECTED
+        tier_request.reviewed_by = request.user
+        tier_request.admin_note = serializer.validated_data["admin_note"].strip()
+        tier_request.reviewed_at = timezone.now()
+        tier_request.save(update_fields=["status", "reviewed_by", "admin_note", "reviewed_at", "updated_at"])
+        refreshed = get_tier_request_queryset().get(pk=tier_request.id)
+        return Response({"message": "Tier request rejected.", "request": CompanyTierChangeRequestSerializer(refreshed).data})
 
 
 class AdminPlacementOverrideListCreateView(APIView):

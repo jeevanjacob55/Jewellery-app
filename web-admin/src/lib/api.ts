@@ -255,6 +255,106 @@ export type AdvertisementCampaignMutationResponse = {
   advertisement: AdvertisementCampaignRecord;
 };
 
+export type TierCapabilitySummary = {
+  can_manage_products: boolean;
+  can_activate_products: boolean;
+  can_request_upgrade: boolean;
+  can_request_downgrade: boolean;
+  market_visibility_type: string;
+  hero_eligible: boolean;
+  fairness_weight: number;
+  premium_floor_share: string;
+  cooldown_hours: number;
+};
+
+export type CompanyTierRecord = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  max_products: number;
+  min_photos_per_product: number;
+  max_photos_per_product: number;
+  max_companies_allowed: number | null;
+  price: string;
+  is_free: boolean;
+  is_active: boolean;
+  base_weight: number;
+  hero_eligible: boolean;
+  premium_floor_share: string;
+  cooldown_hours: number;
+  display_priority: number;
+  visibility_type: string;
+  current_company_count: number;
+};
+
+export type TierChangeRequestRecord = {
+  id: number;
+  request_type: "upgrade" | "downgrade";
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  company_note: string;
+  admin_note: string;
+  current_tier_name: string;
+  requested_tier_name: string;
+  retain_active_product_ids: number[];
+  created_at: string;
+  updated_at: string;
+  reviewed_at: string | null;
+  company: {
+    id: number;
+    name: string;
+    state: string;
+  };
+  current_tier: CompanyTierRecord;
+  requested_tier: CompanyTierRecord;
+  requested_by_name: string;
+  reviewed_by_name: string | null;
+  active_product_count: number;
+  downgrade_context: {
+    allowed_active_products: number;
+    active_product_ids: number[];
+    overflow_product_ids: number[];
+    requires_product_selection: boolean;
+  } | null;
+};
+
+export type CompanyTierManagementOverview = {
+  current_tier: CompanyTierRecord;
+  company: {
+    id: number;
+    name: string;
+    active_product_count: number;
+    is_active: boolean;
+    is_approved: boolean;
+  };
+  capabilities: TierCapabilitySummary;
+  active_products: CompanyManagementProduct[];
+  available_upgrades: CompanyTierRecord[];
+  available_downgrades: CompanyTierRecord[];
+  pending_request: TierChangeRequestRecord | null;
+  requests: TierChangeRequestRecord[];
+};
+
+export type TierAdminDetail = {
+  tier: CompanyTierRecord;
+  enrolled_companies: Array<{
+    id: number;
+    name: string;
+    city: string;
+    state: string;
+    is_active: boolean;
+    is_approved: boolean;
+    active_product_count: number;
+  }>;
+  pending_request_count: number;
+  recent_requests: TierChangeRequestRecord[];
+};
+
+export type TierChangeRequestMutationResponse = {
+  message: string;
+  request: TierChangeRequestRecord;
+};
+
 export type CompanyManagementProductImage = {
   asset_id: number;
   url: string;
@@ -667,6 +767,32 @@ export async function fetchCompanyManagement(companyId: number) {
   return requestJson<CompanyManagementDetail>(`/directory/companies/${companyId}/manage/`);
 }
 
+export async function fetchCompanyTierManagementOverview() {
+  return requestJson<CompanyTierManagementOverview>("/directory/companies/tier-management/");
+}
+
+export async function fetchCompanyTierRequests() {
+  return requestJson<{ results: TierChangeRequestRecord[] }>("/directory/companies/tier-requests/");
+}
+
+export async function createCompanyTierRequest(payload: {
+  requested_tier_id: number;
+  company_note?: string;
+  retain_active_product_ids?: number[];
+}) {
+  return requestJson<TierChangeRequestMutationResponse>("/directory/companies/tier-requests/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function cancelCompanyTierRequest(requestId: number) {
+  return requestJson<TierChangeRequestMutationResponse>(`/directory/companies/tier-requests/${requestId}/cancel/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export async function saveCompanyManagement(companyId: number, payload: CompanyManagementUpdatePayload) {
   return requestJson<CompanyManagementDetail>(`/directory/companies/${companyId}/manage/`, {
     method: "PATCH",
@@ -676,6 +802,39 @@ export async function saveCompanyManagement(companyId: number, payload: CompanyM
 
 export async function fetchProductFilterConfig() {
   return requestJson<ProductFilterConfig>("/products/filter-config/");
+}
+
+export async function fetchAdminTiers() {
+  return requestJson<CompanyTierRecord[]>("/admin/directory/tiers/");
+}
+
+export async function fetchAdminTierDetail(tierId: number) {
+  return requestJson<TierAdminDetail>(`/admin/directory/tiers/${tierId}/`);
+}
+
+export async function updateAdminTier(tierId: number, payload: Partial<CompanyTierRecord>) {
+  return requestJson<CompanyTierRecord>(`/admin/directory/tiers/${tierId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchAdminTierRequests() {
+  return requestJson<{ results: TierChangeRequestRecord[] }>("/admin/directory/tier-requests/");
+}
+
+export async function approveAdminTierRequest(requestId: number, admin_note = "") {
+  return requestJson<TierChangeRequestMutationResponse>(`/admin/directory/tier-requests/${requestId}/approve/`, {
+    method: "POST",
+    body: JSON.stringify({ admin_note }),
+  });
+}
+
+export async function rejectAdminTierRequest(requestId: number, admin_note = "") {
+  return requestJson<TierChangeRequestMutationResponse>(`/admin/directory/tier-requests/${requestId}/reject/`, {
+    method: "POST",
+    body: JSON.stringify({ admin_note }),
+  });
 }
 
 export async function requestCompanyUploadSession(companyId: number, filename: string) {
