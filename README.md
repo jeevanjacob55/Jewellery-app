@@ -1,5 +1,5 @@
 # Jewellery Association App
-##First read the jewellery_app_developer_guide.docx
+## First read the jewellery_app_developer_guide.docx
 Monorepo scaffold for a jewellery association platform with:
 
 - `backend/`: Django + Django REST Framework API
