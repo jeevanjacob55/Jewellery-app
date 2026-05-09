@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
@@ -38,6 +38,7 @@ export function NotificationsScreen() {
   const { me } = useSession();
   const [activeFilter, setActiveFilter] = useState<NotificationCategory>("all");
   const [readIds, setReadIds] = useState<Record<string, true>>({});
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const items = useMemo<NotificationItem[]>(() => {
     const baseItems: NotificationItem[] = [
@@ -94,7 +95,7 @@ export function NotificationsScreen() {
         time: "2w ago",
         unread: false,
         icon: "info",
-        onPress: () => Alert.alert("System Update", "Maintenance details are not available on mobile yet."),
+        onPress: () => navigation.navigate("HelpSupport"),
       },
     ];
 
@@ -138,6 +139,7 @@ export function NotificationsScreen() {
       next[item.id] = true;
     });
     setReadIds(next);
+    setMenuOpen(false);
   }
 
   function handleOpen(item: NotificationItem) {
@@ -152,17 +154,19 @@ export function NotificationsScreen() {
           <Pressable style={styles.headerIconButton} onPress={() => navigation.goBack()}>
             <MaterialIcons name="arrow-back" size={22} color="#000000" />
           </Pressable>
-          <Text style={styles.mobileHeaderTitle}>JEWELLERY ASSOCIATION</Text>
-          <Pressable style={styles.headerIconButton} onPress={() => Alert.alert("More actions", "Additional notification actions will be added later.")}>
-            <MaterialIcons name="more-vert" size={22} color="#000000" />
-          </Pressable>
-        </View>
-
-        <View style={styles.headingRow}>
-          <Text style={styles.screenTitle}>Notifications</Text>
-          <Pressable onPress={markAllAsRead}>
-            <Text style={styles.markReadLink}>Mark all as read</Text>
-          </Pressable>
+          <Text style={styles.mobileHeaderTitle}>Notifications</Text>
+          <View style={styles.headerMenuWrap}>
+            <Pressable style={styles.headerIconButton} onPress={() => setMenuOpen((current) => !current)}>
+              <MaterialIcons name="more-vert" size={22} color="#000000" />
+            </Pressable>
+            {menuOpen ? (
+              <View style={styles.overflowMenu}>
+                <Pressable style={styles.overflowMenuItem} onPress={markAllAsRead}>
+                  <Text style={styles.overflowMenuText}>Mark all as read</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -252,35 +256,50 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerMenuWrap: {
+    width: 32,
+    height: 32,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    position: "relative",
+  },
   mobileHeaderTitle: {
     flex: 1,
     textAlign: "center",
     color: "#000000",
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "500",
     letterSpacing: -0.3,
   },
-  headingRow: {
-    marginTop: 32,
-    marginBottom: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
+  overflowMenu: {
+    position: "absolute",
+    top: 36,
+    right: 0,
+    minWidth: 156,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#CFC4C5",
+    shadowColor: "#000000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+    zIndex: 20,
   },
-  screenTitle: {
-    color: "#000000",
-    fontSize: 24,
-    fontWeight: "500",
+  overflowMenuItem: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
   },
-  markReadLink: {
-    color: "#775A19",
+  overflowMenuText: {
+    color: "#1B1C1C",
     fontSize: 13,
     fontWeight: "500",
   },
   filterRow: {
     gap: spacing.sm,
     paddingBottom: spacing.sm,
+    marginTop: 32,
     marginBottom: spacing.xl,
   },
   filterChip: {
