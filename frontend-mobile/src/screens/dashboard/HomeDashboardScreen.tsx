@@ -179,7 +179,7 @@ export function HomeDashboardScreen() {
         titleStyle={styles.headerTitle}
         subtitleStyle={styles.headerSubtitle}
         right={
-          <Pressable style={styles.headerIconButton}>
+          <Pressable style={styles.headerIconButton} onPress={() => navigation.navigate("Notifications")}>
             <View style={styles.notificationIcon}>
               <View style={styles.notificationBell} />
               <View style={styles.notificationClapper} />

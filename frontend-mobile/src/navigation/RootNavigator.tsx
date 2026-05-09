@@ -21,6 +21,7 @@ import { CompanyProductsScreen } from "../screens/profile/CompanyProductsScreen"
 import { EditProfileScreen } from "../screens/profile/EditProfileScreen";
 import { HelpSupportScreen } from "../screens/profile/HelpSupportScreen";
 import { MemberProfileScreen } from "../screens/profile/MemberProfileScreen";
+import { NotificationsScreen } from "../screens/profile/NotificationsScreen";
 import { NotificationSettingsScreen } from "../screens/profile/NotificationSettingsScreen";
 import { ReverseSearchScreen } from "../screens/reverse-search/ReverseSearchScreen";
 import { ServicesScreen } from "../screens/services/ServicesScreen";
@@ -68,6 +69,7 @@ export function RootNavigator() {
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="MeetingDetail" component={MeetingDetailScreen} options={{ title: "Meeting" }} />
           <Stack.Screen name="NewsDetail" component={NewsDetailScreen} options={{ title: "News" }} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: "Notification Settings" }} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit Profile" }} />
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: "Help & Support" }} />
