@@ -19,7 +19,6 @@ import {
   LogoutActionCard,
   MetricGrid,
   ProfileIdentityCard,
-  ProfileTopAppBar,
   RecentActivityCard,
   SectionCard,
   SectionHeader,
@@ -215,7 +214,6 @@ export function MemberProfileScreen() {
   if (!hasProfile) {
     return (
       <AppScreen safeAreaEdges={["top", "bottom"]} backgroundColor="#FBF9F9">
-        <ProfileTopAppBar title="Profile" guestMode onNotificationPress={() => navigation.navigate("HelpSupport")} />
         <View style={styles.errorState}>
           <Text style={styles.errorTitle}>Could not load profile.</Text>
           <Text style={styles.errorBody}>Try refreshing your session details and opening the profile again.</Text>
@@ -239,14 +237,6 @@ export function MemberProfileScreen() {
 
   return (
     <AppScreen safeAreaEdges={["top", "bottom"]} backgroundColor="#FBF9F9">
-      <ProfileTopAppBar
-        title={isGuest ? "Profile" : isWide ? "Profile" : "Profile Workspace"}
-        brandLabel={isGuest ? undefined : "Jewellery Association"}
-        notificationCount={unreadNotificationsCount}
-        guestMode={isGuest}
-        onMenuPress={() => showComingSoon("Profile navigation", "The drawer-based profile menu has been replaced by inline sections in this redesign.")}
-        onNotificationPress={() => navigation.navigate(isAuthenticated ? "NotificationSettings" : "HelpSupport")}
-      />
       <BentoScroll>{renderVariant()}</BentoScroll>
     </AppScreen>
   );

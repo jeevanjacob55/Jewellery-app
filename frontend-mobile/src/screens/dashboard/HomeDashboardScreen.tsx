@@ -178,15 +178,6 @@ export function HomeDashboardScreen() {
         style={styles.header}
         titleStyle={styles.headerTitle}
         subtitleStyle={styles.headerSubtitle}
-        left={
-          <Pressable style={styles.headerIconButton}>
-            <View style={styles.menuIcon}>
-              <View style={styles.menuIconBar} />
-              <View style={styles.menuIconBar} />
-              <View style={styles.menuIconBar} />
-            </View>
-          </Pressable>
-        }
         right={
           <Pressable style={styles.headerIconButton}>
             <View style={styles.notificationIcon}>
@@ -323,15 +314,6 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: "center",
     justifyContent: "center",
-  },
-  menuIcon: {
-    width: 22,
-    gap: 4,
-  },
-  menuIconBar: {
-    height: 2,
-    borderRadius: 999,
-    backgroundColor: "#1F2937",
   },
   notificationIcon: {
     width: 22,

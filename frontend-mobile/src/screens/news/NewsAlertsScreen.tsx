@@ -16,7 +16,6 @@ import { useNavigation } from "@react-navigation/native";
 import { getAdvertisements, recordAdClick, recordAdImpression } from "../../api/ads";
 import { postJson } from "../../api/client";
 import { getNewsFeed, toggleNewsBookmark } from "../../api/news";
-import { AppHeader } from "../../components/AppHeader";
 import { AppScreen } from "../../components/AppScreen";
 import { SurfaceCard } from "../../components/SurfaceCard";
 import { useSession } from "../../session/SessionProvider";
@@ -84,18 +83,6 @@ function applyBookmarkState(newsData: NewsData | null, newsId: number, isBookmar
       newsData.featured_news?.id === newsId ? { ...newsData.featured_news, is_bookmarked: isBookmarked } : newsData.featured_news,
     items: (newsData.items ?? []).map((item) => (item.id === newsId ? { ...item, is_bookmarked: isBookmarked } : item)),
   };
-}
-
-function NotificationButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable style={styles.headerIconButton} onPress={onPress}>
-      <View style={styles.notificationIcon}>
-        <View style={styles.notificationBell} />
-        <View style={styles.notificationClapper} />
-        <View style={styles.notificationDot} />
-      </View>
-    </Pressable>
-  );
 }
 
 function SkeletonBlock({ height, width = "100%", rounded = radii.md }: { height: number; width?: number | `${number}%`; rounded?: number }) {
@@ -344,14 +331,6 @@ export function NewsAlertsScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadNews(true)} tintColor={colors.text} />}
     >
-      <AppHeader
-        centered
-        title="TRADE INTELLIGENCE"
-        titleStyle={styles.headerTitle}
-        style={styles.header}
-        right={<NotificationButton onPress={() => navigation.navigate("NotificationSettings")} />}
-      />
-
       {loading && !newsData ? (
         <NewsFeedSkeleton selectedTab={selectedTab} />
       ) : (
@@ -649,56 +628,6 @@ export function NewsAlertsScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xl,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EFE7DA",
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    letterSpacing: 1.5,
-    color: "#16120F",
-  },
-  headerIconButton: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  notificationIcon: {
-    width: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  notificationBell: {
-    width: 13,
-    height: 11,
-    borderTopLeftRadius: 7,
-    borderTopRightRadius: 7,
-    borderWidth: 2,
-    borderBottomWidth: 0,
-    borderColor: "#1F2937",
-  },
-  notificationClapper: {
-    width: 10,
-    height: 2,
-    borderRadius: 999,
-    backgroundColor: "#1F2937",
-    marginTop: 1,
-  },
-  notificationDot: {
-    position: "absolute",
-    top: 2,
-    right: 1,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#EF4444",
   },
   body: {
     paddingHorizontal: spacing.lg,

@@ -44,31 +44,25 @@ type ProfileIdentityCardProps = {
 
 export function ProfileTopAppBar({
   title,
-  brandLabel,
-  notificationCount = 0,
+  brandLabel: _brandLabel,
   guestMode = false,
   onMenuPress,
-  onNotificationPress,
+  onNotificationPress: _onNotificationPress,
 }: ProfileTopAppBarProps) {
   return (
     <View style={styles.topBar}>
       <View style={styles.topBarLeft}>
         <Pressable style={styles.topIconWrap} onPress={onMenuPress}>
-          <MaterialIcons name={guestMode ? "menu" : "diamond"} size={22} color={colors.text} />
+          {guestMode ? <MaterialIcons name="menu" size={22} color={colors.text} /> : <MaterialIcons name="diamond" size={28} color="#D4AF37" />}
         </Pressable>
         {guestMode ? (
           <Text style={styles.topTitle}>{title}</Text>
         ) : (
           <View>
-            <Text style={styles.topBrand}>{brandLabel ?? "Jewellery Association"}</Text>
-            {title ? <Text style={styles.topSubtitle}>{title}</Text> : null}
+            <Text style={styles.topBrand}>{title || "Profile"}</Text>
           </View>
         )}
       </View>
-      <Pressable style={styles.topIconWrap} onPress={onNotificationPress}>
-        <MaterialIcons name="notifications" size={22} color={colors.text} />
-        {notificationCount > 0 ? <View style={styles.notificationDot} /> : null}
-      </Pressable>
     </View>
   );
 }
@@ -86,60 +80,158 @@ export function ProfileIdentityCard({
 }: ProfileIdentityCardProps) {
   const split = heroStyle === "split";
   const compact = heroStyle === "compact";
+  const useEnterpriseCard = actions.length > 0;
+  const enterpriseContent = useEnterpriseCard ? buildEnterpriseContent({ subtitle, description }) : null;
 
   return (
-    <SectionCard padded style={split ? styles.heroCardSplit : compact ? styles.heroCardCompact : styles.heroCardCentered}>
-      <View style={split ? styles.heroRow : styles.heroCentered}>
-        <View style={styles.heroDecoration}>
-          <MaterialIcons name="diamond" size={104} color="rgba(119, 90, 25, 0.08)" />
-        </View>
-        <View style={compact ? styles.avatarWrapCompact : styles.avatarWrap}>
-          <View style={[styles.avatarFrame, compact ? styles.avatarFrameCompact : null]}>
-            {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={compact ? styles.avatarInitialsCompact : styles.avatarInitials}>{initials}</Text>}
+    <SectionCard
+      padded
+      style={
+        useEnterpriseCard
+          ? styles.heroCardEnterprise
+          : split
+            ? styles.heroCardSplit
+            : compact
+              ? styles.heroCardCompact
+              : styles.heroCardCentered
+      }
+    >
+      {useEnterpriseCard ? (
+        <>
+          <View style={styles.heroActionDock}>
+            {actions.map((action) => (
+              <Pressable key={action.key} style={styles.heroIconButton} onPress={action.onPress}>
+                <MaterialIcons name={getProfileActionIcon(action)} size={18} color="#4C4546" />
+              </Pressable>
+            ))}
           </View>
-          {verified ? (
-            <View style={styles.verifiedBadge}>
-              <MaterialIcons name="verified" size={16} color={colors.surface} />
+
+          <View style={styles.enterpriseIdentity}>
+            <View style={styles.enterpriseAvatarWrap}>
+              <View style={styles.enterpriseAvatarFrame}>
+                {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={styles.enterpriseAvatarInitials}>{initials}</Text>}
+              </View>
+              {verified ? (
+                <View style={styles.enterpriseVerifiedBadge}>
+                  <MaterialIcons name="verified" size={18} color="#D4AF37" />
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.enterpriseHeader}>
+              <Text style={styles.enterpriseName}>{name}</Text>
+              <View style={styles.enterpriseRoleWrap}>
+                <Text style={styles.enterpriseRoleText}>{roleLabel.toUpperCase()}</Text>
+              </View>
+            </View>
+
+            {enterpriseContent?.titleLine ? <Text style={styles.enterpriseSubtitle}>{enterpriseContent.titleLine}</Text> : null}
+            {enterpriseContent?.contextLine ? <Text style={styles.enterpriseContext}>{enterpriseContent.contextLine}</Text> : null}
+
+            {enterpriseContent?.metaLine ? (
+              <View style={styles.enterpriseMetaBlock}>
+                <Text style={styles.enterpriseMetaText}>{enterpriseContent.metaLine}</Text>
+              </View>
+            ) : null}
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={split ? styles.heroRow : styles.heroCentered}>
+            <View style={styles.heroDecoration}>
+              <MaterialIcons name="diamond" size={104} color="rgba(119, 90, 25, 0.08)" />
+            </View>
+            <View style={compact ? styles.avatarWrapCompact : styles.avatarWrap}>
+              <View style={[styles.avatarFrame, compact ? styles.avatarFrameCompact : null]}>
+                {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <Text style={compact ? styles.avatarInitialsCompact : styles.avatarInitials}>{initials}</Text>}
+              </View>
+              {verified ? (
+                <View style={styles.verifiedBadge}>
+                  <MaterialIcons name="verified" size={16} color={colors.surface} />
+                </View>
+              ) : null}
+            </View>
+            <View style={[styles.heroCopy, split ? styles.heroCopySplit : null]}>
+              <View style={[styles.heroNameRow, split ? styles.heroNameRowSplit : null]}>
+                <Text style={compact ? styles.heroNameCompact : styles.heroName}>{name}</Text>
+                <RoleBadge label={roleLabel} />
+              </View>
+              {subtitle ? <Text style={compact ? styles.heroSubtitleCompact : styles.heroSubtitle}>{subtitle}</Text> : null}
+              {description ? <Text style={[styles.heroDescription, split ? styles.heroDescriptionSplit : null]}>{description}</Text> : null}
+            </View>
+          </View>
+          {actions.length ? (
+            <View style={[styles.heroActions, split ? styles.heroActionsSplit : null]}>
+              {actions.map((action) => (
+                <Pressable
+                  key={action.key}
+                  style={[
+                    styles.heroButton,
+                    action.tone === "accent" ? styles.heroButtonAccent : null,
+                    action.tone === "dark" ? styles.heroButtonDark : null,
+                  ]}
+                  onPress={action.onPress}
+                >
+                  {action.icon ? <MaterialIcons name={action.icon} size={18} color={action.tone === "dark" ? colors.surface : action.tone === "accent" ? "#775A19" : colors.text} /> : null}
+                  <Text
+                    style={[
+                      styles.heroButtonText,
+                      action.tone === "accent" ? styles.heroButtonTextAccent : null,
+                      action.tone === "dark" ? styles.heroButtonTextDark : null,
+                    ]}
+                  >
+                    {action.label}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
           ) : null}
-        </View>
-        <View style={[styles.heroCopy, split ? styles.heroCopySplit : null]}>
-          <View style={[styles.heroNameRow, split ? styles.heroNameRowSplit : null]}>
-            <Text style={compact ? styles.heroNameCompact : styles.heroName}>{name}</Text>
-            <RoleBadge label={roleLabel} />
-          </View>
-          {subtitle ? <Text style={compact ? styles.heroSubtitleCompact : styles.heroSubtitle}>{subtitle}</Text> : null}
-          {description ? <Text style={[styles.heroDescription, split ? styles.heroDescriptionSplit : null]}>{description}</Text> : null}
-        </View>
-      </View>
-      {actions.length ? (
-        <View style={[styles.heroActions, split ? styles.heroActionsSplit : null]}>
-          {actions.map((action) => (
-            <Pressable
-              key={action.key}
-              style={[
-                styles.heroButton,
-                action.tone === "accent" ? styles.heroButtonAccent : null,
-                action.tone === "dark" ? styles.heroButtonDark : null,
-              ]}
-              onPress={action.onPress}
-            >
-              {action.icon ? <MaterialIcons name={action.icon} size={18} color={action.tone === "dark" ? colors.surface : action.tone === "accent" ? "#775A19" : colors.text} /> : null}
-              <Text
-                style={[
-                  styles.heroButtonText,
-                  action.tone === "accent" ? styles.heroButtonTextAccent : null,
-                  action.tone === "dark" ? styles.heroButtonTextDark : null,
-                ]}
-              >
-                {action.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
+        </>
+      )}
     </SectionCard>
   );
+}
+
+function getProfileActionIcon(action: { icon?: keyof typeof MaterialIcons.glyphMap; label: string; key: string }) {
+  if (action.icon) {
+    return action.icon;
+  }
+
+  const lookup = `${action.key} ${action.label}`.toLowerCase();
+  if (lookup.includes("share")) {
+    return "share";
+  }
+  if (lookup.includes("edit")) {
+    return "edit";
+  }
+
+  return "open-in-new";
+}
+
+function buildEnterpriseContent({
+  subtitle,
+  description,
+}: {
+  subtitle?: string;
+  description?: string;
+}) {
+  const cleanedSubtitle = subtitle?.trim();
+  const cleanedDescription = description?.trim();
+
+  if (cleanedSubtitle?.includes(" at ")) {
+    const [title, ...rest] = cleanedSubtitle.split(" at ");
+    return {
+      titleLine: title.trim(),
+      contextLine: rest.join(" at ").trim() || undefined,
+      metaLine: cleanedDescription?.replace(/\s+-\s+/g, " • "),
+    };
+  }
+
+  return {
+    titleLine: cleanedSubtitle,
+    contextLine: undefined,
+    metaLine: cleanedDescription,
+  };
 }
 
 export function RoleBadge({ label }: { label: string }) {
@@ -392,14 +484,19 @@ export function BentoScroll({ children }: PropsWithChildren) {
 
 const styles = StyleSheet.create({
   topBar: {
-    minHeight: 68,
-    backgroundColor: "#FBF9F9",
+    minHeight: 74,
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#CFC4C5",
+    borderBottomColor: "#F3F4F6",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
+    shadowColor: "#000000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   topBarLeft: {
     flexDirection: "row",
@@ -407,9 +504,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   topIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -419,24 +516,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   topBrand: {
-    color: colors.text,
+    color: "#1A1A1A",
     fontSize: 24,
-    fontWeight: "600",
-  },
-  topSubtitle: {
-    color: "#4C4546",
-    fontSize: 13,
-    fontWeight: "500",
-    marginTop: 2,
-  },
-  notificationDot: {
-    position: "absolute",
-    top: 7,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#775A19",
+    fontWeight: "700",
   },
   scroll: {
     flex: 1,
@@ -460,6 +542,17 @@ const styles = StyleSheet.create({
   heroCardCentered: {
     position: "relative",
   },
+  heroCardEnterprise: {
+    position: "relative",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "rgba(207, 196, 197, 0.45)",
+    shadowColor: "#000000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
   heroCardSplit: {
     position: "relative",
     gap: spacing.lg,
@@ -480,17 +573,35 @@ const styles = StyleSheet.create({
     top: -10,
     right: -10,
   },
+  heroActionDock: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    gap: spacing.sm,
+    zIndex: 2,
+  },
+  heroIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D7D0D1",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   avatarWrap: {
     position: "relative",
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   avatarWrapCompact: {
     position: "relative",
   },
   avatarFrame: {
-    width: 128,
-    height: 128,
-    borderRadius: 64,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     backgroundColor: "#000000",
     borderWidth: 4,
     borderColor: "#FFFFFF",
@@ -502,8 +613,8 @@ const styles = StyleSheet.create({
     width: 108,
     height: 108,
     borderRadius: 54,
-    backgroundColor: "#F0ECE7",
-    borderColor: "#D8CCCC",
+    backgroundColor: "#000000",
+    borderColor: "#000000",
   },
   avatarImage: {
     width: "100%",
@@ -511,13 +622,52 @@ const styles = StyleSheet.create({
   },
   avatarInitials: {
     color: "#FFFFFF",
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "700",
   },
   avatarInitialsCompact: {
-    color: "#1B1C1C",
+    color: "#FFFFFF",
     fontSize: 28,
     fontWeight: "700",
+  },
+  enterpriseIdentity: {
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  enterpriseAvatarWrap: {
+    position: "relative",
+  },
+  enterpriseAvatarFrame: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#000000",
+    backgroundColor: "#000000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  enterpriseAvatarInitials: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  enterpriseVerifiedBadge: {
+    position: "absolute",
+    right: -6,
+    bottom: -6,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 999,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: "rgba(207, 196, 197, 0.4)",
+    shadowColor: "#000000",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   verifiedBadge: {
     position: "absolute",
@@ -535,6 +685,61 @@ const styles = StyleSheet.create({
   heroCopy: {
     alignItems: "center",
   },
+  enterpriseHeader: {
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  enterpriseName: {
+    color: "#000000",
+    fontSize: 20,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  enterpriseRoleWrap: {
+    backgroundColor: "#F5F3F3",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(119, 90, 25, 0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  enterpriseRoleText: {
+    color: "#775A19",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
+  enterpriseSubtitle: {
+    color: "#1B1C1C",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    marginTop: 2,
+  },
+  enterpriseContext: {
+    color: "#4C4546",
+    fontSize: 12,
+    fontWeight: "500",
+    textAlign: "center",
+    marginTop: -2,
+  },
+  enterpriseMetaBlock: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(207, 196, 197, 0.35)",
+    width: "100%",
+    alignItems: "center",
+  },
+  enterpriseMetaText: {
+    color: "#6F6768",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
   heroCopySplit: {
     flex: 1,
     alignItems: "flex-start",
@@ -548,7 +753,7 @@ const styles = StyleSheet.create({
   },
   heroName: {
     color: "#1B1C1C",
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "600",
     textAlign: "center",
   },
@@ -572,9 +777,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   heroSubtitle: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     color: "#4C4546",
-    fontSize: 18,
+    fontSize: 16,
     textAlign: "center",
   },
   heroSubtitleCompact: {
@@ -583,10 +788,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   heroDescription: {
-    marginTop: spacing.sm,
+    marginTop: 6,
     color: "#4C4546",
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 21,
     textAlign: "center",
     maxWidth: 420,
   },
@@ -594,7 +799,7 @@ const styles = StyleSheet.create({
     textAlign: "left",
   },
   heroActions: {
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
@@ -604,8 +809,8 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   heroButton: {
-    minHeight: 46,
-    paddingHorizontal: spacing.lg,
+    minHeight: 42,
+    paddingHorizontal: spacing.md,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#7E7576",
