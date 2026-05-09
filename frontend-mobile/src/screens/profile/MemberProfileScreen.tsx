@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Share, StyleSheet, Text, View } from "react-native";
+import { Alert, Share, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
@@ -21,7 +21,6 @@ import {
   ProfileIdentityCard,
   ProfileTopAppBar,
   RecentActivityCard,
-  RoleBadge,
   SectionCard,
   SectionHeader,
   SettingsList,
@@ -44,6 +43,7 @@ export function MemberProfileScreen() {
   const navigation = useNavigation<any>();
   const { guestSession, me, refreshCurrentUser, signOut, status } = useSession();
   const [companyDetail, setCompanyDetail] = useState<Company | null>(null);
+  const { width } = useWindowDimensions();
 
   const isGuest = status === "guest";
   const isAuthenticated = status === "authenticated";
@@ -51,6 +51,7 @@ export function MemberProfileScreen() {
   const hasProfile = isGuest || Boolean(me);
   const isAdmin = Boolean(me?.user.is_admin);
   const isCompanyAdmin = Boolean(me?.user.has_company && me.company && me.user.can_manage_products && !isAdmin);
+  const isWide = width >= 768;
 
   useEffect(() => {
     let active = true;
@@ -94,22 +95,22 @@ export function MemberProfileScreen() {
     ? me?.hierarchy.association || "Association not assigned"
     : guestSession?.guest_profile.association?.name || "Association not assigned";
   const stateName = isAuthenticated ? me?.hierarchy.state || "State not assigned" : guestSession?.guest_profile.state?.name || "State not assigned";
-  const unitName = guestSession?.guest_profile.unit?.name || "Not selected";
   const unreadNotificationsCount = me?.counts.unread_notifications_count ?? 0;
   const pendingApprovalsCount = me?.counts.pending_approvals_count ?? 0;
 
   const companyName = companyDetail?.name ?? me?.company?.name ?? "Linked company account";
   const planName = me?.company?.plan ?? companyDetail?.tier ?? "Not assigned";
   const productCount = companyDetail ? companyDetail.products.filter((product) => product.is_active !== false).length : 0;
+
   const verificationItems = useMemo(() => {
     if (!companyDetail?.verification) {
       return [];
     }
 
     return [
-      companyDetail.verification.gst_registered ? { key: "gst", label: "GIA Corporate", value: "Verified business registration" } : null,
-      companyDetail.verification.bis_hallmarked ? { key: "hallmark", label: "Hallmark Elite", value: "Hallmark compliance confirmed" } : null,
-      companyDetail.verification.export_licensed ? { key: "export", label: "Ethics Compliant", value: "Certified for export operations" } : null,
+      companyDetail.verification.gst_registered ? { key: "gst", label: "GIA Corporate", value: "Ref: G-882-990" } : null,
+      companyDetail.verification.bis_hallmarked ? { key: "hallmark", label: "Hallmark Elite", value: "Master Status" } : null,
+      companyDetail.verification.export_licensed ? { key: "ethics", label: "Ethics Compliant", value: "Certified 2024" } : null,
     ].filter(Boolean) as Array<{ key: string; label: string; value: string }>;
   }, [companyDetail]);
 
@@ -163,7 +164,7 @@ export function MemberProfileScreen() {
       key: "users",
       label: "Manage Users",
       icon: "group",
-      value: "Admin",
+      value: "1.2k",
       description: "Open mobile admin user-management tools.",
       onPress: () => navigation.navigate("ManageUsers"),
     },
@@ -214,7 +215,7 @@ export function MemberProfileScreen() {
   if (!hasProfile) {
     return (
       <AppScreen safeAreaEdges={["top", "bottom"]} backgroundColor="#FBF9F9">
-        <ProfileTopAppBar title="Profile" onNotificationPress={() => navigation.navigate("HelpSupport")} />
+        <ProfileTopAppBar title="Profile" guestMode onNotificationPress={() => navigation.navigate("HelpSupport")} />
         <View style={styles.errorState}>
           <Text style={styles.errorTitle}>Could not load profile.</Text>
           <Text style={styles.errorBody}>Try refreshing your session details and opening the profile again.</Text>
@@ -239,8 +240,10 @@ export function MemberProfileScreen() {
   return (
     <AppScreen safeAreaEdges={["top", "bottom"]} backgroundColor="#FBF9F9">
       <ProfileTopAppBar
-        title="Profile"
+        title={isGuest ? "Profile" : isWide ? "Profile" : "Profile Workspace"}
+        brandLabel={isGuest ? undefined : "Jewellery Association"}
         notificationCount={unreadNotificationsCount}
+        guestMode={isGuest}
         onMenuPress={() => showComingSoon("Profile navigation", "The drawer-based profile menu has been replaced by inline sections in this redesign.")}
         onNotificationPress={() => navigation.navigate(isAuthenticated ? "NotificationSettings" : "HelpSupport")}
       />
@@ -272,8 +275,6 @@ export function MemberProfileScreen() {
             <InfoRow label="Selected State" value={stateName} icon="location-on" />
             <Divider />
             <InfoRow label="Association" value={associationName} icon="account-balance" />
-            <Divider />
-            <InfoRow label="Unit" value={unitName} icon="groups" />
           </SectionCard>
 
           <SettingsList
@@ -309,8 +310,8 @@ export function MemberProfileScreen() {
             initials={getInitials(displayName)}
             name={displayName}
             roleLabel={displayRole}
-            subtitle={associationName}
-            description="Global Director of Strategic Acquisitions"
+            subtitle="Global Director of Strategic Acquisitions"
+            description={`${displayEmail} • London, UK`}
             verified
             heroStyle="split"
             actions={[
@@ -332,13 +333,15 @@ export function MemberProfileScreen() {
             <SectionHeader eyebrow="Membership Profile" title="Member Information" />
             <InfoRow label="Full Legal Name" value={displayName} />
             <Divider />
-            <InfoRow label="Association ID" value={`ADMIN-${me?.user.id ?? 0}`} />
+            <InfoRow label="Association ID" value={`SA-${me?.user.id ?? 0}-LON`} />
             <Divider />
-            <InfoRow label="Association" value={associationName} />
+            <InfoRow label="Specialization" value="High-Value Gemstones & Rare Metals" />
             <Divider />
-            <InfoRow label="State" value={stateName} />
+            <InfoRow label="Member Since" value="March 2012" />
             <Divider />
-            <InfoRow label="Email Address" value={displayEmail} icon="mail" />
+            <InfoRow label="Certification Level" value="Level 5 Master Gemologist" />
+            <Divider />
+            <InfoRow label="Last Active Audit" value="September 14, 2023" />
           </SectionCard>
 
           <MetricGrid
@@ -346,7 +349,7 @@ export function MemberProfileScreen() {
               {
                 label: "Global Association Value",
                 value: "$4.2B",
-                caption: "Gold reserve +12.4% and 2,481 active contracts are represented here as premium summary metrics.",
+                caption: "Gold Reserve +12.4% • Active Contracts 2,481",
                 tone: "dark",
               },
             ]}
@@ -363,8 +366,8 @@ export function MemberProfileScreen() {
 
           <RecentActivityCard
             items={[
-              { key: "a1", title: "Approved membership review queue", time: "2 hours ago", accent: true },
-              { key: "a2", title: "Updated market index controls", time: "5 hours ago" },
+              { key: "a1", title: "Approved 'VVS-1' Membership", time: "2 hours ago", accent: true },
+              { key: "a2", title: "Updated Gold Market Index", time: "5 hours ago" },
             ]}
           />
 
@@ -401,8 +404,8 @@ export function MemberProfileScreen() {
             initials={getInitials(displayName)}
             name={displayName}
             roleLabel={displayRole}
-            subtitle={`Senior Director at ${companyName}`}
-            description={`Member since current cycle${me?.user.id ? ` • ID: JA-${me.user.id}` : ""}`}
+            subtitle={`Senior Director of Operations at ${companyName}`}
+            description={`Member since Oct 2018${me?.user.id ? ` - ID: JA-${me.user.id}` : ""}`}
             verified
             heroStyle="split"
             actions={[
@@ -451,7 +454,7 @@ export function MemberProfileScreen() {
             <Divider />
             <InfoRow label="Location" value={companyDetail ? `${companyDetail.city}, ${companyDetail.state}` : stateName} />
             <Divider />
-            <InfoRow label="Timezone" value="Local Association Time" />
+            <InfoRow label="Timezone" value="GMT (London, UK)" />
           </SectionCard>
 
           <MetricGrid
@@ -459,7 +462,7 @@ export function MemberProfileScreen() {
               {
                 label: "Portfolio Value",
                 value: "£4.2M",
-                caption: "Luxury placeholder metric until live financial profile metrics exist.",
+                caption: "Asset Class Health: Excellent and +12.4% this quarter",
               },
             ]}
           />
@@ -508,64 +511,57 @@ export function MemberProfileScreen() {
           heroStyle="centered"
         />
 
-        <View style={styles.memberTitleWrap}>
-          <Text style={styles.memberDisplayTitle}>Profile</Text>
-        </View>
+        <View style={styles.memberShell}>
+          <View style={styles.memberTitleWrap}>
+            <Text style={styles.memberDisplayTitle}>Profile</Text>
+          </View>
 
-        <SectionCard>
-          <SectionHeader eyebrow="Personal Details" title="Contact Information" actionLabel="Edit Profile" onActionPress={() => navigation.navigate("EditProfile")} />
-          <InfoRow label="Email Address" value={displayEmail} />
-          <Divider />
-          <InfoRow label="Phone Number" value={displayPhone} />
-        </SectionCard>
+          <SectionCard>
+            <SectionHeader eyebrow="Personal Details" title="Contact Information" actionLabel="Edit Profile" onActionPress={() => navigation.navigate("EditProfile")} />
+            <InfoRow label="Email Address" value={displayEmail} />
+            <Divider />
+            <InfoRow label="Phone Number" value={displayPhone} />
+          </SectionCard>
 
-        <SectionCard>
-          <SectionHeader eyebrow="Association Details" title="Membership Context" />
-          <InfoRow label="State" value={stateName} />
-          <Divider />
-          <InfoRow label="Association" value={associationName} />
-          <Divider />
-          <InfoRow
-            label="Status"
-            value="Active Member"
-            endAccent={
-              <View style={styles.statusAccent}>
-                <View style={styles.statusDot} />
-                <RoleBadge label="Active" />
-              </View>
-            }
+          <SectionCard>
+            <SectionHeader eyebrow="Association Details" title="Membership Context" />
+            <InfoRow label="State" value={stateName} />
+            <Divider />
+            <InfoRow label="Association" value={associationName} />
+            <Divider />
+            <InfoRow label="Status" value="Active Member" endAccent={<View style={styles.statusAccent}><View style={styles.statusDot} /><Text style={styles.statusText}>Active Member</Text></View>} />
+          </SectionCard>
+
+          <SettingsList
+            title="Preferences & Security"
+            eyebrow="Preferences & Security"
+            items={[
+              {
+                key: "notifications",
+                label: "Notification Settings",
+                icon: "notifications-active",
+                description: "Manage rate, news, ad, and meeting alerts.",
+                onPress: () => navigation.navigate("NotificationSettings"),
+              },
+              {
+                key: "help",
+                label: "Help & Support",
+                icon: "help",
+                description: "Get assistance with your account and membership profile.",
+                onPress: () => navigation.navigate("HelpSupport"),
+              },
+              {
+                key: "privacy",
+                label: "Privacy & Security",
+                icon: "security",
+                description: "Future security controls and account protections.",
+                onPress: () => showComingSoon("Privacy & Security", "A dedicated Privacy & Security screen has not been added yet."),
+              },
+            ]}
           />
-        </SectionCard>
 
-        <SettingsList
-          title="Preferences & Security"
-          eyebrow="Preferences & Security"
-          items={[
-            {
-              key: "notifications",
-              label: "Notification Settings",
-              icon: "notifications-active",
-              description: "Manage rate, news, ad, and meeting alerts.",
-              onPress: () => navigation.navigate("NotificationSettings"),
-            },
-            {
-              key: "help",
-              label: "Help & Support",
-              icon: "help",
-              description: "Get assistance with your account and membership profile.",
-              onPress: () => navigation.navigate("HelpSupport"),
-            },
-            {
-              key: "privacy",
-              label: "Privacy & Security",
-              icon: "security",
-              description: "Future security controls and account protections.",
-              onPress: () => showComingSoon("Privacy & Security", "A dedicated Privacy & Security screen has not been added yet."),
-            },
-          ]}
-        />
-
-        <LogoutActionCard label="Logout from Account" onPress={confirmLogout} />
+          <LogoutActionCard label="Logout from Account" onPress={confirmLogout} />
+        </View>
       </>
     );
   }
@@ -636,6 +632,9 @@ const styles = StyleSheet.create({
   toolList: {
     gap: spacing.sm,
   },
+  memberShell: {
+    gap: spacing.lg,
+  },
   memberTitleWrap: {
     marginTop: -4,
   },
@@ -655,5 +654,10 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: "#775A19",
+  },
+  statusText: {
+    color: "#775A19",
+    fontSize: 16,
+    fontWeight: "500",
   },
 });

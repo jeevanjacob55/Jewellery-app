@@ -17,7 +17,9 @@ export type ProfileActionItem = {
 
 type ProfileTopAppBarProps = {
   title: string;
+  brandLabel?: string;
   notificationCount?: number;
+  guestMode?: boolean;
   onMenuPress?: () => void;
   onNotificationPress: () => void;
 };
@@ -40,14 +42,28 @@ type ProfileIdentityCardProps = {
   }>;
 };
 
-export function ProfileTopAppBar({ title, notificationCount = 0, onMenuPress, onNotificationPress }: ProfileTopAppBarProps) {
+export function ProfileTopAppBar({
+  title,
+  brandLabel,
+  notificationCount = 0,
+  guestMode = false,
+  onMenuPress,
+  onNotificationPress,
+}: ProfileTopAppBarProps) {
   return (
     <View style={styles.topBar}>
       <View style={styles.topBarLeft}>
         <Pressable style={styles.topIconWrap} onPress={onMenuPress}>
-          <MaterialIcons name={onMenuPress ? "menu" : "diamond"} size={22} color={colors.text} />
+          <MaterialIcons name={guestMode ? "menu" : "diamond"} size={22} color={colors.text} />
         </Pressable>
-        <Text style={styles.topTitle}>{title}</Text>
+        {guestMode ? (
+          <Text style={styles.topTitle}>{title}</Text>
+        ) : (
+          <View>
+            <Text style={styles.topBrand}>{brandLabel ?? "Jewellery Association"}</Text>
+            {title ? <Text style={styles.topSubtitle}>{title}</Text> : null}
+          </View>
+        )}
       </View>
       <Pressable style={styles.topIconWrap} onPress={onNotificationPress}>
         <MaterialIcons name="notifications" size={22} color={colors.text} />
@@ -401,6 +417,17 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 24,
     fontWeight: "600",
+  },
+  topBrand: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: "600",
+  },
+  topSubtitle: {
+    color: "#4C4546",
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 2,
   },
   notificationDot: {
     position: "absolute",
