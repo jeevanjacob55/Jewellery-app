@@ -6,9 +6,13 @@ import {
   AdvertisementCampaignPayload,
   AdvertisementCampaignRecord,
   AdvertisementPlacement,
+  CompanyOption,
   createCompanyAdvertisement,
+  fetchCompanyOptions,
   fetchCompanyAdvertisements,
+  fetchProductOptions,
   fetchRegionHierarchy,
+  ProductOption,
   finalizeAdvertisementMediaAsset,
   RegionHierarchyAssociation,
   RegionHierarchyDistrict,
@@ -115,10 +119,10 @@ function buildActionHelperText(actionType: AdvertisementActionType) {
     return "Enter the mobile screen name that should open from the home banner.";
   }
   if (actionType === "product") {
-    return "Enter the product id that the banner should promote. Products are optional for ad access, but product-linked banners still need a valid product id.";
+    return "Choose one of your company products to open when the banner is tapped.";
   }
   if (actionType === "company") {
-    return "Enter the company id that should open from the banner tap.";
+    return "Choose the company profile that should open from the banner tap.";
   }
   return "Enter the category slug or label that should open from the banner.";
 }
@@ -172,12 +176,16 @@ export function AdvertisementUploadPage() {
   const { session } = useAuth();
   const [form, setForm] = useState<FormState>(() => createEmptyForm());
   const [campaigns, setCampaigns] = useState<AdvertisementCampaignRecord[]>([]);
+  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([]);
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [campaignsLoading, setCampaignsLoading] = useState(true);
   const [campaignsError, setCampaignsError] = useState<string | null>(null);
   const [hierarchy, setHierarchy] = useState<RegionHierarchyState[]>([]);
   const [hierarchyLoading, setHierarchyLoading] = useState(true);
   const [hierarchyError, setHierarchyError] = useState<string | null>(null);
+  const [actionOptionsLoading, setActionOptionsLoading] = useState(true);
+  const [actionOptionsError, setActionOptionsError] = useState<string | null>(null);
   const [assetFile, setAssetFile] = useState<File | null>(null);
   const [assetPreview, setAssetPreview] = useState<string | null>(null);
   const [assetName, setAssetName] = useState("");
@@ -200,18 +208,23 @@ export function AdvertisementUploadPage() {
       if (!isCompanyAdmin) {
         setCampaignsLoading(false);
         setHierarchyLoading(false);
+        setActionOptionsLoading(false);
         return;
       }
 
       setCampaignsLoading(true);
       setHierarchyLoading(true);
+      setActionOptionsLoading(true);
       setCampaignsError(null);
       setHierarchyError(null);
+      setActionOptionsError(null);
 
       try {
-        const [campaignPayload, hierarchyPayload] = await Promise.all([
+        const [campaignPayload, hierarchyPayload, companyPayload, productPayload] = await Promise.all([
           fetchCompanyAdvertisements(),
           fetchRegionHierarchy(),
+          fetchCompanyOptions(),
+          fetchProductOptions(session?.company?.id),
         ]);
 
         if (!active) {
@@ -220,6 +233,8 @@ export function AdvertisementUploadPage() {
 
         setCampaigns(campaignPayload.results);
         setHierarchy(hierarchyPayload);
+        setCompanyOptions(companyPayload);
+        setProductOptions(productPayload);
       } catch (error) {
         if (!active) {
           return;
@@ -227,10 +242,12 @@ export function AdvertisementUploadPage() {
         const message = error instanceof Error ? error.message : "Unable to load advertisement setup data.";
         setCampaignsError(message);
         setHierarchyError(message);
+        setActionOptionsError(message);
       } finally {
         if (active) {
           setCampaignsLoading(false);
           setHierarchyLoading(false);
+          setActionOptionsLoading(false);
         }
       }
     }
@@ -240,7 +257,7 @@ export function AdvertisementUploadPage() {
     return () => {
       active = false;
     };
-  }, [isCompanyAdmin]);
+  }, [isCompanyAdmin, session?.company?.id]);
 
   useEffect(() => {
     return () => {
@@ -275,6 +292,24 @@ export function AdvertisementUploadPage() {
     }
     return selectedDistrict.units.find((item) => String(item.id) === form.selectedUnitId) ?? null;
   }, [form.selectedUnitId, selectedDistrict]);
+
+  const companyActionOptions = useMemo(() => {
+    const ownCompany = session?.company
+      ? [{ id: session.company.id, name: `${session.company.name} (Your company)`, city: "", state: "" }]
+      : [];
+    const otherCompanies = companyOptions.filter((company) => company.id !== session?.company?.id);
+    return [...ownCompany, ...otherCompanies];
+  }, [companyOptions, session?.company]);
+
+  const selectedCompanyOption = useMemo(
+    () => companyActionOptions.find((company) => String(company.id) === form.actionValue) ?? null,
+    [companyActionOptions, form.actionValue],
+  );
+
+  const selectedProductOption = useMemo(
+    () => productOptions.find((product) => String(product.id) === form.actionValue) ?? null,
+    [form.actionValue, productOptions],
+  );
 
   function updateForm(nextValues: Partial<FormState>) {
     setForm((current) => ({ ...current, ...nextValues }));
@@ -585,12 +620,57 @@ export function AdvertisementUploadPage() {
 
             <label className="ads-form__field">
               <span>Action value</span>
-              <input value={form.actionValue} onChange={(event) => updateForm({ actionValue: event.target.value })} placeholder={getActionPlaceholder(form.actionType)} />
+              {form.actionType === "company" ? (
+                <select
+                  value={form.actionValue}
+                  onChange={(event) => updateForm({ actionValue: event.target.value })}
+                  disabled={actionOptionsLoading}
+                >
+                  <option value="">
+                    {actionOptionsLoading ? "Loading companies..." : "Select a company"}
+                  </option>
+                  {selectedCompanyOption && !companyActionOptions.some((company) => company.id === selectedCompanyOption.id) ? (
+                    <option value={selectedCompanyOption.id}>{selectedCompanyOption.name}</option>
+                  ) : null}
+                  {companyActionOptions.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              ) : form.actionType === "product" ? (
+                <select
+                  value={form.actionValue}
+                  onChange={(event) => updateForm({ actionValue: event.target.value })}
+                  disabled={actionOptionsLoading}
+                >
+                  <option value="">
+                    {actionOptionsLoading ? "Loading products..." : "Select a product"}
+                  </option>
+                  {selectedProductOption && !productOptions.some((product) => product.id === selectedProductOption.id) ? (
+                    <option value={selectedProductOption.id}>{selectedProductOption.name}</option>
+                  ) : null}
+                  {productOptions.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={form.actionValue}
+                  onChange={(event) => updateForm({ actionValue: event.target.value })}
+                  placeholder={getActionPlaceholder(form.actionType)}
+                />
+              )}
             </label>
 
             <div className="ads-form__helper ads-form__field--full">
               <strong>Tap behavior</strong>
               <p>{buildActionHelperText(form.actionType)}</p>
+              {form.actionType === "company" && session?.company ? <p>Your company is pinned at the top, followed by all listed companies.</p> : null}
+              {form.actionType === "product" && session?.company ? <p>Showing products from {session.company.name} using the existing product listing API.</p> : null}
+              {actionOptionsError && (form.actionType === "company" || form.actionType === "product") ? <p>{actionOptionsError}</p> : null}
             </div>
 
             <label className="ads-form__field">

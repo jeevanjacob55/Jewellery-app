@@ -107,6 +107,13 @@ export type CompanyOption = {
   state: string;
 };
 
+export type ProductOption = {
+  id: number;
+  name: string;
+  company_id: number;
+  company_name: string;
+};
+
 export type NewsTargetInput = {
   target_type: "platform" | "state" | "association" | "unit" | "company" | "user";
   target_id: number | null;
@@ -568,6 +575,23 @@ export async function fetchCompanyOptions() {
     city: company.city ?? "",
     state: company.state ?? "",
   })).filter((company) => company.id > 0);
+}
+
+export async function fetchProductOptions(companyId?: number) {
+  const params = new URLSearchParams();
+  if (companyId) {
+    params.set("company", String(companyId));
+  }
+  const query = params.toString();
+  const payload = await requestJson<{ results: Array<Partial<ProductOption>> }>(`/products/${query ? `?${query}` : ""}`);
+  return (payload.results ?? [])
+    .map((product) => ({
+      id: product.id ?? 0,
+      name: product.name ?? "Unnamed product",
+      company_id: product.company_id ?? 0,
+      company_name: product.company_name ?? "",
+    }))
+    .filter((product) => product.id > 0);
 }
 
 export async function requestAdvertisementUploadSession(filename: string) {
