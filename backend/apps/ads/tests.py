@@ -7,7 +7,9 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.directory.models import MediaAsset
+from apps.accounts.models import UserRole
+from apps.directory.models import Company, CompanyTier, MediaAsset
+from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 from .models import AdAsset, AdClick, AdImpression, Advertisement
 
@@ -15,8 +17,40 @@ from .models import AdAsset, AdClick, AdImpression, Advertisement
 class AdvertisementApiTests(APITestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username="advertiser1", password="StrongPass123!")
-        self.admin_user = get_user_model().objects.create_user(username="admin1", password="StrongPass123!")
+        self.admin_user = get_user_model().objects.create_user(
+            username="admin1",
+            password="StrongPass123!",
+            role=get_user_model().Role.ADMIN,
+        )
         self.now = timezone.now()
+        self.state = RegionState.objects.create(name="Kerala")
+        self.association = Association.objects.create(state=self.state, name="KGSMA")
+        self.district_unit = DistrictOperationalUnit.objects.create(association=self.association, name="Ernakulam District Unit")
+        self.unit = Unit.objects.create(district_operational_unit=self.district_unit, name="Kadavanthra Unit")
+        self.company_tier = CompanyTier.objects.create(
+            name="Prime Elite Ads Test",
+            slug="prime-elite-ads-test",
+            description="Premium plan",
+            max_products=25,
+            min_photos_per_product=3,
+            max_photos_per_product=5,
+            visibility_type=CompanyTier.VisibilityType.PRO,
+        )
+        self.company = Company.objects.create(
+            name="Advertiser One Jewels",
+            category="Retail",
+            tier_ref=self.company_tier,
+            city="Kochi",
+            state="Kerala",
+            is_active=True,
+            is_approved=True,
+        )
+        UserRole.objects.create(
+            user=self.user,
+            role=UserRole.Role.COMPANY_ADMIN,
+            scope_type=UserRole.ScopeType.COMPANY,
+            scope_id=self.company.id,
+        )
 
     def create_advertisement(
         self,
@@ -34,6 +68,7 @@ class AdvertisementApiTests(APITestCase):
     ) -> Advertisement:
         advertisement = Advertisement.objects.create(
             advertiser=self.user,
+            company=self.company,
             title=title,
             description="Promotional copy",
             label_text="ADVERTISEMENT",
@@ -132,10 +167,89 @@ class AdvertisementApiTests(APITestCase):
 
         response = self.client.post(
             reverse("ads_upload_session"),
-            {"campaign_id": "campaign-1", "filename": "banner.png"},
+            {"filename": "banner.png"},
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["visibility"], "public")
         self.assertEqual(response.data["bucket_name"], "jewellery-association-public-media")
+
+    def test_company_admin_can_create_and_submit_ad_without_products(self):
+        asset = MediaAsset.objects.create(
+            uploader=self.user,
+            object_key="ads/banners/test-company/banner.png",
+            bucket_name="demo-public-media",
+            original_filename="banner.png",
+            mime_type="image/png",
+            public_url="https://mock-storage.local/ads/banners/test-company/banner.png",
+            width=1200,
+            height=675,
+            file_size=98765,
+            visibility=MediaAsset.Visibility.PUBLIC,
+            moderation_status=MediaAsset.ModerationStatus.APPROVED,
+        )
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            reverse("ads_campaigns"),
+            {
+                "title": "Company Linked Banner",
+                "description": "Submitted by a company with no products.",
+                "label_text": "ADVERTISEMENT",
+                "background_color": "#A94B08",
+                "placement": Advertisement.Placement.DASHBOARD_HERO,
+                "action_type": Advertisement.ActionType.EXTERNAL_URL,
+                "action_value": "https://example.com/offer",
+                "priority": 20,
+                "is_active": True,
+                "status": Advertisement.Status.SUBMITTED,
+                "start_date": (self.now - timedelta(days=1)).isoformat(),
+                "end_date": (self.now + timedelta(days=7)).isoformat(),
+                "asset_id": asset.id,
+                "targeting": {
+                    "state_id": self.state.id,
+                    "association_id": self.association.id,
+                    "district_operational_unit_id": self.district_unit.id,
+                    "unit_id": self.unit.id,
+                },
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        advertisement = Advertisement.objects.get(pk=response.data["advertisement"]["id"])
+        self.assertEqual(advertisement.company, self.company)
+        self.assertEqual(advertisement.status, Advertisement.Status.SUBMITTED)
+        self.assertEqual(advertisement.assets.count(), 1)
+        self.assertEqual(advertisement.action_payload, {"url": "https://example.com/offer"})
+
+    def test_unapproved_company_cannot_create_campaign(self):
+        self.company.is_approved = False
+        self.company.save(update_fields=["is_approved"])
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            reverse("ads_campaigns"),
+            {
+                "title": "Blocked Banner",
+                "status": Advertisement.Status.DRAFT,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_review_submitted_advertisement(self):
+        submitted = self.create_advertisement(status_value=Advertisement.Status.SUBMITTED)
+        self.client.force_authenticate(user=self.admin_user)
+
+        list_response = self.client.get(reverse("ads_submitted_list"))
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["id"] for item in list_response.data["results"]], [submitted.id])
+
+        approve_response = self.client.post(reverse("ads_approve", args=[submitted.id]), {}, format="json")
+        self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
+        submitted.refresh_from_db()
+        self.assertEqual(submitted.status, Advertisement.Status.APPROVED)
+        self.assertEqual(submitted.approved_by, self.admin_user)

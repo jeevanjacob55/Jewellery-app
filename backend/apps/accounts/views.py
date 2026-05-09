@@ -162,6 +162,8 @@ class MeView(APIView):
                         "id": linked_company.id,
                         "name": linked_company.name,
                         "plan": linked_company.tier_ref.name,
+                        "is_active": linked_company.is_active,
+                        "is_approved": linked_company.is_approved,
                         "upgrade_url": upgrade_url,
                     }
                     if linked_company

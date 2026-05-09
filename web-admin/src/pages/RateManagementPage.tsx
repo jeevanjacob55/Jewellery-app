@@ -90,7 +90,7 @@ export function RateManagementPage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const associationName = catalog?.association.name ?? session?.hierarchy.association ?? "Assigned Association";
+  const associationName = catalog?.association.name ?? session?.hierarchy?.association ?? "Assigned Association";
   const isAssociationAdmin = session?.user.role === "ASSOCIATION_ADMIN";
   const selectedCategory = useMemo(
     () => categories.find((category) => category.localId === selectedCategoryLocalId) ?? categories[0] ?? null,

@@ -3,11 +3,15 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminShell } from "./components/AdminShell";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { ApprovalDashboardPage } from "./pages/ApprovalDashboardPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
+import { AdminNewsCreatePage } from "./pages/AdminNewsCreatePage";
+import { AdvertisementUploadPage } from "./pages/AdvertisementUploadPage";
 import { CompanyManagementPage } from "./pages/CompanyManagementPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { RateManagementPage } from "./pages/RateManagementPage";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 
 function getDefaultAdminPath(role: string | undefined) {
   return role === "COMPANY_ADMIN" ? "/admin/company" : "/admin/overview";
@@ -45,6 +49,7 @@ function AppRoutes() {
           path="overview"
           element={session?.user.role === "COMPANY_ADMIN" ? <Navigate to="/admin/company" replace /> : <AdminDashboardPage />}
         />
+        <Route path="approvals" element={<ApprovalDashboardPage />} />
         <Route path="company" element={<CompanyManagementPage />} />
         <Route path="rates" element={<RateManagementPage />} />
         <Route
@@ -59,24 +64,13 @@ function AppRoutes() {
         />
         <Route
           path="advertisements"
-          element={
-            <PlaceholderPage
-              eyebrow="Phase 1 Placeholder"
-              title="Advertisements page is connected as an empty module."
-              description="The sidebar route is live now, and the page is intentionally minimal until the advertisement workflow is built."
-            />
-          }
+          element={<AdvertisementUploadPage />}
         />
         <Route
           path="content"
-          element={
-            <PlaceholderPage
-              eyebrow="Phase 1 Placeholder"
-              title="Content page is ready to receive news and meeting tools."
-              description="This empty page keeps the shell structure stable while the content-management flows are implemented later."
-            />
-          }
+          element={<Navigate to="/admin/content/news/new" replace />}
         />
+        <Route path="content/news/new" element={<AdminNewsCreatePage />} />
       </Route>
       <Route path="/" element={<Navigate to={status === "signedIn" ? defaultAdminPath : "/login"} replace />} />
       <Route path="*" element={<Navigate to={status === "signedIn" ? defaultAdminPath : "/login"} replace />} />
@@ -87,9 +81,11 @@ function AppRoutes() {
 export function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <AppErrorBoundary>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </AppErrorBoundary>
     </BrowserRouter>
   );
 }

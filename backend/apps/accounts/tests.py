@@ -197,6 +197,8 @@ class AccountsApiTests(APITestCase):
         self.assertEqual(response.data["company"]["id"], self.company.id)
         self.assertEqual(response.data["company"]["name"], "Asha Jewels Directory")
         self.assertEqual(response.data["company"]["plan"], "Prime Elite Accounts Test")
+        self.assertTrue(response.data["company"]["is_active"])
+        self.assertTrue(response.data["company"]["is_approved"])
         self.assertEqual(response.data["company"]["upgrade_url"], "https://example.com/upgrade")
         self.assertEqual(response.data["counts"]["pending_approvals_count"], 0)
         self.assertEqual(response.data["counts"]["unread_notifications_count"], 0)

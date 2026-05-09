@@ -41,6 +41,9 @@ const INITIAL_STATE: OverviewState = {
 
 export function AdminDashboardPage() {
   const [state, setState] = useState<OverviewState>(INITIAL_STATE);
+  const pendingWork = state.data?.pending_work ?? [];
+  const quickActions = state.data?.quick_actions ?? [];
+  const recentActivity = state.data?.recent_activity ?? [];
 
   const loadOverview = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -170,9 +173,9 @@ export function AdminDashboardPage() {
               <div className="admin-overview__skeleton admin-overview__skeleton--row" />
               <div className="admin-overview__skeleton admin-overview__skeleton--row" />
             </div>
-          ) : state.data?.pending_work.length ? (
+          ) : pendingWork.length ? (
             <div className="admin-overview__stack">
-              {state.data.pending_work.map((item) =>
+              {pendingWork.map((item) =>
                 item.route ? (
                   <Link key={item.key} to={item.route} className="admin-overview__list-card admin-overview__list-card--interactive">
                     <div>
@@ -212,9 +215,9 @@ export function AdminDashboardPage() {
             <div className="admin-overview__stack">
               <div className="admin-overview__skeleton admin-overview__skeleton--action" />
             </div>
-          ) : state.data?.quick_actions.length ? (
+          ) : quickActions.length ? (
             <div className="admin-overview__quick-actions">
-              {state.data.quick_actions.map((action) => (
+              {quickActions.map((action) => (
                 <Link key={action.route} to={action.route} className="admin-overview__action-card">
                   <strong>{action.label}</strong>
                   <p>{action.description}</p>
@@ -244,9 +247,9 @@ export function AdminDashboardPage() {
             <div className="admin-overview__skeleton admin-overview__skeleton--row" />
             <div className="admin-overview__skeleton admin-overview__skeleton--row" />
           </div>
-        ) : state.data?.recent_activity.length ? (
+        ) : recentActivity.length ? (
           <div className="admin-overview__activity-list">
-            {state.data.recent_activity.map((item) => (
+            {recentActivity.map((item) => (
               <article key={item.id} className="admin-overview__activity-item">
                 <div>
                   <strong>{item.action}</strong>

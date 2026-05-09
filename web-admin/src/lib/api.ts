@@ -24,6 +24,8 @@ export type SessionInfo = {
     id: number;
     name: string;
     plan: string;
+    is_active: boolean;
+    is_approved: boolean;
     upgrade_url: string | null;
   } | null;
   counts: {
@@ -55,6 +57,29 @@ export type AdminOverviewQuickAction = {
   route: string;
 };
 
+export type RegionHierarchyUnit = {
+  id: number;
+  name: string;
+};
+
+export type RegionHierarchyDistrict = {
+  id: number;
+  name: string;
+  units: RegionHierarchyUnit[];
+};
+
+export type RegionHierarchyAssociation = {
+  id: number;
+  name: string;
+  district_units: RegionHierarchyDistrict[];
+};
+
+export type RegionHierarchyState = {
+  id: number;
+  name: string;
+  associations: RegionHierarchyAssociation[];
+};
+
 export type AdminOverviewResponse = {
   scope: {
     label: string;
@@ -73,6 +98,59 @@ export type AdminOverviewResponse = {
   pending_work: AdminOverviewWorkItem[];
   recent_activity: AdminOverviewActivityItem[];
   quick_actions: AdminOverviewQuickAction[];
+};
+
+export type CompanyOption = {
+  id: number;
+  name: string;
+  city: string;
+  state: string;
+};
+
+export type NewsTargetInput = {
+  target_type: "platform" | "state" | "association" | "unit" | "company" | "user";
+  target_id: number | null;
+};
+
+export type AdminNewsRecord = {
+  id: number;
+  title: string;
+  description: string;
+  image_url: string | null;
+  created_by_id: number;
+  publisher_type: "platform" | "association" | "unit" | "company";
+  publisher_id: number | null;
+  status: "draft" | "published" | "pending_approval" | "rejected";
+  approved_by_id: number | null;
+  published_at: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  targets: Array<{
+    id: number;
+    target_type: NewsTargetInput["target_type"];
+    target_id: number | null;
+    mode: "include" | "exclude";
+  }>;
+};
+
+export type AdminNewsCreatePayload = {
+  title: string;
+  description: string;
+  publisher_type: AdminNewsRecord["publisher_type"];
+  publisher_id: number | null;
+  include_targets: NewsTargetInput[];
+  exclude_targets: NewsTargetInput[];
+  save_as_draft: boolean;
+};
+
+export type AdminNewsCreateResponse = {
+  message: string;
+  news: AdminNewsRecord;
+};
+
+type AdminNewsCreateApiResponse = AdminNewsRecord & {
+  message?: string;
 };
 
 export type ApiClientConfig = {
@@ -94,6 +172,80 @@ export type FinalizedMediaAsset = {
   object_key: string;
   public_url: string;
   original_filename: string;
+};
+
+export type AdvertisementActionType = "external_url" | "internal_screen" | "product" | "company" | "category";
+export type AdvertisementPlacement = "dashboard_hero" | "market_banner" | "news_inline";
+export type AdvertisementStatus = "draft" | "submitted" | "approved" | "rejected" | "expired";
+
+export type AdvertisementTargeting = {
+  state_id: number | null;
+  state_name: string | null;
+  association_id: number | null;
+  association_name: string | null;
+  district_operational_unit_id: number | null;
+  district_operational_unit_name: string | null;
+  unit_id: number | null;
+  unit_name: string | null;
+};
+
+export type AdvertisementCampaignRecord = {
+  id: number;
+  title: string;
+  description: string;
+  label_text: string;
+  background_color: string;
+  placement: AdvertisementPlacement;
+  action_type: AdvertisementActionType;
+  action_payload: Record<string, unknown>;
+  action_value: string;
+  priority: number;
+  is_active: boolean;
+  reach: string;
+  status: AdvertisementStatus;
+  start_date: string | null;
+  end_date: string | null;
+  approved_at: string | null;
+  approved_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+  image_url: string | null;
+  asset_id: number | null;
+  advertiser_name: string;
+  company: {
+    id: number;
+    name: string;
+    is_active: boolean;
+    is_approved: boolean;
+  } | null;
+  targeting: AdvertisementTargeting;
+};
+
+export type AdvertisementCampaignPayload = {
+  title: string;
+  description: string;
+  label_text: string;
+  background_color: string;
+  placement: AdvertisementPlacement;
+  action_type: AdvertisementActionType;
+  action_value: string;
+  priority: number;
+  is_active: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  status: "draft" | "submitted";
+  asset_id?: number | null;
+  targeting: {
+    state_id: number | null;
+    association_id: number | null;
+    district_operational_unit_id: number | null;
+    unit_id: number | null;
+  };
+};
+
+export type AdvertisementCampaignMutationResponse = {
+  message: string;
+  advertisement: AdvertisementCampaignRecord;
 };
 
 export type CompanyManagementProductImage = {
@@ -238,6 +390,30 @@ export function configureApiClient(nextConfig: ApiClientConfig) {
   config = nextConfig;
 }
 
+function extractErrorMessage(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nestedMessage = extractErrorMessage(item);
+      if (nestedMessage) {
+        return nestedMessage;
+      }
+    }
+    return null;
+  }
+  if (value && typeof value === "object") {
+    for (const nestedValue of Object.values(value as Record<string, unknown>)) {
+      const nestedMessage = extractErrorMessage(nestedValue);
+      if (nestedMessage) {
+        return nestedMessage;
+      }
+    }
+  }
+  return null;
+}
+
 async function requestJson<T>(path: string, init: RequestInit = {}, retrying = false, overrideTokens: Tokens | null = null): Promise<T> {
   const tokens = overrideTokens ?? config.getTokens?.() ?? null;
   const headers = new Headers(init.headers ?? {});
@@ -269,12 +445,10 @@ async function requestJson<T>(path: string, init: RequestInit = {}, retrying = f
   if (!response.ok) {
     let message = "Request failed.";
     try {
-      const errorBody = (await response.json()) as Record<string, string[] | string>;
-      const firstValue = Object.values(errorBody)[0];
-      if (typeof firstValue === "string") {
-        message = firstValue;
-      } else if (Array.isArray(firstValue) && firstValue[0]) {
-        message = firstValue[0];
+      const errorBody = (await response.json()) as Record<string, unknown>;
+      const extractedMessage = extractErrorMessage(errorBody);
+      if (extractedMessage) {
+        message = extractedMessage;
       }
     } catch {
       if (response.status === 401) {
@@ -312,11 +486,146 @@ export async function refreshAccessToken(refresh: string) {
 }
 
 export async function fetchSessionInfo(overrideTokens: Tokens | null = null) {
-  return requestJson<SessionInfo>("/me/", {}, false, overrideTokens);
+  const payload = await requestJson<Partial<SessionInfo>>("/me/", {}, false, overrideTokens);
+  return {
+    user: {
+      id: payload.user?.id ?? 0,
+      name: payload.user?.name ?? "Admin User",
+      email: payload.user?.email ?? "",
+      phone: payload.user?.phone ?? null,
+      avatar: payload.user?.avatar ?? null,
+      role: payload.user?.role ?? "",
+      role_display_name: payload.user?.role_display_name ?? "Administrator",
+      is_admin: payload.user?.is_admin ?? false,
+      has_company: payload.user?.has_company ?? false,
+      can_manage_products: payload.user?.can_manage_products ?? false,
+    },
+    hierarchy: {
+      association: payload.hierarchy?.association ?? null,
+      state: payload.hierarchy?.state ?? null,
+    },
+    company: payload.company
+      ? {
+          id: payload.company.id ?? 0,
+          name: payload.company.name ?? "",
+          plan: payload.company.plan ?? "",
+          is_active: payload.company.is_active ?? false,
+          is_approved: payload.company.is_approved ?? false,
+          upgrade_url: payload.company.upgrade_url ?? null,
+        }
+      : null,
+    counts: {
+      pending_approvals_count: payload.counts?.pending_approvals_count ?? 0,
+      unread_notifications_count: payload.counts?.unread_notifications_count ?? 0,
+    },
+  };
 }
 
 export async function fetchAdminOverview() {
-  return requestJson<AdminOverviewResponse>("/admin/");
+  const payload = await requestJson<Partial<AdminOverviewResponse>>("/admin/");
+  return {
+    scope: {
+      label: payload.scope?.label ?? "Current Scope",
+      scope_type: payload.scope?.scope_type ?? "platform",
+      role: payload.scope?.role ?? "administrator",
+    },
+    kpis: {
+      pending_approvals: payload.kpis?.pending_approvals ?? 0,
+      active_companies: payload.kpis?.active_companies ?? 0,
+      active_products: payload.kpis?.active_products ?? 0,
+      published_news: payload.kpis?.published_news ?? 0,
+      upcoming_meetings: payload.kpis?.upcoming_meetings ?? 0,
+      rate_last_updated_at: payload.kpis?.rate_last_updated_at ?? null,
+      rate_freshness_label: payload.kpis?.rate_freshness_label ?? "Waiting for data",
+    },
+    pending_work: Array.isArray(payload.pending_work) ? payload.pending_work : [],
+    recent_activity: Array.isArray(payload.recent_activity) ? payload.recent_activity : [],
+    quick_actions: Array.isArray(payload.quick_actions) ? payload.quick_actions : [],
+  };
+}
+
+export async function fetchRegionHierarchy() {
+  return requestJson<RegionHierarchyState[]>("/regions/");
+}
+
+export async function createAdminNews(payload: AdminNewsCreatePayload) {
+  const response = await requestJson<AdminNewsCreateApiResponse>("/news/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const { message, ...news } = response;
+  return {
+    message: message ?? "News submitted.",
+    news,
+  };
+}
+
+export async function fetchCompanyOptions() {
+  const payload = await requestJson<Array<Partial<CompanyOption>>>("/directory/companies/");
+  return payload.map((company) => ({
+    id: company.id ?? 0,
+    name: company.name ?? "Unnamed company",
+    city: company.city ?? "",
+    state: company.state ?? "",
+  })).filter((company) => company.id > 0);
+}
+
+export async function requestAdvertisementUploadSession(filename: string) {
+  return requestJson<UploadSession>("/ads/upload-session/", {
+    method: "POST",
+    body: JSON.stringify({ filename }),
+  });
+}
+
+export async function finalizeAdvertisementMediaAsset(payload: {
+  object_key: string;
+  bucket_name: string;
+  original_filename: string;
+  mime_type: string;
+  file_size: number;
+  width: number;
+  height: number;
+}) {
+  return requestJson<FinalizedMediaAsset>("/ads/media-assets/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchCompanyAdvertisements() {
+  return requestJson<{ results: AdvertisementCampaignRecord[] }>("/ads/campaigns/");
+}
+
+export async function createCompanyAdvertisement(payload: AdvertisementCampaignPayload) {
+  return requestJson<AdvertisementCampaignMutationResponse>("/ads/campaigns/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateCompanyAdvertisement(adId: number, payload: Partial<AdvertisementCampaignPayload>) {
+  return requestJson<AdvertisementCampaignMutationResponse>(`/ads/campaigns/${adId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchPendingAdvertisementApprovals() {
+  return requestJson<{ results: AdvertisementCampaignRecord[] }>("/ads/submitted/");
+}
+
+export async function approveAdvertisement(adId: number) {
+  return requestJson<AdvertisementCampaignMutationResponse>(`/ads/${adId}/approve/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function rejectAdvertisement(adId: number) {
+  return requestJson<AdvertisementCampaignMutationResponse>(`/ads/${adId}/reject/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
 }
 
 export async function fetchAssociationRateCatalog() {

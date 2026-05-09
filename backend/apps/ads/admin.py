@@ -5,9 +5,9 @@ from .models import AdApproval, AdAsset, AdClick, AdImpression, AdTargeting, Adv
 
 @admin.register(Advertisement)
 class AdvertisementAdmin(admin.ModelAdmin):
-    list_display = ("title", "placement", "status", "priority", "is_active", "start_date", "end_date")
+    list_display = ("title", "company", "placement", "status", "priority", "is_active", "start_date", "end_date")
     list_filter = ("placement", "status", "is_active", "action_type")
-    search_fields = ("title", "description")
+    search_fields = ("title", "description", "company__name")
 
 
 @admin.register(AdTargeting)

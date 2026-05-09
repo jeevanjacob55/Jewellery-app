@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
-from apps.directory.models import MediaAsset
+from apps.directory.models import Company, MediaAsset
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 
@@ -28,6 +28,13 @@ class Advertisement(models.Model):
         CATEGORY = "category", "Category"
 
     advertiser = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="advertisements")
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="advertisements",
+        null=True,
+        blank=True,
+    )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     label_text = models.CharField(max_length=50, default="ADVERTISEMENT")
