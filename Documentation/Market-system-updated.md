@@ -1,5 +1,5 @@
 
-# Market Screen Implementation Guide for Codex
+# Market Screen Implementation Guide
 
 ## Goal
 
