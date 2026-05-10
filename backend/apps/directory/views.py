@@ -603,6 +603,86 @@ class CompanyMediaAssetFinalizeView(APIView):
         )
 
 
+class ProductMediaAssetFinalizeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, company_id: int, product_id: int):
+        company = get_object_or_404(Company.objects.only("id"), pk=company_id)
+        if not user_can_manage_company(request.user, company.id):
+            return Response({"detail": "You do not have permission to manage product images for this company."}, status=status.HTTP_403_FORBIDDEN)
+
+        get_object_or_404(Product.objects.only("id"), pk=product_id, company_id=company.id)
+
+        serializer = CompanyMediaAssetFinalizeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+
+        expected_prefix = f"products/gallery/{product_id}/"
+        if not payload["object_key"].startswith(expected_prefix):
+            return Response({"object_key": ["Object key does not match the product upload path."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        mock_upload = get_mock_upload(payload["object_key"])
+        if mock_upload is None:
+            return Response({"object_key": ["Uploaded object not found in mock storage."]}, status=status.HTTP_400_BAD_REQUEST)
+        if mock_upload.content_type != payload["mime_type"]:
+            return Response({"mime_type": ["Uploaded file metadata did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
+        if mock_upload.size != payload["file_size"]:
+            return Response({"file_size": ["Uploaded file size did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        public_url = build_mock_public_url(payload["object_key"], request=request)
+        media_asset, created = MediaAsset.objects.get_or_create(
+            object_key=payload["object_key"],
+            defaults={
+                "uploader": request.user,
+                "bucket_name": payload["bucket_name"],
+                "original_filename": payload["original_filename"],
+                "mime_type": payload["mime_type"],
+                "public_url": public_url,
+                "width": payload["width"],
+                "height": payload["height"],
+                "file_size": payload["file_size"],
+                "visibility": MediaAsset.Visibility.PUBLIC,
+                "moderation_status": MediaAsset.ModerationStatus.APPROVED,
+            },
+        )
+
+        if not created:
+            media_asset.uploader = request.user
+            media_asset.bucket_name = payload["bucket_name"]
+            media_asset.original_filename = payload["original_filename"]
+            media_asset.mime_type = payload["mime_type"]
+            media_asset.public_url = public_url
+            media_asset.width = payload["width"]
+            media_asset.height = payload["height"]
+            media_asset.file_size = payload["file_size"]
+            media_asset.visibility = MediaAsset.Visibility.PUBLIC
+            media_asset.moderation_status = MediaAsset.ModerationStatus.APPROVED
+            media_asset.save(
+                update_fields=[
+                    "uploader",
+                    "bucket_name",
+                    "original_filename",
+                    "mime_type",
+                    "public_url",
+                    "width",
+                    "height",
+                    "file_size",
+                    "visibility",
+                    "moderation_status",
+                ]
+            )
+
+        return Response(
+            {
+                "asset_id": media_asset.id,
+                "object_key": media_asset.object_key,
+                "public_url": media_asset.public_url,
+                "original_filename": media_asset.original_filename,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class CompanyImageAttachView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

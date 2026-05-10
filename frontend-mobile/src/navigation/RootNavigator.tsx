@@ -8,6 +8,7 @@ import { AssociationRatesScreen } from "../screens/dashboard/AssociationRatesScr
 import { HomeDashboardScreen } from "../screens/dashboard/HomeDashboardScreen";
 import { RateDetailsScreen } from "../screens/dashboard/RateDetailsScreen";
 import { StateRatesScreen } from "../screens/dashboard/StateRatesScreen";
+import { CompanyDirectoryScreen } from "../screens/directory/CompanyDirectoryScreen";
 import { CompanyProfileScreen } from "../screens/directory/CompanyProfileScreen";
 import { MarketTiersScreen } from "../screens/directory/MarketTiersScreen";
 import { ProductDetailScreen } from "../screens/directory/ProductDetailScreen";
@@ -23,6 +24,7 @@ import { HelpSupportScreen } from "../screens/profile/HelpSupportScreen";
 import { MemberProfileScreen } from "../screens/profile/MemberProfileScreen";
 import { NotificationsScreen } from "../screens/profile/NotificationsScreen";
 import { NotificationSettingsScreen } from "../screens/profile/NotificationSettingsScreen";
+import { UpgradePlanScreen } from "../screens/profile/UpgradePlanScreen";
 import { ReverseSearchScreen } from "../screens/reverse-search/ReverseSearchScreen";
 import { ServicesScreen } from "../screens/services/ServicesScreen";
 import { SplashScreen } from "../screens/splash/SplashScreen";
@@ -64,6 +66,7 @@ export function RootNavigator() {
           <Stack.Screen name="AssociationRates" component={AssociationRatesScreen} options={{ headerShown: false }} />
           <Stack.Screen name="StateRates" component={StateRatesScreen} options={{ headerShown: false }} />
           <Stack.Screen name="RateDetails" component={RateDetailsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="CompanyDirectory" component={CompanyDirectoryScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CompanyProfile" component={CompanyProfileScreen} options={{ title: "Company Profile" }} />
           <Stack.Screen name="ProductSearch" component={ProductSearchScreen} options={{ title: "Product Search" }} />
           <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />
@@ -74,6 +77,7 @@ export function RootNavigator() {
           <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit Profile" }} />
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: "Help & Support" }} />
           <Stack.Screen name="CompanyPlan" component={CompanyPlanScreen} options={{ title: "Company Plan" }} />
+          <Stack.Screen name="UpgradePlan" component={UpgradePlanScreen} options={{ title: "Upgrade Plan" }} />
           <Stack.Screen name="CompanyProducts" component={CompanyProductsScreen} options={{ title: "Manage Products" }} />
           <Stack.Screen name="PendingApprovals" component={PendingApprovalsScreen} options={{ title: "Pending Approvals" }} />
           <Stack.Screen name="ManageUsers" component={ManageUsersScreen} options={{ title: "Manage Users" }} />

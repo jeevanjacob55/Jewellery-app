@@ -521,6 +521,53 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(attach_response.data["company"]["logo_image_url"], finalize_response.data["public_url"])
         self.assertEqual(CompanyImage.objects.filter(company=self.company, is_logo=True).count(), 1)
 
+    def test_company_admin_can_finalize_product_media_asset_and_attach_image(self):
+        self.client.force_authenticate(user=self.company_admin)
+        upload_session_response = self.client.post(
+            reverse("product_image_upload_session", args=[self.company.id, self.product.id]),
+            {"filename": "new-product-image.png"},
+            format="json",
+        )
+
+        self.assertEqual(upload_session_response.status_code, status.HTTP_200_OK)
+        mock_upload_response = self.client.put(
+            f"{reverse('mock_upload')}?object_key={upload_session_response.data['object_key']}",
+            b"mock-product-image-binary",
+            content_type="image/png",
+        )
+        self.assertEqual(mock_upload_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        finalize_response = self.client.post(
+            reverse("product_media_asset_finalize", args=[self.company.id, self.product.id]),
+            {
+                "object_key": upload_session_response.data["object_key"],
+                "bucket_name": upload_session_response.data["bucket_name"],
+                "original_filename": "new-product-image.png",
+                "mime_type": "image/png",
+                "file_size": len(b"mock-product-image-binary"),
+                "width": 720,
+                "height": 720,
+            },
+            format="json",
+        )
+
+        self.assertEqual(finalize_response.status_code, status.HTTP_201_CREATED)
+        parsed_media_url = urlsplit(finalize_response.data["public_url"])
+        media_response = self.client.get(f"{parsed_media_url.path}?{parsed_media_url.query}")
+        self.assertEqual(media_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(media_response.content, b"mock-product-image-binary")
+
+        attach_response = self.client.post(
+            reverse("product_image_attach", args=[self.company.id, self.product.id]),
+            {"asset_id": finalize_response.data["asset_id"]},
+            format="json",
+        )
+
+        self.assertEqual(attach_response.status_code, status.HTTP_201_CREATED)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.images.count(), 2)
+        self.assertTrue(ProductImage.objects.filter(product=self.product, asset__public_url=finalize_response.data["public_url"]).exists())
+
     def test_company_upload_session_requires_company_scope(self):
         other_company = self._create_company_with_product(
             name="Locked Upload House",

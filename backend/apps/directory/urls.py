@@ -15,6 +15,7 @@ from .views import (
     EnquiryCreateView,
     MarketFeedView,
     ProductImageAttachView,
+    ProductMediaAssetFinalizeView,
     ProductImageUploadSessionView,
 )
 
@@ -35,6 +36,11 @@ urlpatterns = [
         "companies/<int:company_id>/products/<int:product_id>/images/upload-session/",
         ProductImageUploadSessionView.as_view(),
         name="product_image_upload_session",
+    ),
+    path(
+        "companies/<int:company_id>/products/<int:product_id>/media-assets/",
+        ProductMediaAssetFinalizeView.as_view(),
+        name="product_media_asset_finalize",
     ),
     path(
         "companies/<int:company_id>/products/<int:product_id>/images/",

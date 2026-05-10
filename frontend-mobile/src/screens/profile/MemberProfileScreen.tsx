@@ -134,8 +134,8 @@ export function MemberProfileScreen() {
       key: "upgrade",
       label: "Upgrade Plan",
       icon: "north-east",
-      description: me?.company?.upgrade_url ? "Open the current upgrade flow for your company plan." : "Upgrade link is not available yet for this company.",
-      onPress: () => navigation.navigate("CompanyPlan", { openUpgradeOnMount: true }),
+      description: "Review available upgrade tiers and submit an in-app request for manual review.",
+      onPress: () => navigation.navigate("UpgradePlan"),
     },
   ];
 

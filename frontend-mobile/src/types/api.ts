@@ -338,6 +338,152 @@ export interface Company {
   is_approved?: boolean;
 }
 
+export interface CompanyManagementTier {
+  id: number;
+  name: string;
+  visibility_type: string;
+  max_products: number;
+  min_photos_per_product: number;
+  max_photos_per_product: number;
+}
+
+export interface CompanyManagementSummary {
+  id: number;
+  name: string;
+  category: string;
+  city: string;
+  state: string;
+  about: string;
+  daily_capacity: string;
+  specialization: string;
+  is_active: boolean;
+  is_approved: boolean;
+  is_market_visible: boolean;
+  hero_image_url: string | null;
+  logo_image_url: string | null;
+  verification: CompanyVerification | null;
+  tier: CompanyManagementTier;
+  active_product_count: number;
+  total_product_count: number;
+}
+
+export interface CompanyManagementProductImage {
+  asset_id: number;
+  url: string;
+  original_filename: string;
+}
+
+export interface CompanyManagementProduct {
+  id: number;
+  name: string;
+  category_id: number;
+  category_name: string;
+  subcategory_id: number | null;
+  subcategory_name: string | null;
+  weight_grams: string;
+  purity: string;
+  price: string | null;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  image_count: number;
+  images: CompanyManagementProductImage[];
+}
+
+export interface CompanyManagementDetail {
+  company: CompanyManagementSummary;
+  products: CompanyManagementProduct[];
+}
+
+export interface CompanyTierDefinition {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  max_products: number;
+  min_photos_per_product: number;
+  max_photos_per_product: number;
+  max_companies_allowed: number | null;
+  price: string;
+  is_free: boolean;
+  is_active: boolean;
+  base_weight: number;
+  hero_eligible: boolean;
+  premium_floor_share: string;
+  cooldown_hours: number;
+  display_priority: number;
+  visibility_type: string;
+  current_company_count: number;
+}
+
+export interface CompanyTierManagementCompany {
+  id: number;
+  name: string;
+  active_product_count: number;
+  is_active: boolean;
+  is_approved: boolean;
+}
+
+export interface CompanyTierManagementCapabilities {
+  can_manage_products: boolean;
+  can_activate_products: boolean;
+  can_request_upgrade: boolean;
+  can_request_downgrade: boolean;
+  market_visibility_type: string;
+  hero_eligible: boolean;
+  fairness_weight: number;
+  premium_floor_share: string;
+  cooldown_hours: number;
+}
+
+export interface CompanyTierRequest {
+  id: number;
+  request_type: string;
+  status: string;
+  company_note: string;
+  admin_note: string;
+  current_tier_name: string;
+  requested_tier_name: string;
+  retain_active_product_ids: number[];
+  created_at: string;
+  updated_at: string;
+  reviewed_at: string | null;
+  requested_tier: CompanyTierDefinition;
+}
+
+export interface CompanyTierManagementOverview {
+  current_tier: CompanyTierDefinition;
+  company: CompanyTierManagementCompany;
+  capabilities: CompanyTierManagementCapabilities;
+  active_products: CompanyManagementProduct[];
+  available_upgrades: CompanyTierDefinition[];
+  available_downgrades: CompanyTierDefinition[];
+  pending_request: CompanyTierRequest | null;
+  requests: CompanyTierRequest[];
+}
+
+export interface CompanyTierRequestCreatePayload {
+  requested_tier_id: number;
+  company_note?: string;
+}
+
+export interface CompanyTierRequestActionResponse {
+  message: string;
+  request: CompanyTierRequest;
+}
+
+export interface CompanyProductWritePayload {
+  category?: number;
+  subcategory?: number | null;
+  name?: string;
+  weight_grams?: string;
+  purity?: string;
+  price?: string | null;
+  description?: string;
+  is_active?: boolean;
+  image_asset_ids?: number[];
+}
+
 export interface MarketCompanyCard {
   company_id: number;
   name: string;
@@ -725,6 +871,31 @@ export interface ReverseSearchUploadSession {
   visibility: string;
   expires_in: number;
   upload_url: string;
+}
+
+export interface MediaUploadSession {
+  object_key: string;
+  bucket_name: string;
+  visibility: string;
+  expires_in: number;
+  upload_url: string;
+}
+
+export interface MediaAssetFinalizePayload {
+  object_key: string;
+  bucket_name: string;
+  original_filename: string;
+  mime_type: string;
+  file_size: number;
+  width: number;
+  height: number;
+}
+
+export interface MediaAssetFinalizeResponse {
+  asset_id: number;
+  object_key: string;
+  public_url: string;
+  original_filename: string;
 }
 
 export interface EnquiryPayload {

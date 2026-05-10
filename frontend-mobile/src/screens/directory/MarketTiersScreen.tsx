@@ -426,7 +426,7 @@ function GeneralDirectorySection({ row, onPressCompany }: { row: MarketRow; onPr
 
   return (
     <View style={styles.section}>
-      <SectionHeader title="General Directory" actionLabel="View All" onPressAction={() => navigation.navigate("ProductSearch")} />
+      <SectionHeader title="General Directory" actionLabel="View All" onPressAction={() => navigation.navigate("CompanyDirectory")} />
       <View style={styles.gridWrap}>
         {row.items.map((company) => (
           <GridCompanyCard key={`${row.id}-${company.company_id}`} company={company} onPress={() => onPressCompany(company, row)} />
