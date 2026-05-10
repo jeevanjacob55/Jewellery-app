@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 
 from apps.admin_ops.permissions import IsSuperAdmin
 
-from config.storage import build_mock_signed_upload, get_mock_upload
+from config.storage import build_mock_public_url, build_mock_signed_upload, get_mock_upload
 
 from .models import (
     Company,
@@ -549,6 +549,7 @@ class CompanyMediaAssetFinalizeView(APIView):
         if mock_upload.size != payload["file_size"]:
             return Response({"file_size": ["Uploaded file size did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
 
+        public_url = build_mock_public_url(payload["object_key"], request=request)
         media_asset, created = MediaAsset.objects.get_or_create(
             object_key=payload["object_key"],
             defaults={
@@ -556,7 +557,7 @@ class CompanyMediaAssetFinalizeView(APIView):
                 "bucket_name": payload["bucket_name"],
                 "original_filename": payload["original_filename"],
                 "mime_type": payload["mime_type"],
-                "public_url": f"https://mock-storage.local/{payload['object_key']}",
+                "public_url": public_url,
                 "width": payload["width"],
                 "height": payload["height"],
                 "file_size": payload["file_size"],
@@ -570,7 +571,7 @@ class CompanyMediaAssetFinalizeView(APIView):
             media_asset.bucket_name = payload["bucket_name"]
             media_asset.original_filename = payload["original_filename"]
             media_asset.mime_type = payload["mime_type"]
-            media_asset.public_url = f"https://mock-storage.local/{payload['object_key']}"
+            media_asset.public_url = public_url
             media_asset.width = payload["width"]
             media_asset.height = payload["height"]
             media_asset.file_size = payload["file_size"]

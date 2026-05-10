@@ -4,8 +4,15 @@ from rest_framework import serializers
 
 from apps.directory.models import MediaAsset
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
+from config.storage import resolve_public_media_url
 
 from .models import AdAsset, AdClick, AdImpression, AdTargeting, Advertisement
+
+
+def get_advertisement_image_url(advertisement: Advertisement, request=None) -> str | None:
+    for ad_asset in advertisement.assets.select_related("asset").order_by("id"):
+        return resolve_public_media_url(ad_asset.asset.object_key, ad_asset.asset.public_url, request=request)
+    return None
 
 
 class AdvertisementSerializer(serializers.ModelSerializer):
@@ -26,7 +33,7 @@ class AdvertisementSerializer(serializers.ModelSerializer):
         ]
 
     def get_image_url(self, obj: Advertisement) -> str | None:
-        return obj.image_url
+        return get_advertisement_image_url(obj, request=self.context.get("request"))
 
 
 class AdEventSerializer(serializers.Serializer):
@@ -348,7 +355,7 @@ class AdvertisementCampaignSerializer(serializers.ModelSerializer):
         ]
 
     def get_image_url(self, obj: Advertisement) -> str | None:
-        return obj.image_url
+        return get_advertisement_image_url(obj, request=self.context.get("request"))
 
     def get_asset_id(self, obj: Advertisement) -> int | None:
         first_asset = obj.assets.order_by("id").first()

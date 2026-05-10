@@ -76,6 +76,7 @@ class DashboardApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["association"]["name"], "Latest")
+        self.assertEqual(response.data["updated_at_label"], "21 Apr 2026, 9:00 AM")
         self.assertEqual(response.data["headline_rates"]["gold_22k"]["value"], 6785.0)
         self.assertEqual(response.data["headline_rates"]["gold_22k"]["trend"], "up")
         self.assertEqual(response.data["headline_rates"]["silver"]["trend"], "down")
@@ -240,6 +241,7 @@ class DashboardApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([state["name"] for state in response.data["states"]], ["Kerala", "Tamil Nadu"])
         self.assertEqual([association["name"] for association in response.data["states"][0]["associations"]], ["AKGSMA", "KGSMA"])
+        self.assertEqual(response.data["states"][0]["associations"][0]["updated_at_label"], "21 Apr 2026, 10:30 AM")
         self.assertEqual(response.data["states"][1]["associations"][0]["gold_24k"], 5950.0)
         self.assertEqual(response.data["states"][1]["associations"][0]["state_name"], "Tamil Nadu")
         self.assertEqual(response.data["states"][1]["associations"][0]["headline_rates"]["gold_24k"]["trend"], "flat")
@@ -272,6 +274,7 @@ class DashboardApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["association"]["name"], "KGSMA")
         self.assertEqual(response.data["association"]["state_name"], "Kerala")
+        self.assertEqual(response.data["updated_at_label"], "21 Apr 2026, 9:00 AM")
         self.assertEqual(response.data["hero_badge_label"], "Live Market")
         self.assertEqual([group["title"] for group in response.data["rate_groups"]], ["Gold Bullion Rates", "Silver Market"])
         self.assertEqual(response.data["rate_groups"][0]["items"][0]["label"], "24K Purity (999)")

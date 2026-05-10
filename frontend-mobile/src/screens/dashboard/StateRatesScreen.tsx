@@ -8,7 +8,7 @@ import { ScreenState } from "../../components/ScreenState";
 import { useSession } from "../../session/SessionProvider";
 import { colors, spacing } from "../../theme/tokens";
 import { StateRatesData, StateRatesSummary } from "../../types/api";
-import { AssociationStateCard, LoadingSkeleton, PriceScreenHeader, PriceSearchBar, StateTabs } from "./PriceCards";
+import { AssociationCompactCard, LoadingSkeleton, PriceScreenHeader, PriceSearchBar, StateTabs } from "./PriceCards";
 
 export function StateRatesScreen() {
   const navigation = useNavigation<any>();
@@ -96,11 +96,11 @@ export function StateRatesScreen() {
     return filteredStates.find((state) => state.id === selectedStateId) ?? filteredStates[0] ?? null;
   }, [filteredStates, selectedStateId]);
 
-  const stateCardColumns = width >= 900 ? 2 : 1;
+  const stateCardColumns = width >= 1080 ? 3 : width >= 760 ? 2 : 1;
   const stateCardWidth = useMemo(() => {
     const horizontalPadding = spacing.lg * 2;
     const availableWidth = Math.max(width - horizontalPadding, 0);
-    return stateCardColumns === 1 ? availableWidth : (availableWidth - spacing.lg) / stateCardColumns;
+    return stateCardColumns === 1 ? availableWidth : (availableWidth - spacing.md * (stateCardColumns - 1)) / stateCardColumns;
   }, [stateCardColumns, width]);
 
   return (
@@ -147,7 +147,7 @@ export function StateRatesScreen() {
                     {selectedState.associations.length ? (
                       selectedState.associations.map((association) => (
                         <View key={association.id} style={[styles.cardSlot, { width: stateCardWidth }]}>
-                          <AssociationStateCard
+                          <AssociationCompactCard
                             association={association}
                             onPress={() =>
                               navigation.navigate("RateDetails", {
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   cardGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   cardSlot: {
     maxWidth: "100%",

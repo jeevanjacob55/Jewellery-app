@@ -65,13 +65,20 @@ def _build_metric_payload(current_value: float, previous_value: float | None) ->
 def _format_effective_label(rate: AssociationRate | None) -> str:
     if rate is None:
         return "Pending"
-    return rate.effective_at.strftime("%I:%M %p").lstrip("0")
+    return _format_datetime_label(rate.effective_at)
 
 
 def _format_timestamp_label(value) -> str:
     if value is None:
         return "Pending"
-    return timezone.localtime(value).strftime("%I:%M %p").lstrip("0")
+    return _format_datetime_label(value)
+
+
+def _format_datetime_label(value) -> str:
+    localized_value = timezone.localtime(value)
+    date_part = localized_value.strftime("%d %b %Y")
+    time_part = localized_value.strftime("%I:%M %p").lstrip("0")
+    return f"{date_part}, {time_part}"
 
 
 def _latest_rate_for_association(association: Association | None):

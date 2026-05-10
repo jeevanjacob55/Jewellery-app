@@ -1,4 +1,5 @@
 from datetime import timedelta
+from urllib.parse import urlsplit
 
 from django.contrib.auth import get_user_model
 from django.test import override_settings
@@ -174,6 +175,42 @@ class AdvertisementApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["visibility"], "public")
         self.assertEqual(response.data["bucket_name"], "jewellery-association-public-media")
+
+    def test_company_admin_can_finalize_ad_media_asset_with_fetchable_public_url(self):
+        self.client.force_authenticate(user=self.user)
+        upload_session_response = self.client.post(
+            reverse("ads_upload_session"),
+            {"filename": "banner.png"},
+            format="json",
+        )
+
+        self.assertEqual(upload_session_response.status_code, status.HTTP_200_OK)
+        mock_upload_response = self.client.put(
+            f"{reverse('mock_upload')}?object_key={upload_session_response.data['object_key']}",
+            b"mock-ad-image-binary",
+            content_type="image/png",
+        )
+        self.assertEqual(mock_upload_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        finalize_response = self.client.post(
+            reverse("ads_media_asset_finalize"),
+            {
+                "object_key": upload_session_response.data["object_key"],
+                "bucket_name": upload_session_response.data["bucket_name"],
+                "original_filename": "banner.png",
+                "mime_type": "image/png",
+                "file_size": len(b"mock-ad-image-binary"),
+                "width": 1200,
+                "height": 675,
+            },
+            format="json",
+        )
+
+        self.assertEqual(finalize_response.status_code, status.HTTP_201_CREATED)
+        parsed_media_url = urlsplit(finalize_response.data["public_url"])
+        media_response = self.client.get(f"{parsed_media_url.path}?{parsed_media_url.query}")
+        self.assertEqual(media_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(media_response.content, b"mock-ad-image-binary")
 
     def test_company_admin_can_create_and_submit_ad_without_products(self):
         asset = MediaAsset.objects.create(

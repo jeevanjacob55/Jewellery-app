@@ -8,7 +8,7 @@ import { ScreenState } from "../../components/ScreenState";
 import { useSession } from "../../session/SessionProvider";
 import { colors, spacing } from "../../theme/tokens";
 import { DashboardData } from "../../types/api";
-import { AssociationCompactCard, LoadingSkeleton, PriceScreenHeader, PriceSearchBar, PromoBanner } from "./PriceCards";
+import { AssociationCompactCard, LoadingSkeleton, PriceScreenHeader, PriceSearchBar } from "./PriceCards";
 
 export function AssociationRatesScreen() {
   const navigation = useNavigation<any>();
@@ -103,9 +103,6 @@ export function AssociationRatesScreen() {
                   />
                 </View>
               ))}
-              <View style={[styles.cardSlot, { width: associationCardWidth }]}>
-                <PromoBanner />
-              </View>
             </View>
           ) : (
             <View style={styles.emptyState}>

@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import User, UserRole
 from apps.admin_ops.views import _resolve_admin_scope, _scoped_advertisement_queryset
 from apps.directory.models import Company, MediaAsset
-from config.storage import build_mock_signed_upload, get_mock_upload
+from config.storage import build_mock_public_url, build_mock_signed_upload, get_mock_upload
 
 from .models import AdAsset, AdClick, AdImpression, Advertisement
 from .serializers import (
@@ -108,7 +108,7 @@ class AdvertisementOverviewView(APIView):
             .filter(Q(end_date__isnull=True) | Q(end_date__gte=now))
             .order_by("-priority", "-created_at", "-id")
         )
-        return Response({"results": AdvertisementSerializer(advertisements, many=True).data})
+        return Response({"results": AdvertisementSerializer(advertisements, many=True, context={"request": request}).data})
 
 
 class AdvertisementUploadSessionView(APIView):
@@ -142,6 +142,7 @@ class AdvertisementMediaAssetFinalizeView(APIView):
         if mock_upload.size != payload["file_size"]:
             raise ValidationError({"file_size": ["Uploaded file size did not match the finalize payload."]})
 
+        public_url = build_mock_public_url(payload["object_key"], request=request)
         media_asset, created = MediaAsset.objects.get_or_create(
             object_key=payload["object_key"],
             defaults={
@@ -149,7 +150,7 @@ class AdvertisementMediaAssetFinalizeView(APIView):
                 "bucket_name": payload["bucket_name"],
                 "original_filename": payload["original_filename"],
                 "mime_type": payload["mime_type"],
-                "public_url": f"https://mock-storage.local/{payload['object_key']}",
+                "public_url": public_url,
                 "width": payload["width"],
                 "height": payload["height"],
                 "file_size": payload["file_size"],
@@ -163,7 +164,7 @@ class AdvertisementMediaAssetFinalizeView(APIView):
             media_asset.bucket_name = payload["bucket_name"]
             media_asset.original_filename = payload["original_filename"]
             media_asset.mime_type = payload["mime_type"]
-            media_asset.public_url = f"https://mock-storage.local/{payload['object_key']}"
+            media_asset.public_url = public_url
             media_asset.width = payload["width"]
             media_asset.height = payload["height"]
             media_asset.file_size = payload["file_size"]
@@ -201,7 +202,7 @@ class AdvertisementCampaignListCreateView(APIView):
     def get(self, request):
         company = _require_company_advertiser(request.user, require_active_approved=False)
         queryset = get_advertisement_queryset().filter(company=company).order_by("-created_at", "-id")
-        return Response({"results": AdvertisementCampaignSerializer(queryset, many=True).data})
+        return Response({"results": AdvertisementCampaignSerializer(queryset, many=True, context={"request": request}).data})
 
     def post(self, request):
         company = _require_company_advertiser(request.user, require_active_approved=True)
@@ -219,7 +220,7 @@ class AdvertisementCampaignListCreateView(APIView):
                     if refreshed.status == Advertisement.Status.SUBMITTED
                     else "Advertisement draft saved successfully."
                 ),
-                "advertisement": AdvertisementCampaignSerializer(refreshed).data,
+                "advertisement": AdvertisementCampaignSerializer(refreshed, context={"request": request}).data,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -250,7 +251,7 @@ class AdvertisementCampaignDetailView(APIView):
                     if refreshed.status == Advertisement.Status.SUBMITTED
                     else "Advertisement draft updated successfully."
                 ),
-                "advertisement": AdvertisementCampaignSerializer(refreshed).data,
+                "advertisement": AdvertisementCampaignSerializer(refreshed, context={"request": request}).data,
             }
         )
 
@@ -261,7 +262,7 @@ class SubmittedAdvertisementApprovalListView(APIView):
     def get(self, request):
         _require_ad_reviewer(request.user)
         queryset = _approval_queryset_for_user(request.user)
-        return Response({"results": AdvertisementCampaignSerializer(queryset, many=True).data})
+        return Response({"results": AdvertisementCampaignSerializer(queryset, many=True, context={"request": request}).data})
 
 
 class AdvertisementApproveView(APIView):
@@ -278,7 +279,7 @@ class AdvertisementApproveView(APIView):
         return Response(
             {
                 "message": "Advertisement approved successfully.",
-                "advertisement": AdvertisementCampaignSerializer(refreshed).data,
+                "advertisement": AdvertisementCampaignSerializer(refreshed, context={"request": request}).data,
             }
         )
 
@@ -297,7 +298,7 @@ class AdvertisementRejectView(APIView):
         return Response(
             {
                 "message": "Advertisement rejected successfully.",
-                "advertisement": AdvertisementCampaignSerializer(refreshed).data,
+                "advertisement": AdvertisementCampaignSerializer(refreshed, context={"request": request}).data,
             }
         )
 

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone as dt_timezone
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -506,6 +507,10 @@ class DirectoryApiTests(APITestCase):
         )
 
         self.assertEqual(finalize_response.status_code, status.HTTP_201_CREATED)
+        parsed_media_url = urlsplit(finalize_response.data["public_url"])
+        media_response = self.client.get(f"{parsed_media_url.path}?{parsed_media_url.query}")
+        self.assertEqual(media_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(media_response.content, b"mock-image-binary")
         attach_response = self.client.post(
             reverse("company_image_attach", args=[self.company.id]),
             {"asset_id": finalize_response.data["asset_id"], "slot": "logo"},
