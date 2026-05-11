@@ -12,6 +12,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { RateManagementPage } from "./pages/RateManagementPage";
 import { TierManagementPage } from "./pages/TierManagementPage";
+import { TaxonomyManagementPage } from "./pages/TaxonomyManagementPage";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 
 function getDefaultAdminPath(role: string | undefined) {
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="approvals" element={<ApprovalDashboardPage />} />
         <Route path="company" element={<CompanyManagementPage />} />
         <Route path="tiers" element={<TierManagementPage />} />
+        <Route path="taxonomy" element={<TaxonomyManagementPage />} />
         <Route path="rates" element={<RateManagementPage />} />
         <Route
           path="company-profiles"

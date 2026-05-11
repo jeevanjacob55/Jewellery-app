@@ -37,6 +37,11 @@ from .models import (
     ZoneEligibilityRule,
 )
 from .serializers import (
+    AdminProductAttributeDefinitionSerializer,
+    AdminProductCategorySerializer,
+    AdminProductCategoryWriteSerializer,
+    AdminProductSubCategorySerializer,
+    AdminProductSubCategoryWriteSerializer,
     CompanySerializer,
     CompanyTierAdminDetailSerializer,
     CompanyImageAttachSerializer,
@@ -166,6 +171,9 @@ def resolve_category_param(param: str | None) -> ProductCategory | None:
     if not param:
         return None
     normalized = param.strip().lower()
+    exact_slug_match = ProductCategory.objects.filter(is_active=True, slug=normalized).first()
+    if exact_slug_match is not None:
+        return exact_slug_match
     for category in ProductCategory.objects.filter(is_active=True):
         if category.name.lower() == normalized or slugify(category.name) == normalized:
             return category
@@ -183,6 +191,28 @@ def resolve_subcategory_param(param: str | None, *, category: ProductCategory | 
         if subcategory.name.lower() == normalized or subcategory.slug == normalized:
             return subcategory
     return None
+
+
+def build_admin_taxonomy_payload() -> dict:
+    categories = list(
+        ProductCategory.objects.prefetch_related(
+            Prefetch("subcategories", queryset=ProductSubCategory.objects.order_by("display_order", "name", "id")),
+            Prefetch("attribute_definitions", queryset=ProductAttributeDefinition.objects.order_by("display_order", "id")),
+        ).order_by("product_type", "display_order", "name", "id")
+    )
+    grouped: list[dict] = []
+    for product_type, label in ProductCategory.ProductType.choices:
+        grouped.append(
+            {
+                "key": product_type,
+                "label": label,
+                "categories": AdminProductCategorySerializer(
+                    [category for category in categories if category.product_type == product_type],
+                    many=True,
+                ).data,
+            }
+        )
+    return {"product_types": grouped}
 
 
 def build_market_feed_payload() -> dict:
@@ -298,7 +328,7 @@ class ProductFilterConfigView(APIView):
         categories = ProductCategory.objects.filter(is_active=True).prefetch_related(
             Prefetch("subcategories", queryset=ProductSubCategory.objects.filter(is_active=True).order_by("display_order", "name")),
             Prefetch("attribute_definitions", queryset=ProductAttributeDefinition.objects.filter(is_active=True).order_by("display_order", "id")),
-        ).order_by("display_order", "name")
+        ).order_by("product_type", "display_order", "name")
         purity_options = list(
             get_public_product_queryset()
             .order_by()
@@ -806,6 +836,76 @@ class AdminCompanyTierListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         tier = serializer.save()
         return Response(CompanyTierSerializer(tier).data, status=status.HTTP_201_CREATED)
+
+
+class AdminProductTaxonomyView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        return Response(build_admin_taxonomy_payload())
+
+
+class AdminProductCategoryListCreateView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request):
+        serializer = AdminProductCategoryWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        category = serializer.save()
+        return Response(AdminProductCategorySerializer(category).data, status=status.HTTP_201_CREATED)
+
+
+class AdminProductCategoryDetailView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def patch(self, request, category_id: int):
+        category = get_object_or_404(ProductCategory, pk=category_id)
+        serializer = AdminProductCategoryWriteSerializer(category, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_category = serializer.save()
+        return Response(AdminProductCategorySerializer(updated_category).data)
+
+
+class AdminProductSubCategoryListCreateView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request):
+        serializer = AdminProductSubCategoryWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        subcategory = serializer.save()
+        return Response(AdminProductSubCategorySerializer(subcategory).data, status=status.HTTP_201_CREATED)
+
+
+class AdminProductSubCategoryDetailView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def patch(self, request, subcategory_id: int):
+        subcategory = get_object_or_404(ProductSubCategory, pk=subcategory_id)
+        serializer = AdminProductSubCategoryWriteSerializer(subcategory, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_subcategory = serializer.save()
+        return Response(AdminProductSubCategorySerializer(updated_subcategory).data)
+
+
+class AdminProductAttributeDefinitionListCreateView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request):
+        serializer = AdminProductAttributeDefinitionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        attribute_definition = serializer.save()
+        return Response(AdminProductAttributeDefinitionSerializer(attribute_definition).data, status=status.HTTP_201_CREATED)
+
+
+class AdminProductAttributeDefinitionDetailView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def patch(self, request, attribute_id: int):
+        attribute_definition = get_object_or_404(ProductAttributeDefinition, pk=attribute_id)
+        serializer = AdminProductAttributeDefinitionSerializer(attribute_definition, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_attribute_definition = serializer.save()
+        return Response(AdminProductAttributeDefinitionSerializer(updated_attribute_definition).data)
 
 
 class AdminMarketZoneListCreateView(APIView):

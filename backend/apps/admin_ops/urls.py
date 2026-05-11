@@ -20,6 +20,13 @@ from apps.directory.views import (
     AdminMarketZoneListCreateView,
     AdminPlacementOverrideDetailView,
     AdminPlacementOverrideListCreateView,
+    AdminProductAttributeDefinitionDetailView,
+    AdminProductAttributeDefinitionListCreateView,
+    AdminProductCategoryDetailView,
+    AdminProductCategoryListCreateView,
+    AdminProductSubCategoryDetailView,
+    AdminProductSubCategoryListCreateView,
+    AdminProductTaxonomyView,
 )
 
 from .views import (
@@ -35,6 +42,33 @@ urlpatterns = [
     path("", AdminOverviewView.as_view(), name="admin_overview"),
     path("company-profiles/", AdminCompanyProfilesView.as_view(), name="admin_company_profiles"),
     path("hierarchy/", HierarchyManagementView.as_view(), name="admin_hierarchy"),
+    path("directory/taxonomy/", AdminProductTaxonomyView.as_view(), name="admin_directory_taxonomy"),
+    path("directory/taxonomy/categories/", AdminProductCategoryListCreateView.as_view(), name="admin_directory_taxonomy_category_list_create"),
+    path(
+        "directory/taxonomy/categories/<int:category_id>/",
+        AdminProductCategoryDetailView.as_view(),
+        name="admin_directory_taxonomy_category_detail",
+    ),
+    path(
+        "directory/taxonomy/subcategories/",
+        AdminProductSubCategoryListCreateView.as_view(),
+        name="admin_directory_taxonomy_subcategory_list_create",
+    ),
+    path(
+        "directory/taxonomy/subcategories/<int:subcategory_id>/",
+        AdminProductSubCategoryDetailView.as_view(),
+        name="admin_directory_taxonomy_subcategory_detail",
+    ),
+    path(
+        "directory/taxonomy/attributes/",
+        AdminProductAttributeDefinitionListCreateView.as_view(),
+        name="admin_directory_taxonomy_attribute_list_create",
+    ),
+    path(
+        "directory/taxonomy/attributes/<int:attribute_id>/",
+        AdminProductAttributeDefinitionDetailView.as_view(),
+        name="admin_directory_taxonomy_attribute_detail",
+    ),
     path("directory/tiers/", AdminCompanyTierListCreateView.as_view(), name="admin_directory_tier_list_create"),
     path("directory/tiers/<int:tier_id>/", AdminCompanyTierDetailView.as_view(), name="admin_directory_tier_detail"),
     path("directory/tier-requests/", AdminCompanyTierRequestListView.as_view(), name="admin_directory_tier_request_list"),

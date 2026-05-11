@@ -378,12 +378,15 @@ export interface CompanyManagementProduct {
   name: string;
   category_id: number;
   category_name: string;
+  category_slug: string;
+  category_product_type: "gold" | "diamond" | "silver" | "other";
   subcategory_id: number | null;
   subcategory_name: string | null;
   weight_grams: string;
   purity: string;
   price: string | null;
   description: string;
+  attribute_values: Record<string, string>;
   is_active: boolean;
   created_at: string;
   image_count: number;
@@ -482,6 +485,7 @@ export interface CompanyProductWritePayload {
   description?: string;
   is_active?: boolean;
   image_asset_ids?: number[];
+  attribute_values?: Record<string, string>;
 }
 
 export interface MarketCompanyCard {
@@ -646,6 +650,7 @@ export interface ProductFilterCategory {
   id: number;
   name: string;
   slug: string;
+  product_type: "gold" | "diamond" | "silver" | "other";
   icon_key: string;
   subcategories: ProductFilterSubCategory[];
   attributes: ProductFilterAttributeDefinition[];
@@ -663,6 +668,7 @@ export interface ProductSearchResult {
   title: string;
   category_name: string;
   category_slug: string;
+  category_product_type: "gold" | "diamond" | "silver" | "other";
   subcategory_name: string | null;
   subcategory_slug: string | null;
   purity: string;
@@ -702,6 +708,8 @@ export interface ProductDetail {
   weight: string;
   length: string | null;
   category: string;
+  category_slug: string;
+  category_product_type: "gold" | "diamond" | "silver" | "other";
   subcategory: string | null;
   availability: string;
   hallmark: string | null;

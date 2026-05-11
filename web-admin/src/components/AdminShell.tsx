@@ -5,13 +5,14 @@ import { useAuth } from "../auth/AuthContext";
 type NavItem = {
   label: string;
   path: string;
-  visibility: "all_admins" | "association_admin" | "company_admin" | "all_console_users";
+  visibility: "all_admins" | "association_admin" | "company_admin" | "all_console_users" | "super_admin";
 };
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Overview", path: "/admin/overview", visibility: "all_admins" },
   { label: "Approvals", path: "/admin/approvals", visibility: "all_console_users" },
   { label: "Rate Management", path: "/admin/rates", visibility: "association_admin" },
+  { label: "Taxonomy", path: "/admin/taxonomy", visibility: "super_admin" },
   { label: "Company Profiles", path: "/admin/company-profiles", visibility: "all_admins" },
   { label: "Tier Management", path: "/admin/tiers", visibility: "all_console_users" },
   { label: "Advertisements", path: "/admin/advertisements", visibility: "all_console_users" },
@@ -23,6 +24,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/overview": "Overview",
   "/admin/approvals": "Approvals",
   "/admin/rates": "Rate Management",
+  "/admin/taxonomy": "Taxonomy",
   "/admin/company-profiles": "Company Profiles",
   "/admin/tiers": "Tier Management",
   "/admin/advertisements": "Advertisements",
@@ -43,9 +45,13 @@ export function AdminShell() {
   const location = useLocation();
   const isAssociationAdmin = session?.user.role === "ASSOCIATION_ADMIN";
   const isCompanyAdmin = session?.user.role === "COMPANY_ADMIN";
+  const isSuperAdmin = session?.user.role === "SUPER_ADMIN";
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (item.visibility === "company_admin") {
       return isCompanyAdmin;
+    }
+    if (item.visibility === "super_admin") {
+      return isSuperAdmin;
     }
     if (item.visibility === "all_console_users") {
       return true;

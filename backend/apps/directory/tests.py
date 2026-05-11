@@ -304,6 +304,8 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.data["company"]["active_product_count"], 2)
         self.assertEqual(response.data["company"]["total_product_count"], 2)
         self.assertEqual(response.data["products"][0]["image_count"], 1)
+        self.assertIn("category_product_type", response.data["products"][0])
+        self.assertIn("attribute_values", response.data["products"][0])
         self.assertIn("asset_id", response.data["products"][0]["images"][0])
 
     def test_company_admin_cannot_get_other_company_management_detail(self):
@@ -587,6 +589,7 @@ class DirectoryApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=False, DIRECTORY_MARKET_MIXED_FEED_ENABLED=False)
     def test_market_feed_returns_row_payload(self):
         self._create_company_with_product(
             name="Metro Diamond Studio",
@@ -646,6 +649,7 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(rows[2]["items"][0]["tier_visibility_type"], CompanyTier.VisibilityType.NORMAL)
         self.assertNotIn("Inactive House", [item["name"] for item in rows[0]["items"]])
 
+    @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=False, DIRECTORY_MARKET_MIXED_FEED_ENABLED=False)
     def test_market_feed_omits_disabled_and_empty_rows(self):
         self._create_company_with_product(
             name="Coastal Bullion Works",
@@ -666,7 +670,7 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([row["title"] for row in response.data["rows"]], ["Pro Companies"])
 
-    @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=True)
+    @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=True, DIRECTORY_MARKET_MIXED_FEED_ENABLED=False)
     def test_market_feed_returns_zone_payload_when_zone_feed_enabled(self):
         self._create_company_with_product(
             name="Coastal Bullion Works",
@@ -1025,7 +1029,7 @@ class DirectoryApiTests(APITestCase):
         self.assertIn(fairness_candidate.name, names)
         self.assertNotIn(blocked_company.name, names)
 
-    @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=True)
+    @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=True, DIRECTORY_MARKET_MIXED_FEED_ENABLED=False)
     def test_market_feed_logs_exposure_and_updates_last_featured_at_for_live_zone_feed(self):
         self._create_company_with_product(
             name="Coastal Bullion Works",
@@ -1065,6 +1069,7 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         categories = {item["slug"]: item for item in response.data["categories"]}
         self.assertIn("chains", categories)
+        self.assertEqual(categories["chains"]["product_type"], ProductCategory.ProductType.GOLD)
         self.assertEqual(categories["chains"]["subcategories"][0]["slug"], "link-chain")
         self.assertEqual(categories["chains"]["attributes"][0]["key"], "length")
         self.assertIn("22K", response.data["purity_options"])
@@ -1101,6 +1106,7 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["count"], 1)
         self.assertEqual(response.data["results"][0]["title"], "Curb Link Chain")
+        self.assertEqual(response.data["results"][0]["category_product_type"], ProductCategory.ProductType.GOLD)
         self.assertEqual(response.data["results"][0]["attribute_value"], "18 inch")
         self.assertEqual(response.data["results"][0]["price"], "2840.00")
 
@@ -1119,6 +1125,8 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.data["weight"], "42.50g")
         self.assertEqual(response.data["length"], "18 inch")
         self.assertEqual(response.data["category"], "Chains")
+        self.assertEqual(response.data["category_slug"], "chains")
+        self.assertEqual(response.data["category_product_type"], ProductCategory.ProductType.GOLD)
         self.assertEqual(response.data["subcategory"], "Link Chain")
         self.assertEqual(response.data["availability"], "In Stock")
         self.assertEqual(response.data["price_min"], "2840.00")
@@ -1266,6 +1274,110 @@ class DirectoryApiTests(APITestCase):
             response.data["image_asset_ids"][0],
             "At least 2 product image(s) are required for your current tier.",
         )
+
+    def test_company_admin_can_create_product_with_dynamic_attributes(self):
+        self.client.force_authenticate(user=self.company_admin)
+        extra_asset = self._create_media_asset(object_key="products/new/dynamic-product.jpg", public_url="https://example.com/dynamic-product.jpg")
+
+        response = self.client.post(
+            reverse("company_product_create", args=[self.company.id]),
+            {
+                "category": self.chain_category.id,
+                "subcategory": self.chain_subcategory.id,
+                "name": "Dynamic Attribute Chain",
+                "weight_grams": "16.50",
+                "purity": "22K",
+                "description": "Created with attribute values.",
+                "is_active": False,
+                "image_asset_ids": [extra_asset.id],
+                "attribute_values": {"length": "20 inch"},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        created_product = Product.objects.get(name="Dynamic Attribute Chain")
+        self.assertEqual(response.data["category_product_type"], ProductCategory.ProductType.GOLD)
+        self.assertEqual(response.data["attribute_values"]["length"], "20 inch")
+        self.assertTrue(
+            ProductAttributeValue.objects.filter(
+                product=created_product,
+                attribute_definition=self.chain_length_attribute,
+                value="20 inch",
+            ).exists()
+        )
+
+    def test_company_admin_cannot_use_attribute_from_wrong_category(self):
+        self.client.force_authenticate(user=self.company_admin)
+        extra_asset = self._create_media_asset(object_key="products/new/wrong-attribute.jpg", public_url="https://example.com/wrong-attribute.jpg")
+
+        response = self.client.post(
+            reverse("company_product_create", args=[self.company.id]),
+            {
+                "category": self.product.category_id,
+                "name": "Wrong Attribute Product",
+                "weight_grams": "12.00",
+                "purity": "22K",
+                "description": "Invalid attribute payload.",
+                "is_active": False,
+                "image_asset_ids": [extra_asset.id],
+                "attribute_values": {"length": "18 inch"},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Unsupported attribute", response.data["attribute_values"][0])
+
+    def test_company_admin_must_submit_required_dynamic_attribute(self):
+        self.chain_length_attribute.is_required = True
+        self.chain_length_attribute.save(update_fields=["is_required"])
+        self.client.force_authenticate(user=self.company_admin)
+        extra_asset = self._create_media_asset(object_key="products/new/missing-attribute.jpg", public_url="https://example.com/missing-attribute.jpg")
+
+        response = self.client.post(
+            reverse("company_product_create", args=[self.company.id]),
+            {
+                "category": self.chain_category.id,
+                "subcategory": self.chain_subcategory.id,
+                "name": "Missing Attribute Chain",
+                "weight_grams": "14.00",
+                "purity": "22K",
+                "description": "Missing required attribute.",
+                "is_active": False,
+                "image_asset_ids": [extra_asset.id],
+                "attribute_values": {},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["attribute_values"]["length"][0], "This attribute is required.")
+
+    def test_company_admin_cannot_use_inactive_category_or_subcategory(self):
+        self.chain_category.is_active = False
+        self.chain_category.save(update_fields=["is_active"])
+        self.client.force_authenticate(user=self.company_admin)
+        extra_asset = self._create_media_asset(object_key="products/new/inactive-category.jpg", public_url="https://example.com/inactive-category.jpg")
+
+        response = self.client.post(
+            reverse("company_product_create", args=[self.company.id]),
+            {
+                "category": self.chain_category.id,
+                "subcategory": self.chain_subcategory.id,
+                "name": "Inactive Category Product",
+                "weight_grams": "10.00",
+                "purity": "22K",
+                "description": "Inactive category should fail.",
+                "is_active": False,
+                "image_asset_ids": [extra_asset.id],
+                "attribute_values": {"length": "18 inch"},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["category"][0], "Selected category is disabled.")
 
     def test_company_admin_cannot_activate_product_with_too_many_images(self):
         self.company.tier_ref = self.normal_tier
@@ -1706,7 +1818,86 @@ class CompanyTierAdminApiTests(APITestCase):
         self.assertEqual(patch_response.data["priority"], 140)
         self.assertEqual(patch_response.data["notes"], "Festival hero pin")
 
-    @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=True)
+    def test_super_admin_can_manage_product_taxonomy(self):
+        self.client.force_authenticate(user=self.super_admin)
+
+        create_category_response = self.client.post(
+            reverse("admin_directory_taxonomy_category_list_create"),
+            {
+                "name": "Ring",
+                "slug": "diamond-ring",
+                "product_type": ProductCategory.ProductType.DIAMOND,
+                "icon_key": "rings",
+                "is_active": True,
+                "display_order": 1,
+            },
+            format="json",
+        )
+        self.assertEqual(create_category_response.status_code, status.HTTP_201_CREATED)
+        category_id = create_category_response.data["id"]
+
+        create_subcategory_response = self.client.post(
+            reverse("admin_directory_taxonomy_subcategory_list_create"),
+            {
+                "category": category_id,
+                "name": "Solitaire",
+                "slug": "solitaire",
+                "is_active": True,
+                "display_order": 1,
+            },
+            format="json",
+        )
+        self.assertEqual(create_subcategory_response.status_code, status.HTTP_201_CREATED)
+
+        create_attribute_response = self.client.post(
+            reverse("admin_directory_taxonomy_attribute_list_create"),
+            {
+                "category": category_id,
+                "key": "ring_size",
+                "label": "Ring Size",
+                "type": ProductAttributeDefinition.AttributeType.SELECT,
+                "options": ["6", "7", "8"],
+                "is_required": True,
+                "is_active": True,
+                "display_order": 1,
+            },
+            format="json",
+        )
+        self.assertEqual(create_attribute_response.status_code, status.HTTP_201_CREATED)
+        attribute_id = create_attribute_response.data["id"]
+
+        patch_category_response = self.client.patch(
+            reverse("admin_directory_taxonomy_category_detail", args=[category_id]),
+            {"display_order": 3, "is_active": False},
+            format="json",
+        )
+        self.assertEqual(patch_category_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(patch_category_response.data["is_active"])
+
+        patch_attribute_response = self.client.patch(
+            reverse("admin_directory_taxonomy_attribute_detail", args=[attribute_id]),
+            {"options": ["5", "6", "7", "8"], "is_required": False},
+            format="json",
+        )
+        self.assertEqual(patch_attribute_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_attribute_response.data["options"], ["5", "6", "7", "8"])
+
+        taxonomy_response = self.client.get(reverse("admin_directory_taxonomy"))
+        self.assertEqual(taxonomy_response.status_code, status.HTTP_200_OK)
+        diamond_group = next(item for item in taxonomy_response.data["product_types"] if item["key"] == ProductCategory.ProductType.DIAMOND)
+        ring_category = next(item for item in diamond_group["categories"] if item["slug"] == "diamond-ring")
+        self.assertEqual(ring_category["name"], "Ring")
+        self.assertEqual(ring_category["subcategories"][0]["slug"], "solitaire")
+        self.assertEqual(ring_category["attributes"][0]["key"], "ring_size")
+
+    def test_non_super_admin_cannot_manage_product_taxonomy(self):
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.get(reverse("admin_directory_taxonomy"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=True, DIRECTORY_MARKET_MIXED_FEED_ENABLED=False)
     def test_super_admin_can_update_company_market_visibility(self):
         self.client.force_authenticate(user=self.super_admin)
         visible_company = Company.objects.create(

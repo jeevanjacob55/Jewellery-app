@@ -1771,6 +1771,150 @@ a {
   margin-top: 20px;
 }
 
+.taxonomy-page {
+  display: grid;
+  gap: 20px;
+  max-width: 1320px;
+}
+
+.taxonomy-page__hero,
+.taxonomy-card {
+  border-radius: 16px;
+  border: 1px solid #e5e2e1;
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(26, 26, 26, 0.05);
+}
+
+.taxonomy-page__hero {
+  padding: 28px;
+}
+
+.taxonomy-page__eyebrow,
+.taxonomy-card__eyebrow {
+  margin: 0 0 8px;
+  color: #775a19;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.taxonomy-page__title {
+  margin: 0 0 10px;
+  font-size: 32px;
+  line-height: 1.12;
+  font-weight: 600;
+}
+
+.taxonomy-page__copy {
+  margin: 0;
+  max-width: 64ch;
+  color: #4c4546;
+}
+
+.taxonomy-page__stack {
+  display: grid;
+  gap: 20px;
+}
+
+.taxonomy-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.taxonomy-card {
+  padding: 22px;
+}
+
+.taxonomy-card--section {
+  display: grid;
+  gap: 18px;
+}
+
+.taxonomy-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.taxonomy-card__title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.taxonomy-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #efeded;
+  color: #6b6364;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.taxonomy-status--on {
+  background: #eef9ef;
+  color: #175924;
+}
+
+.taxonomy-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.taxonomy-form--category-create {
+  padding: 16px;
+  border-radius: 14px;
+  background: #f7f5f4;
+}
+
+.taxonomy-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.taxonomy-block {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #efeded;
+}
+
+.taxonomy-inline-list {
+  display: grid;
+  gap: 12px;
+}
+
+.taxonomy-inline-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #faf8f7;
+  border: 1px solid #efeded;
+}
+
+.taxonomy-inline-card--new {
+  border-style: dashed;
+}
+
+.taxonomy-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.taxonomy-inline-grid--attribute {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .content-page {
   display: grid;
   gap: 20px;
@@ -2581,6 +2725,7 @@ a {
 
   .company-page__hero,
   .company-page__grid,
+  .taxonomy-page__grid,
   .admin-overview__section-grid,
   .approvals-layout,
   .content-page__grid,
@@ -2632,6 +2777,9 @@ a {
   .admin-overview__hero-meta,
   .company-page__status-grid,
   .company-form,
+  .taxonomy-form,
+  .taxonomy-inline-grid,
+  .taxonomy-inline-grid--attribute,
   .company-images,
   .company-readonly-grid,
   .content-form,
@@ -2652,6 +2800,8 @@ a {
   .admin-overview__activity-item,
   .company-page__hero,
   .company-card__header,
+  .taxonomy-card__header,
+  .taxonomy-actions,
   .company-modal__actions,
   .rates-page__hero,
   .rates-category-card__header,

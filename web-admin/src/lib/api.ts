@@ -366,12 +366,15 @@ export type CompanyManagementProduct = {
   name: string;
   category_id: number;
   category_name: string;
+  category_slug: string;
+  category_product_type: ProductTypeKey;
   subcategory_id: number | null;
   subcategory_name: string | null;
   weight_grams: string;
   purity: string;
   price: string | null;
   description: string;
+  attribute_values: Record<string, string>;
   is_active: boolean;
   created_at: string;
   image_count: number;
@@ -427,10 +430,13 @@ export type CompanyImageAttachPayload = {
   slot: "logo" | "hero";
 };
 
+export type ProductTypeKey = "gold" | "diamond" | "silver" | "other";
+
 export type ProductFilterCategory = {
   id: number;
   name: string;
   slug: string;
+  product_type: ProductTypeKey;
   icon_key: string;
   subcategories: Array<{
     id: number;
@@ -462,6 +468,78 @@ export type CompanyProductUpsertPayload = {
   description: string;
   is_active: boolean;
   image_asset_ids: number[];
+  attribute_values?: Record<string, string>;
+};
+
+export type AdminTaxonomyAttribute = {
+  id: number;
+  category: number;
+  key: string;
+  label: string;
+  type: string;
+  options: string[];
+  is_required: boolean;
+  is_active: boolean;
+  display_order: number;
+};
+
+export type AdminTaxonomySubcategory = {
+  id: number;
+  category: number;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  display_order: number;
+};
+
+export type AdminTaxonomyCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  product_type: ProductTypeKey;
+  icon_key: string;
+  is_active: boolean;
+  display_order: number;
+  subcategories: AdminTaxonomySubcategory[];
+  attributes: AdminTaxonomyAttribute[];
+};
+
+export type AdminTaxonomyGroup = {
+  key: ProductTypeKey;
+  label: string;
+  categories: AdminTaxonomyCategory[];
+};
+
+export type AdminTaxonomyResponse = {
+  product_types: AdminTaxonomyGroup[];
+};
+
+export type AdminTaxonomyCategoryPayload = {
+  name: string;
+  slug?: string;
+  product_type: ProductTypeKey;
+  icon_key: string;
+  is_active: boolean;
+  display_order: number;
+};
+
+export type AdminTaxonomySubcategoryPayload = {
+  category: number;
+  name: string;
+  slug?: string;
+  is_active: boolean;
+  display_order: number;
+};
+
+export type AdminTaxonomyAttributePayload = {
+  category: number;
+  key: string;
+  label: string;
+  type: string;
+  options: string[];
+  is_required: boolean;
+  is_active: boolean;
+  display_order: number;
 };
 
 export type RateCatalogSubcategory = {
@@ -802,6 +880,52 @@ export async function saveCompanyManagement(companyId: number, payload: CompanyM
 
 export async function fetchProductFilterConfig() {
   return requestJson<ProductFilterConfig>("/products/filter-config/");
+}
+
+export async function fetchAdminTaxonomy() {
+  return requestJson<AdminTaxonomyResponse>("/admin/directory/taxonomy/");
+}
+
+export async function createAdminTaxonomyCategory(payload: AdminTaxonomyCategoryPayload) {
+  return requestJson<AdminTaxonomyCategory>("/admin/directory/taxonomy/categories/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminTaxonomyCategory(categoryId: number, payload: Partial<AdminTaxonomyCategoryPayload>) {
+  return requestJson<AdminTaxonomyCategory>(`/admin/directory/taxonomy/categories/${categoryId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createAdminTaxonomySubcategory(payload: AdminTaxonomySubcategoryPayload) {
+  return requestJson<AdminTaxonomySubcategory>("/admin/directory/taxonomy/subcategories/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminTaxonomySubcategory(subcategoryId: number, payload: Partial<AdminTaxonomySubcategoryPayload>) {
+  return requestJson<AdminTaxonomySubcategory>(`/admin/directory/taxonomy/subcategories/${subcategoryId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createAdminTaxonomyAttribute(payload: AdminTaxonomyAttributePayload) {
+  return requestJson<AdminTaxonomyAttribute>("/admin/directory/taxonomy/attributes/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminTaxonomyAttribute(attributeId: number, payload: Partial<AdminTaxonomyAttributePayload>) {
+  return requestJson<AdminTaxonomyAttribute>(`/admin/directory/taxonomy/attributes/${attributeId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function fetchAdminTiers() {

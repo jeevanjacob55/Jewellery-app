@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils.text import slugify
 
 
 class CompanyTier(models.Model):
@@ -230,16 +231,40 @@ class CompanyVerification(models.Model):
 
 
 class ProductCategory(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    class ProductType(models.TextChoices):
+        GOLD = "gold", "Gold"
+        DIAMOND = "diamond", "Diamond"
+        SILVER = "silver", "Silver"
+        OTHER = "other", "Other"
+
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120, unique=True)
+    product_type = models.CharField(max_length=20, choices=ProductType.choices, default=ProductType.GOLD)
     icon_key = models.CharField(max_length=50, default="diamond")
     is_active = models.BooleanField(default=True)
     display_order = models.PositiveIntegerField(default=0)
 
     class Meta:
-        ordering = ["display_order", "name", "id"]
+        ordering = ["product_type", "display_order", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["product_type", "name"], name="uniq_product_category_name_per_type"),
+        ]
 
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name) or "category"
+            candidate = base_slug
+            if ProductCategory.objects.exclude(pk=self.pk).filter(slug=candidate).exists():
+                candidate = f"{self.product_type}-{base_slug}"
+            suffix = 2
+            while ProductCategory.objects.exclude(pk=self.pk).filter(slug=candidate).exists():
+                candidate = f"{self.product_type}-{base_slug}-{suffix}"
+                suffix += 1
+            self.slug = candidate
+        super().save(*args, **kwargs)
 
 
 class ProductSubCategory(models.Model):

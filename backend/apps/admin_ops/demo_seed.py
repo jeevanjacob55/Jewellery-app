@@ -679,19 +679,23 @@ def _seed_directory(users: dict[str, object]) -> None:
         )
     }
     category_specs = [
-        {"name": "Rings", "icon_key": "rings", "display_order": 1},
-        {"name": "Chains", "icon_key": "chains", "display_order": 2},
-        {"name": "Bangles", "icon_key": "bangles", "display_order": 3},
-        {"name": "Necklaces", "icon_key": "necklaces", "display_order": 4},
-        {"name": "Coins", "icon_key": "coins", "display_order": 5},
-        {"name": "Pure Gold", "icon_key": "diamond", "display_order": 6},
+        {"key": "gold_ring", "name": "Ring", "slug": "gold-ring", "product_type": ProductCategory.ProductType.GOLD, "icon_key": "rings", "display_order": 1},
+        {"key": "gold_chain", "name": "Chain", "slug": "gold-chain", "product_type": ProductCategory.ProductType.GOLD, "icon_key": "chains", "display_order": 2},
+        {"key": "gold_bangle", "name": "Bangle", "slug": "gold-bangle", "product_type": ProductCategory.ProductType.GOLD, "icon_key": "bangles", "display_order": 3},
+        {"key": "gold_necklace", "name": "Necklace", "slug": "gold-necklace", "product_type": ProductCategory.ProductType.GOLD, "icon_key": "necklaces", "display_order": 4},
+        {"key": "gold_coin", "name": "Coin", "slug": "gold-coin", "product_type": ProductCategory.ProductType.GOLD, "icon_key": "coins", "display_order": 5},
+        {"key": "diamond_ring", "name": "Ring", "slug": "diamond-ring", "product_type": ProductCategory.ProductType.DIAMOND, "icon_key": "rings", "display_order": 1},
+        {"key": "diamond_necklace", "name": "Necklace", "slug": "diamond-necklace", "product_type": ProductCategory.ProductType.DIAMOND, "icon_key": "necklaces", "display_order": 2},
+        {"key": "diamond_earrings", "name": "Earrings", "slug": "diamond-earrings", "product_type": ProductCategory.ProductType.DIAMOND, "icon_key": "diamond", "display_order": 3},
+        {"key": "diamond_bracelet", "name": "Bracelet", "slug": "diamond-bracelet", "product_type": ProductCategory.ProductType.DIAMOND, "icon_key": "diamond", "display_order": 4},
     ]
     categories: dict[str, ProductCategory] = {}
     for spec in category_specs:
-        categories[spec["name"]] = _upsert(
+        categories[spec["key"]] = _upsert(
             ProductCategory,
-            {"name": spec["name"]},
+            {"product_type": spec["product_type"], "name": spec["name"]},
             {
+                "slug": spec["slug"],
                 "icon_key": spec["icon_key"],
                 "is_active": True,
                 "display_order": spec["display_order"],
@@ -709,7 +713,7 @@ def _seed_directory(users: dict[str, object]) -> None:
     for name, display_order in chain_subcategory_specs:
         chain_subcategories[name] = _upsert(
             ProductSubCategory,
-            {"category": categories["Chains"], "slug": slugify(name)},
+            {"category": categories["gold_chain"], "slug": slugify(name)},
             {
                 "name": name,
                 "is_active": True,
@@ -721,7 +725,7 @@ def _seed_directory(users: dict[str, object]) -> None:
 
     def upsert_attribute(
         *,
-        category_name: str,
+        category_key: str,
         key: str,
         label: str,
         type_value: str,
@@ -731,7 +735,7 @@ def _seed_directory(users: dict[str, object]) -> None:
     ) -> ProductAttributeDefinition:
         definition = _upsert(
             ProductAttributeDefinition,
-            {"category": categories[category_name], "key": key},
+            {"category": categories[category_key], "key": key},
             {
                 "label": label,
                 "type": type_value,
@@ -741,11 +745,11 @@ def _seed_directory(users: dict[str, object]) -> None:
                 "display_order": display_order,
             },
         )
-        attribute_definitions[(category_name, key)] = definition
+        attribute_definitions[(category_key, key)] = definition
         return definition
 
     upsert_attribute(
-        category_name="Chains",
+        category_key="gold_chain",
         key="length",
         label="Chain Length",
         type_value=ProductAttributeDefinition.AttributeType.RANGE,
@@ -753,7 +757,7 @@ def _seed_directory(users: dict[str, object]) -> None:
         display_order=1,
     )
     upsert_attribute(
-        category_name="Rings",
+        category_key="gold_ring",
         key="ring_size",
         label="Ring Size",
         type_value=ProductAttributeDefinition.AttributeType.SELECT,
@@ -761,7 +765,7 @@ def _seed_directory(users: dict[str, object]) -> None:
         display_order=1,
     )
     upsert_attribute(
-        category_name="Bangles",
+        category_key="gold_bangle",
         key="bangle_size",
         label="Bangle Size",
         type_value=ProductAttributeDefinition.AttributeType.SELECT,
@@ -769,7 +773,7 @@ def _seed_directory(users: dict[str, object]) -> None:
         display_order=1,
     )
     upsert_attribute(
-        category_name="Necklaces",
+        category_key="gold_necklace",
         key="style",
         label="Necklace Style",
         type_value=ProductAttributeDefinition.AttributeType.SELECT,
@@ -777,7 +781,7 @@ def _seed_directory(users: dict[str, object]) -> None:
         display_order=1,
     )
     upsert_attribute(
-        category_name="Coins",
+        category_key="gold_coin",
         key="coin_weight",
         label="Coin Weight",
         type_value=ProductAttributeDefinition.AttributeType.SELECT,
@@ -785,11 +789,35 @@ def _seed_directory(users: dict[str, object]) -> None:
         display_order=1,
     )
     upsert_attribute(
-        category_name="Pure Gold",
-        key="form",
-        label="Form",
+        category_key="diamond_ring",
+        key="ring_size",
+        label="Ring Size",
         type_value=ProductAttributeDefinition.AttributeType.SELECT,
-        options=["Coin", "Bar", "Biscuit"],
+        options=["6", "7", "8", "9", "10"],
+        display_order=1,
+    )
+    upsert_attribute(
+        category_key="diamond_necklace",
+        key="style",
+        label="Necklace Style",
+        type_value=ProductAttributeDefinition.AttributeType.SELECT,
+        options=["Pendant", "Bridal Set", "Temple", "Daily Wear"],
+        display_order=1,
+    )
+    upsert_attribute(
+        category_key="diamond_earrings",
+        key="earring_style",
+        label="Earring Style",
+        type_value=ProductAttributeDefinition.AttributeType.SELECT,
+        options=["Stud", "Drop", "Hoop", "Jhumka"],
+        display_order=1,
+    )
+    upsert_attribute(
+        category_key="diamond_bracelet",
+        key="bracelet_style",
+        label="Bracelet Style",
+        type_value=ProductAttributeDefinition.AttributeType.SELECT,
+        options=["Tennis", "Charm", "Cuff", "Link"],
         display_order=1,
     )
 
@@ -824,7 +852,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Rings",
+                    "category": "gold_ring",
                     "name": "Classic Gold Band",
                     "weight": "10.00",
                     "purity": "22K",
@@ -834,7 +862,7 @@ def _seed_directory(users: dict[str, object]) -> None:
                     "attributes": {"ring_size": "7"},
                 },
                 {
-                    "category": "Chains",
+                    "category": "gold_chain",
                     "subcategory": "Link Chain",
                     "name": "Curb Link Chain",
                     "weight": "42.50",
@@ -860,7 +888,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Necklaces",
+                    "category": "diamond_necklace",
                     "name": "Etoile Pendant",
                     "weight": "2.00",
                     "purity": "18K",
@@ -885,14 +913,14 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Pure Gold",
-                    "name": "Legacy Bullion",
+                    "category": "gold_coin",
+                    "name": "Legacy Bullion Coin",
                     "weight": "31.10",
                     "purity": "999.9",
                     "price": "4450.00",
-                    "description": "Premium bullion bar aimed at investment-focused buyers.",
+                    "description": "Premium bullion-style coin aimed at investment-focused buyers.",
                     "image_url": product_images["coin"],
-                    "attributes": {"form": "Bar"},
+                    "attributes": {"coin_weight": "1 oz"},
                 },
             ],
         },
@@ -910,7 +938,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Bangles",
+                    "category": "gold_bangle",
                     "name": "Antiquity Bangles",
                     "weight": "45.00",
                     "purity": "22K",
@@ -935,7 +963,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Chains",
+                    "category": "gold_chain",
                     "subcategory": "Rope Chain",
                     "name": "Pure Rope Chain",
                     "weight": "38.20",
@@ -961,7 +989,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": True},
             "products": [
                 {
-                    "category": "Chains",
+                    "category": "gold_chain",
                     "subcategory": "Box Chain",
                     "name": "Singapore Twist Chain",
                     "weight": "14.25",
@@ -988,7 +1016,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Chains",
+                    "category": "gold_chain",
                     "subcategory": "Box Chain",
                     "name": "Box Link Chain",
                     "weight": "18.75",
@@ -999,7 +1027,7 @@ def _seed_directory(users: dict[str, object]) -> None:
                     "attributes": {"length": "18 inch"},
                 },
                 {
-                    "category": "Necklaces",
+                    "category": "gold_necklace",
                     "name": "Bridal Mango Haram",
                     "weight": "62.00",
                     "purity": "22K",
@@ -1024,7 +1052,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Necklaces",
+                    "category": "gold_necklace",
                     "name": "Temple Cascade Necklace",
                     "weight": "54.50",
                     "purity": "22K",
@@ -1049,7 +1077,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Rings",
+                    "category": "diamond_ring",
                     "name": "Solitaire Halo Ring",
                     "weight": "6.40",
                     "purity": "18K",
@@ -1074,7 +1102,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Chains",
+                    "category": "gold_chain",
                     "subcategory": "Link Chain",
                     "name": "Cuban Heavy Link Chain",
                     "weight": "85.00",
@@ -1100,7 +1128,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": False},
             "products": [
                 {
-                    "category": "Chains",
+                    "category": "gold_chain",
                     "subcategory": "Snake Chain",
                     "name": "Snake Skin Chain",
                     "weight": "22.10",
@@ -1126,7 +1154,7 @@ def _seed_directory(users: dict[str, object]) -> None:
             "verification": {"gst_registered": True, "bis_hallmarked": True, "export_licensed": True},
             "products": [
                 {
-                    "category": "Coins",
+                    "category": "gold_coin",
                     "name": "Festival Gold Coin",
                     "weight": "10.00",
                     "purity": "24K",
@@ -1136,7 +1164,7 @@ def _seed_directory(users: dict[str, object]) -> None:
                     "attributes": {"coin_weight": "10 g"},
                 },
                 {
-                    "category": "Chains",
+                    "category": "gold_chain",
                     "subcategory": "Figaro",
                     "name": "Figaro Trade Chain",
                     "weight": "28.50",
@@ -1757,7 +1785,7 @@ def _seed_ads(users: dict[str, object], hierarchy: dict[str, dict[str, object]])
             "filename": "browse-ring-collections.jpg",
             "public_url": "https://placehold.co/1200x675/7C3AED/F5F3FF?text=Browse+Ring+Collections",
             "action_type": Advertisement.ActionType.CATEGORY,
-            "action_payload": {"category": "Rings"},
+            "action_payload": {"category": "gold-ring"},
             "notes": "Approved category campaign for dashboard rotation.",
         },
         {

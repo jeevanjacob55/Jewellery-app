@@ -10,6 +10,7 @@ import {
   fetchCompanyManagement,
   fetchProductFilterConfig,
   finalizeCompanyMediaAsset,
+  ProductTypeKey,
   ProductFilterConfig,
   requestCompanyUploadSession,
   saveCompanyManagement,
@@ -32,6 +33,7 @@ type ProductDraftImage =
 
 type ProductFormState = {
   id?: number;
+  productType: ProductTypeKey | "";
   name: string;
   categoryId: string;
   subcategoryId: string;
@@ -39,8 +41,16 @@ type ProductFormState = {
   purity: string;
   price: string;
   description: string;
+  attributeValues: Record<string, string>;
   isActive: boolean;
   images: ProductDraftImage[];
+};
+
+const PRODUCT_TYPE_LABELS: Record<ProductTypeKey, string> = {
+  gold: "Gold",
+  diamond: "Diamond",
+  silver: "Silver",
+  other: "Other",
 };
 
 function buildProfileForm(detail: CompanyManagementDetail | null): CompanyManagementUpdatePayload {
@@ -70,6 +80,7 @@ function buildProfileForm(detail: CompanyManagementDetail | null): CompanyManage
 function buildProductForm(product?: CompanyManagementProduct): ProductFormState {
   if (!product) {
     return {
+      productType: "",
       name: "",
       categoryId: "",
       subcategoryId: "",
@@ -77,6 +88,7 @@ function buildProductForm(product?: CompanyManagementProduct): ProductFormState 
       purity: "",
       price: "",
       description: "",
+      attributeValues: {},
       isActive: false,
       images: [],
     };
@@ -84,6 +96,7 @@ function buildProductForm(product?: CompanyManagementProduct): ProductFormState 
 
   return {
     id: product.id,
+    productType: product.category_product_type,
     name: product.name,
     categoryId: String(product.category_id),
     subcategoryId: product.subcategory_id ? String(product.subcategory_id) : "",
@@ -91,6 +104,7 @@ function buildProductForm(product?: CompanyManagementProduct): ProductFormState 
     purity: product.purity,
     price: product.price ?? "",
     description: product.description,
+    attributeValues: product.attribute_values ?? {},
     isActive: product.is_active,
     images: product.images.map((image) => ({
       kind: "existing" as const,
@@ -165,8 +179,21 @@ export function CompanyManagementPage() {
   }, [loadData]);
 
   const selectedCategory = useMemo(
-    () => filterConfig?.categories.find((category) => String(category.id) === productForm.categoryId) ?? null,
-    [filterConfig, productForm.categoryId],
+    () =>
+      filterConfig?.categories.find(
+        (category) => String(category.id) === productForm.categoryId && category.product_type === productForm.productType,
+      ) ?? null,
+    [filterConfig, productForm.categoryId, productForm.productType],
+  );
+
+  const productTypeOptions = useMemo(
+    () => Array.from(new Set((filterConfig?.categories ?? []).map((category) => category.product_type))),
+    [filterConfig],
+  );
+
+  const filteredCategories = useMemo(
+    () => (filterConfig?.categories ?? []).filter((category) => category.product_type === productForm.productType),
+    [filterConfig, productForm.productType],
   );
 
   function openCreateProduct() {
@@ -311,6 +338,11 @@ export function CompanyManagementPage() {
         description: productForm.description,
         is_active: productForm.isActive,
         image_asset_ids: imageAssetIds,
+        attribute_values: Object.fromEntries(
+          Object.entries(productForm.attributeValues)
+            .map(([key, value]) => [key, value.trim()])
+            .filter(([, value]) => value),
+        ),
       };
 
       if (productForm.id) {
@@ -569,6 +601,28 @@ export function CompanyManagementPage() {
                 <input value={productForm.name} onChange={(event) => setProductForm((current) => ({ ...current, name: event.target.value }))} />
               </label>
               <label className="rates-form__field">
+                <span>Product Type</span>
+                <select
+                  value={productForm.productType}
+                  onChange={(event) =>
+                    setProductForm((current) => ({
+                      ...current,
+                      productType: event.target.value as ProductTypeKey | "",
+                      categoryId: "",
+                      subcategoryId: "",
+                      attributeValues: {},
+                    }))
+                  }
+                >
+                  <option value="">Select product type</option>
+                  {productTypeOptions.map((productType) => (
+                    <option key={productType} value={productType}>
+                      {PRODUCT_TYPE_LABELS[productType]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="rates-form__field">
                 <span>Category</span>
                 <select
                   value={productForm.categoryId}
@@ -577,11 +631,13 @@ export function CompanyManagementPage() {
                       ...current,
                       categoryId: event.target.value,
                       subcategoryId: "",
+                      attributeValues: {},
                     }))
                   }
+                  disabled={!productForm.productType}
                 >
                   <option value="">Select category</option>
-                  {filterConfig?.categories.map((category) => (
+                  {filteredCategories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
@@ -626,6 +682,47 @@ export function CompanyManagementPage() {
                 <span>Description</span>
                 <textarea value={productForm.description} onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))} rows={4} />
               </label>
+              {selectedCategory?.attributes.map((attribute) => {
+                const optionValues = attribute.options.map((option) => String(option));
+                const value = productForm.attributeValues[attribute.key] ?? "";
+                const useSelect = (attribute.type === "select" || attribute.type === "range") && optionValues.length > 0;
+
+                return (
+                  <label key={attribute.id} className="rates-form__field">
+                    <span>{attribute.label}{attribute.is_required ? " *" : ""}</span>
+                    {useSelect ? (
+                      <select
+                        value={value}
+                        onChange={(event) =>
+                          setProductForm((current) => ({
+                            ...current,
+                            attributeValues: { ...current.attributeValues, [attribute.key]: event.target.value },
+                          }))
+                        }
+                      >
+                        <option value="">Select {attribute.label}</option>
+                        {optionValues.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={attribute.type === "number" ? "number" : "text"}
+                        value={value}
+                        onChange={(event) =>
+                          setProductForm((current) => ({
+                            ...current,
+                            attributeValues: { ...current.attributeValues, [attribute.key]: event.target.value },
+                          }))
+                        }
+                        placeholder={attribute.type === "number" ? "Enter a number" : attribute.label}
+                      />
+                    )}
+                  </label>
+                );
+              })}
               <label className="company-checkbox">
                 <input type="checkbox" checked={productForm.isActive} onChange={(event) => setProductForm((current) => ({ ...current, isActive: event.target.checked }))} />
                 <span>Keep this product active in the market</span>

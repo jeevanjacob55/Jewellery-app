@@ -126,11 +126,20 @@ def get_company_contact_payload(company: Company) -> dict[str, str | None]:
 
 def get_market_category_icon_key(category_name: str) -> str:
     lookup = {
+        "ring": "rings",
         "rings": "rings",
+        "chain": "chains",
         "chains": "chains",
+        "bangle": "bangles",
         "bangles": "bangles",
+        "necklace": "necklaces",
         "necklaces": "necklaces",
+        "coin": "coins",
         "coins": "coins",
+        "earring": "diamond",
+        "earrings": "diamond",
+        "bracelet": "diamond",
+        "bracelets": "diamond",
         "diamonds": "diamonds",
     }
     normalized = category_name.strip().lower()
@@ -138,11 +147,54 @@ def get_market_category_icon_key(category_name: str) -> str:
 
 
 def get_category_slug(category: ProductCategory) -> str:
-    return slugify(category.name)
+    return category.slug or slugify(category.name)
 
 
 def get_subcategory_slug(subcategory: ProductSubCategory) -> str:
     return subcategory.slug or slugify(subcategory.name)
+
+
+def get_product_attribute_map(product: Product) -> dict[str, str]:
+    return {
+        attribute_value.attribute_definition.key: attribute_value.value
+        for attribute_value in product.attribute_values.all()
+    }
+
+
+def sync_product_attribute_values(
+    product: Product,
+    *,
+    definitions: list[ProductAttributeDefinition],
+    values: dict[str, str],
+) -> None:
+    allowed_definition_ids = [definition.id for definition in definitions]
+    ProductAttributeValue.objects.filter(product=product).exclude(attribute_definition_id__in=allowed_definition_ids).delete()
+
+    existing_values = {
+        attribute_value.attribute_definition_id: attribute_value
+        for attribute_value in ProductAttributeValue.objects.filter(
+            product=product,
+            attribute_definition_id__in=allowed_definition_ids,
+        )
+    }
+
+    for definition in definitions:
+        value = values.get(definition.key, "").strip()
+        existing = existing_values.get(definition.id)
+        if not value:
+            if existing is not None:
+                existing.delete()
+            continue
+        if existing is None:
+            ProductAttributeValue.objects.create(
+                product=product,
+                attribute_definition=definition,
+                value=value,
+            )
+            continue
+        if existing.value != value:
+            existing.value = value
+            existing.save(update_fields=["value"])
 
 
 class CompanyVerificationSerializer(serializers.ModelSerializer):
@@ -154,11 +206,13 @@ class CompanyVerificationSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     category_slug = serializers.SerializerMethodField()
+    category_product_type = serializers.CharField(source="category.product_type", read_only=True)
     subcategory_name = serializers.CharField(source="subcategory.name", read_only=True)
     subcategory_slug = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     attributes = serializers.SerializerMethodField()
+    attribute_values = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -171,10 +225,12 @@ class ProductSerializer(serializers.ModelSerializer):
             "description",
             "category_name",
             "category_slug",
+            "category_product_type",
             "subcategory_name",
             "subcategory_slug",
             "image_url",
             "attributes",
+            "attribute_values",
             "is_active",
         ]
 
@@ -190,6 +246,9 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_attributes(self, obj: Product) -> list[dict[str, str]]:
         return get_product_attribute_payload(obj)
 
+    def get_attribute_values(self, obj: Product) -> dict[str, str]:
+        return get_product_attribute_map(obj)
+
 
 class CompanyManagementProductImageSerializer(serializers.ModelSerializer):
     asset_id = serializers.IntegerField(source="asset.id", read_only=True)
@@ -204,8 +263,11 @@ class CompanyManagementProductImageSerializer(serializers.ModelSerializer):
 class CompanyManagementProductSerializer(serializers.ModelSerializer):
     category_id = serializers.IntegerField(source="category.id", read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
+    category_slug = serializers.CharField(source="category.slug", read_only=True)
+    category_product_type = serializers.CharField(source="category.product_type", read_only=True)
     subcategory_id = serializers.IntegerField(source="subcategory.id", read_only=True, allow_null=True)
     subcategory_name = serializers.CharField(source="subcategory.name", read_only=True, allow_null=True)
+    attribute_values = serializers.SerializerMethodField()
     image_count = serializers.SerializerMethodField()
     images = CompanyManagementProductImageSerializer(many=True, read_only=True)
 
@@ -216,12 +278,15 @@ class CompanyManagementProductSerializer(serializers.ModelSerializer):
             "name",
             "category_id",
             "category_name",
+            "category_slug",
+            "category_product_type",
             "subcategory_id",
             "subcategory_name",
             "weight_grams",
             "purity",
             "price",
             "description",
+            "attribute_values",
             "is_active",
             "created_at",
             "image_count",
@@ -230,6 +295,9 @@ class CompanyManagementProductSerializer(serializers.ModelSerializer):
 
     def get_image_count(self, obj: Product) -> int:
         return obj.images.count()
+
+    def get_attribute_values(self, obj: Product) -> dict[str, str]:
+        return get_product_attribute_map(obj)
 
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -491,12 +559,13 @@ class ProductAttributeDefinitionSerializer(serializers.ModelSerializer):
 class ProductFilterCategorySerializer(serializers.ModelSerializer):
     slug = serializers.SerializerMethodField()
     icon_key = serializers.SerializerMethodField()
+    product_type = serializers.CharField(read_only=True)
     subcategories = ProductSubCategorySerializer(many=True, read_only=True)
     attributes = ProductAttributeDefinitionSerializer(many=True, read_only=True, source="attribute_definitions")
 
     class Meta:
         model = ProductCategory
-        fields = ["id", "name", "slug", "icon_key", "subcategories", "attributes"]
+        fields = ["id", "name", "slug", "product_type", "icon_key", "subcategories", "attributes"]
 
     def get_slug(self, obj: ProductCategory) -> str:
         return get_category_slug(obj)
@@ -505,12 +574,91 @@ class ProductFilterCategorySerializer(serializers.ModelSerializer):
         return obj.icon_key or get_market_category_icon_key(obj.name)
 
 
+class AdminProductSubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductSubCategory
+        fields = ["id", "category", "name", "slug", "is_active", "display_order"]
+
+
+class AdminProductAttributeDefinitionSerializer(serializers.ModelSerializer):
+    options = serializers.ListField(source="options_json", child=serializers.CharField(), required=False)
+
+    class Meta:
+        model = ProductAttributeDefinition
+        fields = ["id", "category", "key", "label", "type", "options", "is_required", "is_active", "display_order"]
+
+    def validate_key(self, value: str) -> str:
+        normalized = slugify(value).replace("-", "_")
+        if not normalized:
+            raise serializers.ValidationError("Attribute key is required.")
+        return normalized
+
+    def validate(self, attrs):
+        attribute_type = attrs.get("type", getattr(self.instance, "type", ProductAttributeDefinition.AttributeType.SELECT))
+        options = attrs.get("options_json", getattr(self.instance, "options_json", []))
+        if attribute_type in {ProductAttributeDefinition.AttributeType.SELECT, ProductAttributeDefinition.AttributeType.RANGE} and not options:
+            raise serializers.ValidationError({"options": "Select and range attributes require at least one option."})
+        return attrs
+
+
+class AdminProductCategorySerializer(serializers.ModelSerializer):
+    subcategories = AdminProductSubCategorySerializer(many=True, read_only=True)
+    attributes = AdminProductAttributeDefinitionSerializer(many=True, read_only=True, source="attribute_definitions")
+
+    class Meta:
+        model = ProductCategory
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "product_type",
+            "icon_key",
+            "is_active",
+            "display_order",
+            "subcategories",
+            "attributes",
+        ]
+
+
+class AdminProductCategoryWriteSerializer(serializers.ModelSerializer):
+    slug = serializers.SlugField(required=False, allow_blank=True)
+
+    class Meta:
+        model = ProductCategory
+        fields = ["name", "slug", "product_type", "icon_key", "is_active", "display_order"]
+
+    def validate_slug(self, value: str) -> str:
+        return slugify(value) if value else ""
+
+
+class AdminProductSubCategoryWriteSerializer(serializers.ModelSerializer):
+    slug = serializers.SlugField(required=False, allow_blank=True)
+
+    class Meta:
+        model = ProductSubCategory
+        fields = ["category", "name", "slug", "is_active", "display_order"]
+
+    def validate_slug(self, value: str) -> str:
+        return slugify(value) if value else ""
+
+    def create(self, validated_data):
+        if not validated_data.get("slug"):
+            validated_data["slug"] = slugify(validated_data["name"])
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if "name" in validated_data and "slug" not in validated_data:
+            validated_data["slug"] = instance.slug or slugify(validated_data["name"])
+        return super().update(instance, validated_data)
+
+
 class ProductSearchResultSerializer(serializers.ModelSerializer):
     title = serializers.CharField(source="name", read_only=True)
     company_id = serializers.IntegerField(source="company.id", read_only=True)
     company_name = serializers.CharField(source="company.name", read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
     category_slug = serializers.SerializerMethodField()
+    category_product_type = serializers.CharField(source="category.product_type", read_only=True)
     subcategory_name = serializers.CharField(source="subcategory.name", read_only=True)
     subcategory_slug = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
@@ -527,6 +675,7 @@ class ProductSearchResultSerializer(serializers.ModelSerializer):
             "title",
             "category_name",
             "category_slug",
+            "category_product_type",
             "subcategory_name",
             "subcategory_slug",
             "purity",
@@ -594,6 +743,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     weight = serializers.SerializerMethodField()
     length = serializers.SerializerMethodField()
     category = serializers.CharField(source="category.name", read_only=True)
+    category_slug = serializers.CharField(source="category.slug", read_only=True)
+    category_product_type = serializers.CharField(source="category.product_type", read_only=True)
     subcategory = serializers.CharField(source="subcategory.name", read_only=True)
     availability = serializers.SerializerMethodField()
     hallmark = serializers.SerializerMethodField()
@@ -614,6 +765,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "weight",
             "length",
             "category",
+            "category_slug",
+            "category_product_type",
             "subcategory",
             "availability",
             "hallmark",
@@ -1215,10 +1368,23 @@ class CompanyTierAssignmentConfirmSerializer(serializers.Serializer):
 class ProductWriteSerializer(serializers.ModelSerializer):
     is_active = serializers.BooleanField(required=False, default=False)
     image_asset_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), write_only=True, required=False)
+    attribute_values = serializers.DictField(child=serializers.CharField(allow_blank=True), write_only=True, required=False)
 
     class Meta:
         model = Product
-        fields = ["id", "name", "category", "subcategory", "weight_grams", "purity", "price", "description", "is_active", "image_asset_ids"]
+        fields = [
+            "id",
+            "name",
+            "category",
+            "subcategory",
+            "weight_grams",
+            "purity",
+            "price",
+            "description",
+            "is_active",
+            "image_asset_ids",
+            "attribute_values",
+        ]
         read_only_fields = ["id"]
 
     def validate(self, attrs):
@@ -1228,12 +1394,19 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         target_is_active = attrs.get("is_active", getattr(instance, "is_active", True))
         category = attrs.get("category", getattr(instance, "category", None))
         subcategory = attrs.get("subcategory", getattr(instance, "subcategory", None))
+        attribute_values = attrs.get("attribute_values")
 
         if company.tier_ref_id is None:
             raise serializers.ValidationError("A company tier is required before products can be managed.")
 
+        if category and not category.is_active:
+            raise serializers.ValidationError({"category": "Selected category is disabled."})
+
         if subcategory and category and subcategory.category_id != category.id:
             raise serializers.ValidationError({"subcategory": "Selected subcategory does not belong to the chosen category."})
+
+        if subcategory and not subcategory.is_active:
+            raise serializers.ValidationError({"subcategory": "Selected subcategory is disabled."})
 
         if target_is_active and (not company.is_active or not company.is_approved):
             raise serializers.ValidationError("Only active and approved companies can keep active products in the market.")
@@ -1255,24 +1428,78 @@ class ProductWriteSerializer(serializers.ModelSerializer):
             except TierValidationError as exc:
                 raise serializers.ValidationError({"image_asset_ids": str(exc)}) from exc
 
+        if category is not None:
+            definitions = list(
+                ProductAttributeDefinition.objects.filter(category=category, is_active=True).order_by("display_order", "id")
+            )
+            if attribute_values is None:
+                if instance is not None and category.id == instance.category_id:
+                    attribute_values = get_product_attribute_map(instance)
+                else:
+                    attribute_values = {}
+            normalized_attribute_values: dict[str, str] = {}
+            for key, value in attribute_values.items():
+                normalized_key = key.strip()
+                normalized_value = value.strip()
+                if normalized_key:
+                    normalized_attribute_values[normalized_key] = normalized_value
+
+            allowed_definitions = {definition.key: definition for definition in definitions}
+            invalid_keys = sorted(set(normalized_attribute_values) - set(allowed_definitions))
+            if invalid_keys:
+                raise serializers.ValidationError(
+                    {"attribute_values": [f"Unsupported attribute(s) for the selected category: {', '.join(invalid_keys)}."]}
+                )
+
+            errors: dict[str, list[str]] = {}
+            for definition in definitions:
+                value = normalized_attribute_values.get(definition.key, "").strip()
+                if definition.is_required and not value:
+                    errors.setdefault(definition.key, []).append("This attribute is required.")
+                if not value:
+                    continue
+                if definition.type in {
+                    ProductAttributeDefinition.AttributeType.SELECT,
+                    ProductAttributeDefinition.AttributeType.RANGE,
+                } and definition.options_json and value not in definition.options_json:
+                    errors.setdefault(definition.key, []).append("Choose one of the configured options.")
+                if definition.type == ProductAttributeDefinition.AttributeType.NUMBER:
+                    try:
+                        float(value)
+                    except ValueError:
+                        errors.setdefault(definition.key, []).append("Enter a valid number.")
+            if errors:
+                raise serializers.ValidationError({"attribute_values": errors})
+            attrs["validated_attribute_values"] = normalized_attribute_values
+            attrs["validated_attribute_definitions"] = definitions
+
         return attrs
 
     def create(self, validated_data):
         company: Company = self.context["company"]
         image_asset_ids = validated_data.pop("image_asset_ids", [])
+        attribute_values = validated_data.pop("validated_attribute_values", {})
+        definitions = validated_data.pop("validated_attribute_definitions", [])
+        validated_data.pop("attribute_values", None)
         product = Product.objects.create(company=company, **validated_data)
         if image_asset_ids:
             sync_product_images(product, image_asset_ids)
+        sync_product_attribute_values(product, definitions=definitions, values=attribute_values)
         product.refresh_from_db()
         return product
 
     def update(self, instance, validated_data):
         image_asset_ids = validated_data.pop("image_asset_ids", None)
+        attribute_values = validated_data.pop("validated_attribute_values", None)
+        definitions = validated_data.pop("validated_attribute_definitions", None)
+        validated_data.pop("attribute_values", None)
         for attribute, value in validated_data.items():
             setattr(instance, attribute, value)
         instance.save()
         if image_asset_ids is not None:
             sync_product_images(instance, image_asset_ids)
+        if attribute_values is not None and definitions is not None:
+            sync_product_attribute_values(instance, definitions=definitions, values=attribute_values)
         instance.refresh_from_db()
         return instance
 
