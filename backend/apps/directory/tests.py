@@ -1073,6 +1073,12 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(categories["chains"]["subcategories"][0]["slug"], "link-chain")
         self.assertEqual(categories["chains"]["attributes"][0]["key"], "length")
         self.assertIn("22K", response.data["purity_options"])
+        self.assertEqual(response.data["companies"][0]["name"], "Heritage Gold House")
+        self.assertIn("Kerala", response.data["states"])
+        self.assertEqual(response.data["price_min"], "2840.00")
+        self.assertEqual(response.data["price_max"], "2840.00")
+        self.assertEqual(response.data["weight_min"], "42.50")
+        self.assertEqual(response.data["weight_max"], "48.50")
 
     def test_product_search_supports_category_purity_and_dynamic_attribute_filters(self):
         rope_subcategory = ProductSubCategory.objects.create(
@@ -1109,6 +1115,64 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.data["results"][0]["category_product_type"], ProductCategory.ProductType.GOLD)
         self.assertEqual(response.data["results"][0]["attribute_value"], "18 inch")
         self.assertEqual(response.data["results"][0]["price"], "2840.00")
+
+    def test_product_search_supports_product_type_state_and_numeric_ranges(self):
+        second_company = Company.objects.create(
+            name="Diamond Craft House",
+            category="Retail",
+            tier_ref=self.pro_tier,
+            city="Chennai",
+            state="Tamil Nadu",
+            about="Diamond bridal collections.",
+            daily_capacity="3kg",
+            specialization="Diamond jewellery",
+            admin_priority=75,
+            is_active=True,
+            is_approved=True,
+        )
+        diamond_category = ProductCategory.objects.create(
+            name="Diamond Rings",
+            product_type=ProductCategory.ProductType.DIAMOND,
+            icon_key="diamond-ring",
+            display_order=3,
+        )
+        diamond_product = Product.objects.create(
+            company=second_company,
+            category=diamond_category,
+            name="Halo Diamond Ring",
+            weight_grams="8.25",
+            purity="18K",
+            price="9200.00",
+            description="Diamond halo ring.",
+        )
+        self._attach_product_image(diamond_product, public_url="https://example.com/halo-diamond-ring.jpg")
+
+        response = self.client.get(
+            reverse("product_search"),
+            {
+                "product_type": ProductCategory.ProductType.DIAMOND,
+                "state": "Tamil Nadu",
+                "price_min": "9000",
+                "price_max": "9500",
+                "weight_min": "8",
+                "weight_max": "9",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["title"], "Halo Diamond Ring")
+        self.assertEqual(response.data["results"][0]["category_product_type"], ProductCategory.ProductType.DIAMOND)
+
+    def test_product_search_returns_empty_list_for_invalid_category_subcategory_combo(self):
+        response = self.client.get(
+            reverse("product_search"),
+            {"category": "chains", "subcategory": "not-a-real-subcategory"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 0)
+        self.assertEqual(response.data["results"], [])
 
     def test_product_search_returns_empty_list_for_non_matching_query(self):
         response = self.client.get(reverse("product_search"), {"search": "Rare Pink Argyle Diamond"})

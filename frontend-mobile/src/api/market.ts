@@ -19,11 +19,17 @@ import {
 
 export type MarketProductSearchParams = {
   search?: string;
+  product_type?: "gold" | "diamond" | "silver" | "other";
   category?: string;
   subcategory?: string;
   purity?: string;
   sort?: string;
   company?: number;
+  state?: string;
+  price_min?: string;
+  price_max?: string;
+  weight_min?: string;
+  weight_max?: string;
   product_id?: number;
   attributes?: Record<string, string>;
 };
@@ -94,6 +100,9 @@ export function searchMarketProducts(params: MarketProductSearchParams) {
   if (params.search?.trim()) {
     searchParams.set("search", params.search.trim());
   }
+  if (params.product_type) {
+    searchParams.set("product_type", params.product_type);
+  }
   if (params.category) {
     searchParams.set("category", params.category);
   }
@@ -108,6 +117,21 @@ export function searchMarketProducts(params: MarketProductSearchParams) {
   }
   if (typeof params.company === "number") {
     searchParams.set("company", params.company.toString());
+  }
+  if (params.state?.trim()) {
+    searchParams.set("state", params.state.trim());
+  }
+  if (params.price_min?.trim()) {
+    searchParams.set("price_min", params.price_min.trim());
+  }
+  if (params.price_max?.trim()) {
+    searchParams.set("price_max", params.price_max.trim());
+  }
+  if (params.weight_min?.trim()) {
+    searchParams.set("weight_min", params.weight_min.trim());
+  }
+  if (params.weight_max?.trim()) {
+    searchParams.set("weight_max", params.weight_max.trim());
   }
   if (typeof params.product_id === "number") {
     searchParams.set("product_id", params.product_id.toString());

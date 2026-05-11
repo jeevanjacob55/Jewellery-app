@@ -10,11 +10,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
 
 import { getMarketFeed } from "../../api/market";
 import { AppScreen } from "../../components/AppScreen";
@@ -34,6 +36,13 @@ function SkeletonBlock({ height, width = "100%", rounded = radii.md }: { height:
 function MarketSkeleton() {
   return (
     <View style={styles.content}>
+      <View style={styles.marketSearchRow}>
+        <View style={styles.marketSearchFieldWrap}>
+          <SkeletonBlock height={18} width="72%" />
+        </View>
+        <SkeletonBlock height={54} width={54} rounded={radii.lg} />
+      </View>
+
       <View style={styles.section}>
         <SkeletonBlock height={28} width="46%" />
         <SkeletonBlock height={320} rounded={radii.md} />
@@ -108,6 +117,7 @@ export function MarketTiersScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [marketFeed, setMarketFeed] = useState<MarketFeedData | null>(null);
+  const [marketQuery, setMarketQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +178,15 @@ export function MarketTiersScreen() {
     });
   }
 
+  function submitMarketSearch() {
+    const nextQuery = marketQuery.trim();
+    navigation.navigate("ProductSearch", nextQuery ? { query: nextQuery } : undefined);
+  }
+
+  function openMarketFilters() {
+    navigation.navigate("ProductSearch", { query: marketQuery.trim() || undefined, openFilters: true });
+  }
+
   function openProductDetail(product: MarketProductCard) {
     navigation.navigate("ProductDetail", {
       productId: product.id,
@@ -217,6 +236,24 @@ export function MarketTiersScreen() {
       refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.text} />}
       contentContainerStyle={[styles.content, { paddingBottom: 120 + Math.max(insets.bottom, spacing.md) }]}
     >
+      <View style={styles.marketSearchRow}>
+        <View style={styles.marketSearchFieldWrap}>
+          <MaterialIcons name="search" size={20} color="#4C4546" style={styles.marketSearchIcon} />
+          <TextInput
+            value={marketQuery}
+            onChangeText={setMarketQuery}
+            onSubmitEditing={submitMarketSearch}
+            placeholder="Search products, companies, or categories"
+            placeholderTextColor="#7E7576"
+            style={styles.marketSearchInput}
+            returnKeyType="search"
+          />
+        </View>
+        <Pressable style={styles.marketFilterButton} onPress={openMarketFilters}>
+          <MaterialIcons name="tune" size={22} color="#1A1A1A" />
+        </Pressable>
+      </View>
+
       {error ? (
         <View style={styles.errorCard}>
           <Text style={styles.errorTitle}>Market unavailable</Text>
@@ -634,6 +671,42 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: spacing.lg,
     gap: spacing.md,
+  },
+  marketSearchRow: {
+    paddingHorizontal: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  marketSearchFieldWrap: {
+    flex: 1,
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+  },
+  marketSearchIcon: {
+    marginRight: spacing.sm,
+  },
+  marketSearchInput: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    paddingVertical: spacing.md,
+  },
+  marketFilterButton: {
+    width: 54,
+    height: 54,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
   },
   section: {
     gap: spacing.sm,

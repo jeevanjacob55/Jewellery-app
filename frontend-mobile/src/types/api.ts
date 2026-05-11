@@ -656,9 +656,20 @@ export interface ProductFilterCategory {
   attributes: ProductFilterAttributeDefinition[];
 }
 
+export interface ProductFilterCompany {
+  id: number;
+  name: string;
+}
+
 export interface ProductFilterConfigResponse {
   categories: ProductFilterCategory[];
   purity_options: string[];
+  companies: ProductFilterCompany[];
+  states: string[];
+  price_min: string | null;
+  price_max: string | null;
+  weight_min: string | null;
+  weight_max: string | null;
 }
 
 export interface ProductSearchResult {

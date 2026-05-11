@@ -574,6 +574,12 @@ class ProductFilterCategorySerializer(serializers.ModelSerializer):
         return obj.icon_key or get_market_category_icon_key(obj.name)
 
 
+class ProductFilterCompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = ["id", "name"]
+
+
 class AdminProductSubCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductSubCategory

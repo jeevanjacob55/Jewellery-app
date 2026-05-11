@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
-from django.db.models import Prefetch, Q
+from django.db.models import Max, Min, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
@@ -66,6 +67,7 @@ from .serializers import (
     MarketZoneWriteSerializer,
     MarketUnderServedReportSerializer,
     PlacementOverrideSerializer,
+    ProductFilterCompanySerializer,
     ProductFilterCategorySerializer,
     ProductDetailSerializer,
     ProductEnquiryWriteSerializer,
@@ -191,6 +193,24 @@ def resolve_subcategory_param(param: str | None, *, category: ProductCategory | 
         if subcategory.name.lower() == normalized or subcategory.slug == normalized:
             return subcategory
     return None
+
+
+def parse_decimal_query_param(raw_value: str | None) -> Decimal | None:
+    if raw_value is None:
+        return None
+    normalized = raw_value.strip()
+    if not normalized:
+        return None
+    try:
+        return Decimal(normalized)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def format_decimal_response(value: Decimal | None) -> str | None:
+    if value is None:
+        return None
+    return f"{value:.2f}"
 
 
 def build_admin_taxonomy_payload() -> dict:
@@ -325,15 +345,34 @@ class ProductFilterConfigView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        public_products = get_public_product_queryset()
         categories = ProductCategory.objects.filter(is_active=True).prefetch_related(
             Prefetch("subcategories", queryset=ProductSubCategory.objects.filter(is_active=True).order_by("display_order", "name")),
             Prefetch("attribute_definitions", queryset=ProductAttributeDefinition.objects.filter(is_active=True).order_by("display_order", "id")),
         ).order_by("product_type", "display_order", "name")
         purity_options = list(
-            get_public_product_queryset()
+            public_products
             .order_by()
             .values_list("purity", flat=True)
             .distinct()
+        )
+        company_queryset = Company.objects.filter(
+            is_active=True,
+            is_approved=True,
+            products__is_active=True,
+        ).order_by("name", "id").distinct()
+        states = sorted(
+            {
+                state.strip()
+                for state in public_products.order_by().values_list("company__state", flat=True).distinct()
+                if isinstance(state, str) and state.strip()
+            }
+        )
+        bounds = public_products.aggregate(
+            price_min=Min("price"),
+            price_max=Max("price"),
+            weight_min=Min("weight_grams"),
+            weight_max=Max("weight_grams"),
         )
         preferred_order = {"18K": 0, "22K": 1, "24K": 2, "999.9": 3}
         purity_options.sort(key=lambda value: (preferred_order.get(value, 99), value))
@@ -341,6 +380,12 @@ class ProductFilterConfigView(APIView):
             {
                 "categories": ProductFilterCategorySerializer(categories, many=True).data,
                 "purity_options": purity_options,
+                "companies": ProductFilterCompanySerializer(company_queryset, many=True).data,
+                "states": states,
+                "price_min": format_decimal_response(bounds["price_min"]),
+                "price_max": format_decimal_response(bounds["price_max"]),
+                "weight_min": format_decimal_response(bounds["weight_min"]),
+                "weight_max": format_decimal_response(bounds["weight_max"]),
             }
         )
 
@@ -352,11 +397,19 @@ class ProductSearchView(APIView):
     def get(self, request):
         queryset = get_public_product_queryset()
         search = request.query_params.get("search", "").strip()
-        category = resolve_category_param(request.query_params.get("category"))
-        subcategory = resolve_subcategory_param(request.query_params.get("subcategory"), category=category)
+        category_param = request.query_params.get("category")
+        subcategory_param = request.query_params.get("subcategory")
+        product_type = request.query_params.get("product_type", "").strip().lower()
+        category = resolve_category_param(category_param)
+        subcategory = resolve_subcategory_param(subcategory_param, category=category)
         purity = request.query_params.get("purity", "").strip()
         company_id = request.query_params.get("company")
+        state = request.query_params.get("state", "").strip()
         product_id = request.query_params.get("product_id")
+        price_min = parse_decimal_query_param(request.query_params.get("price_min"))
+        price_max = parse_decimal_query_param(request.query_params.get("price_max"))
+        weight_min = parse_decimal_query_param(request.query_params.get("weight_min"))
+        weight_max = parse_decimal_query_param(request.query_params.get("weight_max"))
         sort = request.query_params.get("sort", "popularity").strip().lower() or "popularity"
 
         if search:
@@ -367,9 +420,20 @@ class ProductSearchView(APIView):
                 | Q(subcategory__name__icontains=search)
             )
 
+        if product_type:
+            valid_product_types = {choice[0] for choice in ProductCategory.ProductType.choices}
+            if product_type not in valid_product_types:
+                queryset = queryset.none()
+            else:
+                queryset = queryset.filter(category__product_type=product_type)
+
+        if category_param and category is None:
+            queryset = queryset.none()
         if category is not None:
             queryset = queryset.filter(category=category)
 
+        if subcategory_param and subcategory is None:
+            queryset = queryset.none()
         if subcategory is not None:
             queryset = queryset.filter(subcategory=subcategory)
 
@@ -379,10 +443,36 @@ class ProductSearchView(APIView):
         if company_id:
             queryset = queryset.filter(company_id=company_id)
 
+        if state:
+            queryset = queryset.filter(company__state__iexact=state)
+
         if product_id:
             queryset = queryset.filter(id=product_id)
 
-        excluded_keys = {"search", "category", "subcategory", "purity", "sort", "company", "product_id"}
+        if price_min is not None:
+            queryset = queryset.filter(price__isnull=False, price__gte=price_min)
+        if price_max is not None:
+            queryset = queryset.filter(price__isnull=False, price__lte=price_max)
+        if weight_min is not None:
+            queryset = queryset.filter(weight_grams__gte=weight_min)
+        if weight_max is not None:
+            queryset = queryset.filter(weight_grams__lte=weight_max)
+
+        excluded_keys = {
+            "search",
+            "product_type",
+            "category",
+            "subcategory",
+            "purity",
+            "sort",
+            "company",
+            "state",
+            "product_id",
+            "price_min",
+            "price_max",
+            "weight_min",
+            "weight_max",
+        }
         dynamic_filters = {
             key: value
             for key, value in request.query_params.items()
