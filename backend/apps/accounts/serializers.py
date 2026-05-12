@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference, User, UserRole
+from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference, User, UserNotification, UserRole
 
 
 class HierarchyReferenceSerializer(serializers.Serializer):
@@ -33,7 +33,7 @@ class UnitReferenceField(serializers.RelatedField):
 class NotificationPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationPreference
-        fields = ["rate_alerts", "news_alerts", "ad_alerts", "meeting_alerts"]
+        fields = ["rate_alerts", "news_alerts", "ad_alerts", "meeting_alerts", "product_alerts"]
 
 
 class MemberProfileSerializer(serializers.ModelSerializer):
@@ -64,7 +64,34 @@ class UserRoleSerializer(serializers.ModelSerializer):
 class UpdateNotificationPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationPreference
-        fields = ["rate_alerts", "news_alerts", "ad_alerts", "meeting_alerts"]
+        fields = ["rate_alerts", "news_alerts", "ad_alerts", "meeting_alerts", "product_alerts"]
+
+
+class UserNotificationSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source="notification.type", read_only=True)
+    title = serializers.CharField(source="notification.title", read_only=True)
+    body = serializers.CharField(source="notification.body", read_only=True)
+    created_at = serializers.DateTimeField(source="notification.created_at", read_only=True)
+    target_route = serializers.CharField(source="notification.target_route", read_only=True)
+    target_payload = serializers.JSONField(source="notification.target_payload", read_only=True)
+
+    class Meta:
+        model = UserNotification
+        fields = [
+            "id",
+            "type",
+            "title",
+            "body",
+            "created_at",
+            "is_read",
+            "target_route",
+            "target_payload",
+        ]
+
+
+class UserNotificationFeedSerializer(serializers.Serializer):
+    results = UserNotificationSerializer(many=True)
+    unread_count = serializers.IntegerField()
 
 
 class UpdateMemberProfileSerializer(serializers.ModelSerializer):

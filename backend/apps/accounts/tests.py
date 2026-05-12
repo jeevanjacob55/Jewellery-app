@@ -10,7 +10,7 @@ from apps.directory.models import Company, CompanyTier
 from apps.news.models import News
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference, UserRole
+from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, Notification, NotificationPreference, UserNotification, UserRole
 
 
 class AccountsApiTests(APITestCase):
@@ -48,6 +48,7 @@ class AccountsApiTests(APITestCase):
             news_alerts=True,
             ad_alerts=False,
             meeting_alerts=True,
+            product_alerts=True,
         )
         self.other_user = get_user_model().objects.create_user(
             username="member2",
@@ -60,6 +61,7 @@ class AccountsApiTests(APITestCase):
             news_alerts=False,
             ad_alerts=True,
             meeting_alerts=False,
+            product_alerts=False,
         )
         self.company_tier = CompanyTier.objects.create(
             name="Prime Elite Accounts Test",
@@ -294,6 +296,7 @@ class AccountsApiTests(APITestCase):
         self.assertTrue(response.data["rate_alerts"])
         self.assertTrue(response.data["news_alerts"])
         self.assertFalse(response.data["ad_alerts"])
+        self.assertTrue(response.data["product_alerts"])
 
     def test_me_patch_rejects_mismatched_hierarchy_ids(self):
         self.client.force_authenticate(user=self.user)
@@ -366,6 +369,7 @@ class AccountsApiTests(APITestCase):
                 "rate_alerts": False,
                 "news_alerts": False,
                 "ad_alerts": True,
+                "product_alerts": False,
             },
             format="json",
         )
@@ -376,8 +380,10 @@ class AccountsApiTests(APITestCase):
         self.assertFalse(self.user.notification_preferences.rate_alerts)
         self.assertFalse(self.user.notification_preferences.news_alerts)
         self.assertTrue(self.user.notification_preferences.ad_alerts)
+        self.assertFalse(self.user.notification_preferences.product_alerts)
         self.assertFalse(self.other_user.notification_preferences.rate_alerts)
         self.assertTrue(self.other_user.notification_preferences.ad_alerts)
+        self.assertFalse(self.other_user.notification_preferences.product_alerts)
 
     def test_preferences_patch_creates_preferences_when_missing(self):
         self.user.notification_preferences.delete()
@@ -392,6 +398,133 @@ class AccountsApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
         self.assertFalse(self.user.notification_preferences.meeting_alerts)
+
+    def test_me_unread_notification_count_reflects_user_notifications(self):
+        unread_notification = Notification.objects.create(
+            type=Notification.Type.NEWS,
+            title="Published update",
+            body="A new update is available.",
+            target_route=Notification.TargetRoute.NEWS_DETAIL,
+            target_payload={"newsId": 10},
+            source_object_type="news",
+            source_object_id=10,
+        )
+        read_notification = Notification.objects.create(
+            type=Notification.Type.RATE,
+            title="Rate update",
+            body="Rates changed.",
+            target_route=Notification.TargetRoute.RATE_DETAILS,
+            target_payload={"associationId": self.association.id},
+            source_object_type="rate",
+            source_object_id=self.association.id,
+        )
+        UserNotification.objects.create(user=self.user, notification=unread_notification, is_read=False)
+        UserNotification.objects.create(user=self.user, notification=read_notification, is_read=True)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(reverse("me"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["counts"]["unread_notifications_count"], 1)
+
+    def test_notification_feed_returns_results_and_filtering(self):
+        product_notification = Notification.objects.create(
+            type=Notification.Type.PRODUCT,
+            title="New product",
+            body="Explore the latest product.",
+            target_route=Notification.TargetRoute.PRODUCT_DETAIL,
+            target_payload={"productId": 1, "companyId": 2},
+            source_object_type="product",
+            source_object_id=1,
+        )
+        news_notification = Notification.objects.create(
+            type=Notification.Type.NEWS,
+            title="News",
+            body="Association update.",
+            target_route=Notification.TargetRoute.NEWS_DETAIL,
+            target_payload={"newsId": 2},
+            source_object_type="news",
+            source_object_id=2,
+        )
+        UserNotification.objects.create(user=self.user, notification=product_notification)
+        UserNotification.objects.create(user=self.user, notification=news_notification, is_read=True)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(reverse("notifications_feed"), {"type": "product"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["unread_count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["type"], Notification.Type.PRODUCT)
+
+    def test_notification_feed_rejects_invalid_filter(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(reverse("notifications_feed"), {"type": "ads"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_notification_mark_read_marks_only_current_user_row(self):
+        owned_notification = Notification.objects.create(
+            type=Notification.Type.MEETING,
+            title="Meeting",
+            body="Review details.",
+            target_route=Notification.TargetRoute.MEETING_DETAIL,
+            target_payload={"meetingId": 7},
+            source_object_type="meeting",
+            source_object_id=7,
+        )
+        other_notification = Notification.objects.create(
+            type=Notification.Type.NEWS,
+            title="Other",
+            body="Other user notification.",
+            target_route=Notification.TargetRoute.NEWS_DETAIL,
+            target_payload={"newsId": 8},
+            source_object_type="news",
+            source_object_id=8,
+        )
+        owned_row = UserNotification.objects.create(user=self.user, notification=owned_notification)
+        other_row = UserNotification.objects.create(user=self.other_user, notification=other_notification)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(reverse("notifications_mark_read", args=[owned_row.id]), format="json")
+        missing_response = self.client.post(reverse("notifications_mark_read", args=[other_row.id]), format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        owned_row.refresh_from_db()
+        self.assertTrue(owned_row.is_read)
+        self.assertEqual(response.data["unread_count"], 0)
+        self.assertEqual(missing_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_notification_mark_all_read_marks_all_unread_rows(self):
+        notification_one = Notification.objects.create(
+            type=Notification.Type.NEWS,
+            title="First",
+            body="First notification.",
+            target_route=Notification.TargetRoute.NEWS_DETAIL,
+            target_payload={"newsId": 1},
+            source_object_type="news",
+            source_object_id=1,
+        )
+        notification_two = Notification.objects.create(
+            type=Notification.Type.RATE,
+            title="Second",
+            body="Second notification.",
+            target_route=Notification.TargetRoute.RATE_DETAILS,
+            target_payload={"associationId": self.association.id},
+            source_object_type="rate",
+            source_object_id=self.association.id,
+        )
+        UserNotification.objects.create(user=self.user, notification=notification_one)
+        UserNotification.objects.create(user=self.user, notification=notification_two)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(reverse("notifications_mark_all_read"), format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["updated_count"], 2)
+        self.assertEqual(response.data["unread_count"], 0)
+        self.assertEqual(UserNotification.objects.filter(user=self.user, is_read=False).count(), 0)
 
     def test_session_info_is_public(self):
         response = self.client.get(reverse("session_info"))

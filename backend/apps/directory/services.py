@@ -254,6 +254,22 @@ def apply_product_visibility_filters(queryset, user):
     return queryset.filter(id__in=include_product_ids).exclude(id__in=exclude_product_ids).distinct()
 
 
+def is_product_visible_to_user(product: Product, user, *, company: Company | None = None) -> bool:
+    resolved_company = company or product.company
+    if not product.is_active or not resolved_company.is_active or not resolved_company.is_approved:
+        return False
+
+    visibility_tokens = get_product_visibility_tokens(user)
+    include_targets = [target for target in product.visibility_targets.all() if target.mode == ProductVisibilityTarget.Mode.INCLUDE]
+    exclude_targets = [target for target in product.visibility_targets.all() if target.mode == ProductVisibilityTarget.Mode.EXCLUDE]
+
+    is_included = any((target.target_type, target.target_id) in visibility_tokens for target in include_targets)
+    if not is_included:
+        return False
+    is_excluded = any((target.target_type, target.target_id) in visibility_tokens for target in exclude_targets)
+    return not is_excluded
+
+
 def _format_product_target_label(target: ProductVisibilityTarget) -> str:
     if target.target_type == ProductVisibilityTarget.TargetType.PLATFORM:
         return "Platform"

@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.accounts.models import MemberProfile, UserRole
+from apps.accounts.models import MemberProfile, NotificationPreference, UserNotification, UserRole
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 from .models import (
@@ -120,6 +120,38 @@ class DirectoryApiTests(APITestCase):
             association=self.kgsma,
             district_operational_unit=self.ernakulam,
             unit=self.kadavanthra,
+        )
+        MemberProfile.objects.create(
+            user=self.association_admin,
+            company_name="Association Admin",
+            state=self.kerala,
+            association=self.kgsma,
+            district_operational_unit=self.ernakulam,
+            unit=self.kadavanthra,
+        )
+        NotificationPreference.objects.create(
+            user=self.user,
+            rate_alerts=True,
+            news_alerts=True,
+            ad_alerts=False,
+            meeting_alerts=True,
+            product_alerts=True,
+        )
+        NotificationPreference.objects.create(
+            user=self.company_admin,
+            rate_alerts=True,
+            news_alerts=True,
+            ad_alerts=False,
+            meeting_alerts=True,
+            product_alerts=False,
+        )
+        NotificationPreference.objects.create(
+            user=self.association_admin,
+            rate_alerts=True,
+            news_alerts=True,
+            ad_alerts=False,
+            meeting_alerts=True,
+            product_alerts=True,
         )
         CompanyVerification.objects.create(
             company=self.company,
@@ -1596,6 +1628,46 @@ class DirectoryApiTests(APITestCase):
                 }
             ],
         )
+
+    def test_creating_product_generates_notifications_only_for_eligible_users_with_product_alerts_enabled(self):
+        self.company.tier_ref = self.pro_tier
+        self.company.save(update_fields=["tier_ref"])
+        self.product.is_active = False
+        self.product.save(update_fields=["is_active"])
+        self.chain_product.is_active = False
+        self.chain_product.save(update_fields=["is_active"])
+        self.client.force_authenticate(user=self.company_admin)
+        first_asset = self._create_media_asset(object_key="products/new/notified-product-1.jpg", public_url="https://example.com/notified-product-1.jpg")
+        second_asset = self._create_media_asset(object_key="products/new/notified-product-2.jpg", public_url="https://example.com/notified-product-2.jpg")
+
+        response = self.client.post(
+            reverse("company_product_create", args=[self.company.id]),
+            {
+                "category": self.chain_category.id,
+                "subcategory": self.chain_subcategory.id,
+                "name": "Notification Chain",
+                "weight_grams": "16.50",
+                "purity": "22K",
+                "description": "Created with granular audience targets.",
+                "is_active": True,
+                "image_asset_ids": [first_asset.id, second_asset.id],
+                "attribute_values": {"length": "20 inch"},
+                "include_targets": [
+                    {"target_type": ProductVisibilityTarget.TargetType.ASSOCIATION, "target_id": self.kgsma.id},
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        created_product = Product.objects.get(name="Notification Chain")
+        recipient_ids = set(
+            UserNotification.objects.filter(
+                notification__source_object_type="product",
+                notification__source_object_id=created_product.id,
+            ).values_list("user_id", flat=True)
+        )
+        self.assertEqual(recipient_ids, {self.user.id, self.association_admin.id})
 
     def test_company_admin_can_create_product_with_granular_visibility_targets(self):
         self.client.force_authenticate(user=self.company_admin)

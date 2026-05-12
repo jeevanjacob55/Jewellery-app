@@ -58,7 +58,7 @@ export function RateDetailsScreen() {
       <PriceScreenHeader
         title="Rate Details"
         onBack={() => navigation.goBack()}
-        onNotifications={() => navigation.navigate("NotificationSettings")}
+        onNotifications={() => navigation.navigate("Notifications")}
       />
 
       {loading && !detail ? (

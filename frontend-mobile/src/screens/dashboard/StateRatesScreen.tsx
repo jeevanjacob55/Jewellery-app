@@ -108,7 +108,7 @@ export function StateRatesScreen() {
       <PriceScreenHeader
         title="Other States"
         onBack={() => navigation.goBack()}
-        onNotifications={() => navigation.navigate("NotificationSettings")}
+        onNotifications={() => navigation.navigate("Notifications")}
       />
 
       {loading && !stateRates ? (

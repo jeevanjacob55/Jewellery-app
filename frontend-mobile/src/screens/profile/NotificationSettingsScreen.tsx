@@ -97,6 +97,12 @@ export function NotificationSettingsScreen() {
           value={preferences.meeting_alerts}
           onValueChange={(value) => setPreferences((current) => (current ? { ...current, meeting_alerts: value } : current))}
         />
+        <PreferenceRow
+          label="Product alerts"
+          hint="New product launches you are eligible to view."
+          value={preferences.product_alerts}
+          onValueChange={(value) => setPreferences((current) => (current ? { ...current, product_alerts: value } : current))}
+        />
 
         {message ? <Text style={styles.statusMessage}>{message}</Text> : null}
 

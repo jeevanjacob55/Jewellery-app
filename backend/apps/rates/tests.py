@@ -8,7 +8,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.accounts.models import MemberProfile, UserRole
+from apps.accounts.models import MemberProfile, NotificationPreference, UserNotification, UserRole
 from apps.directory.models import MediaAsset
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
@@ -390,6 +390,22 @@ class AssociationAdminRateCatalogApiTests(APITestCase):
             district_operational_unit=self.district,
             unit=self.unit,
         )
+        NotificationPreference.objects.create(
+            user=self.association_admin,
+            rate_alerts=True,
+            news_alerts=True,
+            ad_alerts=False,
+            meeting_alerts=True,
+            product_alerts=True,
+        )
+        NotificationPreference.objects.create(
+            user=self.member,
+            rate_alerts=True,
+            news_alerts=True,
+            ad_alerts=False,
+            meeting_alerts=True,
+            product_alerts=True,
+        )
 
     def test_association_admin_can_save_rate_catalog_and_members_see_updated_rates(self):
         self.client.force_authenticate(user=self.association_admin)
@@ -429,6 +445,14 @@ class AssociationAdminRateCatalogApiTests(APITestCase):
         self.assertEqual(dashboard_response.data["association"]["name"], "KGSMA")
         self.assertEqual(dashboard_response.data["headline_rates"]["gold_22k"]["value"], 5455.0)
         self.assertEqual(dashboard_response.data["headline_rates"]["gold_24k"]["value"], 5910.0)
+        self.assertEqual(
+            UserNotification.objects.filter(
+                user=self.member,
+                notification__source_object_type="rate",
+                notification__source_object_id=self.association.id,
+            ).count(),
+            1,
+        )
         self.assertEqual(dashboard_response.data["headline_rates"]["silver"]["value"], 74.75)
         self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
         self.assertEqual([group["title"] for group in detail_response.data["rate_groups"]], ["Gold", "Silver"])

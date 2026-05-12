@@ -7,12 +7,15 @@ from apps.ads.models import Advertisement
 from apps.directory.models import Company
 from apps.news.models import News
 
-from .models import MemberAccessRequest, NotificationPreference, User, UserRole
+from .models import MemberAccessRequest, NotificationPreference, User, UserNotification, UserRole
+from .notification_services import get_unread_notification_count, mark_all_user_notifications_read, mark_user_notification_read
 from .serializers import (
     GuestAccessSerializer,
     MemberAccessRequestCreateSerializer,
     MemberAccessRequestResponseSerializer,
     NotificationPreferenceSerializer,
+    UserNotificationFeedSerializer,
+    UserNotificationSerializer,
     UpdateNotificationPreferenceSerializer,
     UpdateUserSerializer,
     UserSerializer,
@@ -70,6 +73,13 @@ def _get_pending_approvals_count(*, is_admin: bool) -> int:
         + News.objects.filter(status=News.Status.PENDING_APPROVAL).count()
         + Advertisement.objects.filter(status=Advertisement.Status.SUBMITTED).count()
     )
+
+
+def _build_notification_feed_queryset(user, *, filter_type: str | None = None):
+    queryset = UserNotification.objects.filter(user=user).select_related("notification")
+    if filter_type and filter_type != "all":
+        queryset = queryset.filter(notification__type=filter_type)
+    return queryset.order_by("-notification__created_at", "-id")
 
 
 class GuestAccessView(APIView):
@@ -171,7 +181,7 @@ class MeView(APIView):
                 ),
                 "counts": {
                     "pending_approvals_count": pending_approvals_count,
-                    "unread_notifications_count": 0,
+                    "unread_notifications_count": get_unread_notification_count(user),
                 },
             }
         )
@@ -197,6 +207,53 @@ class NotificationPreferenceView(APIView):
         serializer.is_valid(raise_exception=True)
         updated_preferences = serializer.save()
         return Response(NotificationPreferenceSerializer(updated_preferences).data)
+
+
+class NotificationFeedView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    ALLOWED_FILTERS = {"all", "product", "news", "meeting", "rate"}
+
+    def get(self, request):
+        filter_type = request.query_params.get("type", "all")
+        if filter_type not in self.ALLOWED_FILTERS:
+            return Response({"type": ["Unsupported notification filter."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        queryset = _build_notification_feed_queryset(request.user, filter_type=filter_type)[:50]
+        payload = {
+            "results": queryset,
+            "unread_count": get_unread_notification_count(request.user),
+        }
+        return Response(UserNotificationFeedSerializer(payload).data)
+
+
+class NotificationMarkReadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, notification_id: int):
+        user_notification = UserNotification.objects.filter(user=request.user).select_related("notification").filter(pk=notification_id).first()
+        if user_notification is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        mark_user_notification_read(user_notification)
+        return Response(
+            {
+                "notification": UserNotificationSerializer(user_notification).data,
+                "unread_count": get_unread_notification_count(request.user),
+            }
+        )
+
+
+class NotificationMarkAllReadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        updated_count = mark_all_user_notifications_read(request.user)
+        return Response(
+            {
+                "updated_count": updated_count,
+                "unread_count": get_unread_notification_count(request.user),
+            }
+        )
 
 
 class SessionInfoView(APIView):

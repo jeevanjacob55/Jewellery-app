@@ -10,6 +10,27 @@ export interface NotificationPreferences {
   news_alerts: boolean;
   ad_alerts: boolean;
   meeting_alerts: boolean;
+  product_alerts: boolean;
+}
+
+export type NotificationFeedType = "all" | "product" | "news" | "meeting" | "rate";
+
+export type NotificationTargetRoute = "ProductDetail" | "NewsDetail" | "MeetingDetail" | "RateDetails";
+
+export interface NotificationFeedItem {
+  id: number;
+  type: Exclude<NotificationFeedType, "all">;
+  title: string;
+  body: string;
+  created_at: string;
+  is_read: boolean;
+  target_route: NotificationTargetRoute;
+  target_payload: Record<string, unknown>;
+}
+
+export interface NotificationFeedResponse {
+  results: NotificationFeedItem[];
+  unread_count: number;
 }
 
 export interface MeUser {

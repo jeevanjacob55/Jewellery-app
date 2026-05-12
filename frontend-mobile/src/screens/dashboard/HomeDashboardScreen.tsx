@@ -68,6 +68,7 @@ export function HomeDashboardScreen() {
   }, [status]);
 
   const associationName = me?.hierarchy.association ?? dashboard?.association.name ?? "Jewellery Association";
+  const unreadNotificationsCount = me?.counts.unread_notifications_count ?? 0;
   const identityLine =
     status === "authenticated"
       ? `${me?.user.role_display_name ?? "Member"} access for ${me?.user.name ?? "member"}`
@@ -196,7 +197,11 @@ export function HomeDashboardScreen() {
             <View style={styles.notificationIcon}>
               <View style={styles.notificationBell} />
               <View style={styles.notificationClapper} />
-              <View style={styles.notificationDot} />
+              {unreadNotificationsCount > 0 ? (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}</Text>
+                </View>
+              ) : null}
             </View>
           </Pressable>
         }
@@ -361,14 +366,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#1F2937",
     marginTop: 1,
   },
-  notificationDot: {
+  notificationBadge: {
     position: "absolute",
-    top: 2,
-    right: 1,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    top: -2,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    borderRadius: 999,
     backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "700",
   },
   headerTitle: {
     fontSize: 16,

@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.accounts.models import MemberProfile, UserRole
+from apps.accounts.models import MemberProfile, NotificationPreference, UserNotification, UserRole
 from apps.directory.models import Company, CompanyTier
 from apps.rates.models import AssociationRate
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
@@ -134,6 +134,15 @@ class ScopedNewsMeetingBase(APITestCase):
             unit=self.t_nagar,
             membership_tier="Silver",
         )
+        for user in [self.super_admin, self.association_admin, self.unit_admin, self.company_admin, self.member, self.other_member]:
+            NotificationPreference.objects.create(
+                user=user,
+                rate_alerts=True,
+                news_alerts=True,
+                ad_alerts=False,
+                meeting_alerts=True,
+                product_alerts=True,
+            )
 
     def _create_published_news(
         self,
@@ -248,6 +257,15 @@ class NewsFeedTests(ScopedNewsMeetingBase):
         self.assertEqual(feed_response.data["featured_news"]["title"], "Association Circular")
         self.assertIsNone(feed_response.data["featured_news"]["image_url"])
         self.assertEqual(feed_response.data["items"][0]["title"], "Association Circular")
+        published_news = News.objects.get(title="Association Circular")
+        recipient_ids = set(
+            UserNotification.objects.filter(
+                notification__source_object_type="news",
+                notification__source_object_id=published_news.id,
+            ).values_list("user_id", flat=True)
+        )
+        self.assertIn(self.member.id, recipient_ids)
+        self.assertNotIn(self.other_member.id, recipient_ids)
 
     def test_unit_admin_out_of_scope_news_requires_association_approval(self):
         self.client.force_authenticate(user=self.unit_admin)
@@ -277,6 +295,14 @@ class NewsFeedTests(ScopedNewsMeetingBase):
         approve_response = self.client.post(reverse("news_approve", args=[news_id]), format="json")
         self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
         self.assertEqual(approve_response.data["status"], News.Status.PUBLISHED)
+        recipient_ids = set(
+            UserNotification.objects.filter(
+                notification__source_object_type="news",
+                notification__source_object_id=news_id,
+            ).values_list("user_id", flat=True)
+        )
+        self.assertIn(self.member.id, recipient_ids)
+        self.assertNotIn(self.other_member.id, recipient_ids)
 
         self.client.force_authenticate(user=self.member)
         post_approval_feed = self.client.get(reverse("news_feed"))
@@ -620,6 +646,14 @@ class MeetingApiTests(ScopedNewsMeetingBase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["status"], Meeting.Status.PUBLISHED)
         self.assertEqual(response.data["message"], "Meeting published successfully.")
+        meeting = Meeting.objects.get(title="Platform Meeting")
+        recipient_ids = set(
+            UserNotification.objects.filter(
+                notification__source_object_type="meeting",
+                notification__source_object_id=meeting.id,
+            ).values_list("user_id", flat=True)
+        )
+        self.assertIn(self.member.id, recipient_ids)
 
     def test_association_admin_can_create_for_own_association_and_unit(self):
         self.client.force_authenticate(user=self.association_admin)
@@ -784,6 +818,33 @@ class MeetingApiTests(ScopedNewsMeetingBase):
         self.client.force_authenticate(user=self.other_member)
         other_response = self.client.get(reverse("meeting_list_create"))
         self.assertFalse(any(item["id"] == included_meeting.id for item in other_response.data))
+
+    def test_draft_meeting_patch_to_published_creates_notifications(self):
+        meeting = self._create_meeting(
+            title="Draft Association Meeting",
+            organizer_type=Meeting.OrganizerType.ASSOCIATION,
+            organizer_id=self.kgsma.id,
+            include_targets=[(MeetingTarget.TargetType.ASSOCIATION, self.kgsma.id)],
+            created_by=self.association_admin,
+            status_value=Meeting.Status.DRAFT,
+        )
+        self.client.force_authenticate(user=self.association_admin)
+
+        response = self.client.patch(
+            reverse("meeting_detail", args=[meeting.id]),
+            {"status": Meeting.Status.PUBLISHED},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        recipient_ids = set(
+            UserNotification.objects.filter(
+                notification__source_object_type="meeting",
+                notification__source_object_id=meeting.id,
+            ).values_list("user_id", flat=True)
+        )
+        self.assertIn(self.member.id, recipient_ids)
+        self.assertNotIn(self.other_member.id, recipient_ids)
 
     def test_unauthenticated_users_only_see_platform_meetings(self):
         self._create_meeting(

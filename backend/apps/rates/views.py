@@ -10,6 +10,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.notification_services import notify_association_rate_update
 from apps.accounts.models import UserRole
 from apps.admin_ops.permissions import HasAdminAccess
 from apps.directory.models import MediaAsset
@@ -747,9 +748,11 @@ class AssociationAdminRateCatalogView(APIView):
                         updated_by=request.user,
                     )
 
-            _publish_legacy_association_rate(association)
+            published_rate = _publish_legacy_association_rate(association)
 
         payload = _serialize_rate_catalog(association)
+        if published_rate is not None:
+            notify_association_rate_update(association, published_rate)
         return Response(AssociationRateCatalogResponseSerializer(payload).data)
 
 

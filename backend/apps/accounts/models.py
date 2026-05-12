@@ -87,9 +87,64 @@ class NotificationPreference(models.Model):
     news_alerts = models.BooleanField(default=True)
     ad_alerts = models.BooleanField(default=False)
     meeting_alerts = models.BooleanField(default=True)
+    product_alerts = models.BooleanField(default=True)
 
     def __str__(self) -> str:
         return f"{self.user.username} notifications"
+
+
+class Notification(models.Model):
+    class Type(models.TextChoices):
+        PRODUCT = "product", "Product"
+        NEWS = "news", "News"
+        MEETING = "meeting", "Meeting"
+        RATE = "rate", "Rate"
+
+    class TargetRoute(models.TextChoices):
+        PRODUCT_DETAIL = "ProductDetail", "Product Detail"
+        NEWS_DETAIL = "NewsDetail", "News Detail"
+        MEETING_DETAIL = "MeetingDetail", "Meeting Detail"
+        RATE_DETAILS = "RateDetails", "Rate Details"
+
+    type = models.CharField(max_length=20, choices=Type.choices)
+    title = models.CharField(max_length=255)
+    body = models.TextField()
+    target_route = models.CharField(max_length=40, choices=TargetRoute.choices)
+    target_payload = models.JSONField(default=dict, blank=True)
+    source_object_type = models.CharField(max_length=30)
+    source_object_id = models.PositiveBigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["type", "created_at"], name="acct_notif_type_created_ix"),
+            models.Index(fields=["source_object_type", "source_object_id"], name="acct_notif_source_ix"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.type}:{self.source_object_type}:{self.source_object_id}"
+
+
+class UserNotification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name="recipients")
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-notification__created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "notification"], name="uniq_user_notification"),
+        ]
+        indexes = [
+            models.Index(fields=["user", "is_read"], name="acct_usernotif_user_read_ix"),
+            models.Index(fields=["created_at"], name="acct_usernotif_created_ix"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.notification_id}:{'read' if self.is_read else 'unread'}"
 
 
 class MemberAccessRequest(models.Model):

@@ -4,6 +4,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.notification_services import notify_published_meeting, notify_published_news
 from apps.rates.models import AssociationRate
 
 from .models import Alert, Meeting, News, NewsBookmark, NewsItem
@@ -138,6 +139,7 @@ class NewsFeedView(APIView):
         elif news.status == News.Status.DRAFT:
             response_data["message"] = "News saved as draft."
         else:
+            notify_published_news(news)
             response_data["message"] = "News published successfully."
         return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -193,6 +195,7 @@ class NewsApproveView(APIView):
 
         news.publish(approved_by=request.user)
         news.save(update_fields=["status", "approved_by", "published_at", "rejection_reason"])
+        notify_published_news(news)
         return Response(NewsSerializer(news, context={"request": request}).data)
 
 
@@ -277,6 +280,8 @@ class MeetingListCreateView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         response_data = MeetingSerializer(meeting, context={"user": request.user}).data
+        if meeting.status == Meeting.Status.PUBLISHED:
+            notify_published_meeting(meeting)
         response_data["message"] = "Meeting saved as draft." if meeting.status == Meeting.Status.DRAFT else "Meeting published successfully."
         return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -302,6 +307,7 @@ class MeetingDetailView(APIView):
         meeting = self.get_object(pk)
         if not can_manage_meeting(request.user, meeting):
             return Response({"detail": "You do not have permission to manage this meeting."}, status=status.HTTP_403_FORBIDDEN)
+        previous_status = meeting.status
 
         serializer = UpdateMeetingSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -318,6 +324,8 @@ class MeetingDetailView(APIView):
         except NewsValidationError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+        if previous_status != Meeting.Status.PUBLISHED and updated_meeting.status == Meeting.Status.PUBLISHED:
+            notify_published_meeting(updated_meeting)
         return Response(MeetingSerializer(updated_meeting, context={"user": request.user}).data)
 
 

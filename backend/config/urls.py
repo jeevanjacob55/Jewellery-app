@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/mock-uploads/", MockUploadView.as_view(), name="mock_upload"),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/me/", include("apps.accounts.me_urls")),
+    path("api/notifications/", include("apps.accounts.notification_urls")),
     path("api/regions/", include("apps.regions.urls")),
     path("api/dashboard/", include("apps.rates.urls")),
     path("api/directory/", include("apps.directory.urls")),

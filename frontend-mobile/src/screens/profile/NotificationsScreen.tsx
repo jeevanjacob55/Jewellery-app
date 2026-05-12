@@ -1,155 +1,192 @@
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 
+import { getNotifications, markAllNotificationsRead, markNotificationRead } from "../../api/notifications";
 import { AppScreen } from "../../components/AppScreen";
 import { useSession } from "../../session/SessionProvider";
-import { colors, spacing } from "../../theme/tokens";
+import { spacing } from "../../theme/tokens";
+import { NotificationFeedItem, NotificationFeedType } from "../../types/api";
 
-type NotificationCategory = "all" | "rates" | "news" | "meetings" | "ads" | "approvals";
 type NotificationGroup = "Today" | "This Week" | "Older";
 
-type NotificationItem = {
-  id: string;
-  category: Exclude<NotificationCategory, "all">;
-  group: NotificationGroup;
-  title: string;
-  body: string;
-  time: string;
-  unread: boolean;
-  ctaLabel?: string;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  onPress: () => void;
-  onCtaPress?: () => void;
-};
-
-const FILTERS: Array<{ key: NotificationCategory; label: string }> = [
+const FILTERS: Array<{ key: NotificationFeedType; label: string }> = [
   { key: "all", label: "All" },
-  { key: "rates", label: "Rates" },
+  { key: "product", label: "Products" },
   { key: "news", label: "News" },
-  { key: "meetings", label: "Meetings" },
-  { key: "ads", label: "Ads" },
-  { key: "approvals", label: "Approvals" },
+  { key: "meeting", label: "Meetings" },
+  { key: "rate", label: "Rates" },
 ];
 
 export function NotificationsScreen() {
   const navigation = useNavigation<any>();
-  const { me } = useSession();
-  const [activeFilter, setActiveFilter] = useState<NotificationCategory>("all");
-  const [readIds, setReadIds] = useState<Record<string, true>>({});
+  const isFocused = useIsFocused();
+  const { refreshCurrentUser, status } = useSession();
+  const [activeFilter, setActiveFilter] = useState<NotificationFeedType>("all");
+  const [items, setItems] = useState<NotificationFeedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const items = useMemo<NotificationItem[]>(() => {
-    const baseItems: NotificationItem[] = [
-      {
-        id: "gold-rate",
-        category: "rates",
-        group: "Today",
-        title: "Gold Rate Update",
-        body: "24K Gold has increased by 0.5% in your selected association market.",
-        time: "5m ago",
-        unread: true,
-        icon: "trending-up",
-        onPress: () => navigation.navigate("AssociationRates"),
-      },
-      {
-        id: "ethical-news",
-        category: "news",
-        group: "Today",
-        title: "New Ethical Sourcing Standards",
-        body: "The Association has published updated guidelines for members and companies.",
-        time: "2h ago",
-        unread: false,
-        icon: "newspaper",
-        onPress: () => navigation.navigate("News"),
-      },
-      {
-        id: "quarterly-meeting",
-        category: "meetings",
-        group: "This Week",
-        title: "Quarterly Board Meeting",
-        body: "Scheduled for July 15th at 10:00 AM. Venue details are available in meetings.",
-        time: "1d ago",
-        unread: true,
-        icon: "event",
-        onPress: () => navigation.navigate("News"),
-      },
-      {
-        id: "expo-ad",
-        category: "ads",
-        group: "This Week",
-        title: "Summer Expo Registration",
-        body: "Early bird registrations are now open for the upcoming trade showcase.",
-        time: "2d ago",
-        unread: false,
-        icon: "local-offer",
-        onPress: () => navigation.navigate("Services"),
-      },
-      {
-        id: "system-maintenance",
-        category: "news",
-        group: "Older",
-        title: "System Maintenance",
-        body: "Scheduled downtime completed successfully and services are back online.",
-        time: "2w ago",
-        unread: false,
-        icon: "info",
-        onPress: () => navigation.navigate("HelpSupport"),
-      },
-    ];
-
-    if (me?.user.is_admin) {
-      baseItems.splice(4, 0, {
-        id: "pending-approvals",
-        category: "approvals",
-        group: "This Week",
-        title: "Pending Member Approval",
-        body: `${me.counts.pending_approvals_count || 3} approval item${(me.counts.pending_approvals_count || 3) === 1 ? "" : "s"} are waiting for review.`,
-        time: "3d ago",
-        unread: true,
-        icon: "verified-user",
-        ctaLabel: "Review",
-        onPress: () => navigation.navigate("PendingApprovals"),
-        onCtaPress: () => navigation.navigate("PendingApprovals"),
-      });
+  async function loadNotifications(filterType = activeFilter, isRefresh = false) {
+    if (status !== "authenticated") {
+      setItems([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
     }
 
-    return baseItems;
-  }, [me?.counts.pending_approvals_count, me?.user.is_admin, navigation]);
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
-  const visibleItems = items.filter((item) => activeFilter === "all" || item.category === activeFilter);
-  const grouped = {
-    Today: visibleItems.filter((item) => item.group === "Today"),
-    "This Week": visibleItems.filter((item) => item.group === "This Week"),
-    Older: visibleItems.filter((item) => item.group === "Older"),
-  } satisfies Record<NotificationGroup, NotificationItem[]>;
-
-  function isUnread(item: NotificationItem) {
-    return item.unread && !readIds[item.id];
+    try {
+      const payload = await getNotifications(filterType);
+      setItems(payload.results);
+      setError(null);
+      await refreshCurrentUser();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Could not load notifications right now.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }
 
-  function markRead(id: string) {
-    setReadIds((current) => ({ ...current, [id]: true }));
+  useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+    void loadNotifications(activeFilter);
+  }, [activeFilter, isFocused, status]);
+
+  function groupForItem(item: NotificationFeedItem): NotificationGroup {
+    const createdAt = new Date(item.created_at).getTime();
+    const ageMs = Date.now() - createdAt;
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const sevenDaysMs = 7 * oneDayMs;
+    if (ageMs < oneDayMs) {
+      return "Today";
+    }
+    if (ageMs < sevenDaysMs) {
+      return "This Week";
+    }
+    return "Older";
   }
 
-  function markAllAsRead() {
-    const next: Record<string, true> = {};
-    items.forEach((item) => {
-      next[item.id] = true;
-    });
-    setReadIds(next);
+  function formatRelativeTime(value: string) {
+    const createdAt = new Date(value).getTime();
+    const diffMs = Math.max(Date.now() - createdAt, 0);
+    const minutes = Math.floor(diffMs / (60 * 1000));
+    const hours = Math.floor(diffMs / (60 * 60 * 1000));
+    const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    if (minutes < 1) {
+      return "Just now";
+    }
+    if (minutes < 60) {
+      return `${minutes}m ago`;
+    }
+    if (hours < 24) {
+      return `${hours}h ago`;
+    }
+    if (days < 7) {
+      return `${days}d ago`;
+    }
+    return `${Math.floor(days / 7)}w ago`;
+  }
+
+  function iconForType(type: NotificationFeedItem["type"]): keyof typeof MaterialIcons.glyphMap {
+    switch (type) {
+      case "product":
+        return "inventory-2";
+      case "news":
+        return "newspaper";
+      case "meeting":
+        return "event";
+      case "rate":
+        return "trending-up";
+      default:
+        return "notifications";
+    }
+  }
+
+  async function handleOpen(item: NotificationFeedItem) {
+    if (!item.is_read) {
+      setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, is_read: true } : entry)));
+      try {
+        await markNotificationRead(item.id);
+      } catch {
+        setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, is_read: false } : entry)));
+      } finally {
+        await refreshCurrentUser();
+      }
+    }
+
+    switch (item.target_route) {
+      case "ProductDetail":
+        navigation.navigate("ProductDetail", {
+          productId: item.target_payload.productId,
+          companyId: item.target_payload.companyId,
+        });
+        break;
+      case "NewsDetail":
+        navigation.navigate("NewsDetail", { newsId: item.target_payload.newsId });
+        break;
+      case "MeetingDetail":
+        navigation.navigate("MeetingDetail", { meetingId: item.target_payload.meetingId });
+        break;
+      case "RateDetails":
+        navigation.navigate("RateDetails", {
+          associationId: item.target_payload.associationId,
+          associationName: item.target_payload.associationName,
+        });
+        break;
+      default:
+        break;
+    }
+  }
+
+  async function handleMarkAllAsRead() {
+    const unreadIds = items.filter((item) => !item.is_read).map((item) => item.id);
+    if (!unreadIds.length) {
+      setMenuOpen(false);
+      return;
+    }
+
+    setItems((current) => current.map((item) => ({ ...item, is_read: true })));
     setMenuOpen(false);
+    try {
+      await markAllNotificationsRead();
+    } catch {
+      setItems((current) =>
+        current.map((item) => (unreadIds.includes(item.id) ? { ...item, is_read: false } : item)),
+      );
+    } finally {
+      await refreshCurrentUser();
+    }
   }
 
-  function handleOpen(item: NotificationItem) {
-    markRead(item.id);
-    item.onPress();
-  }
+  const grouped: Record<NotificationGroup, NotificationFeedItem[]> = {
+    Today: [],
+    "This Week": [],
+    Older: [],
+  };
+  items.forEach((item) => {
+    grouped[groupForItem(item)].push(item);
+  });
 
   return (
     <AppScreen safeAreaEdges={["top", "bottom"]} backgroundColor="#FBF9F9">
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadNotifications(activeFilter, true)} />}
+      >
         <View style={styles.mobileHeader}>
           <Pressable style={styles.headerIconButton} onPress={() => navigation.goBack()}>
             <MaterialIcons name="arrow-back" size={22} color="#000000" />
@@ -161,7 +198,7 @@ export function NotificationsScreen() {
             </Pressable>
             {menuOpen ? (
               <View style={styles.overflowMenu}>
-                <Pressable style={styles.overflowMenuItem} onPress={markAllAsRead}>
+                <Pressable style={styles.overflowMenuItem} onPress={() => void handleMarkAllAsRead()}>
                   <Text style={styles.overflowMenuText}>Mark all as read</Text>
                 </Pressable>
               </View>
@@ -170,7 +207,7 @@ export function NotificationsScreen() {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {FILTERS.filter((filter) => filter.key !== "approvals" || me?.user.is_admin).map((filter) => {
+          {FILTERS.map((filter) => {
             const active = filter.key === activeFilter;
             return (
               <Pressable key={filter.key} style={[styles.filterChip, active ? styles.filterChipActive : null]} onPress={() => setActiveFilter(filter.key)}>
@@ -180,51 +217,55 @@ export function NotificationsScreen() {
           })}
         </ScrollView>
 
-        {(Object.keys(grouped) as NotificationGroup[]).map((group) =>
-          grouped[group].length ? (
-            <View key={group} style={styles.groupSection}>
-              <Text style={styles.groupLabel}>{group.toUpperCase()}</Text>
-              <View style={styles.groupList}>
-                {grouped[group].map((item, index) => {
-                  const unread = isUnread(item);
-                  return (
-                    <Pressable
-                      key={item.id}
-                      style={[styles.notificationCard, index > 0 ? styles.notificationCardBorder : null]}
-                      onPress={() => handleOpen(item)}
-                    >
-                      {unread ? <View style={styles.unreadRail} /> : null}
-                      <View style={styles.notificationIconWrap}>
-                        <MaterialIcons name={item.icon} size={20} color={unread ? "#000000" : "#7E7576"} />
-                      </View>
-                      <View style={styles.notificationCopy}>
-                        <View style={styles.notificationHeader}>
-                          <Text style={[styles.notificationTitle, unread ? styles.notificationTitleUnread : null]}>{item.title}</Text>
-                          <View style={styles.notificationMeta}>
-                            {unread ? <View style={styles.unreadDot} /> : null}
-                            <Text style={styles.notificationTime}>{item.time}</Text>
-                          </View>
+        {loading ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>Loading notifications</Text>
+            <Text style={styles.stateDetail}>Pulling your latest alerts from the server.</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>Notifications unavailable</Text>
+            <Text style={styles.stateDetail}>{error}</Text>
+            <Pressable style={styles.retryButton} onPress={() => void loadNotifications(activeFilter)}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : !items.length ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>No notifications yet</Text>
+            <Text style={styles.stateDetail}>New product launches, rate updates, meetings, and news will appear here when they are published for you.</Text>
+          </View>
+        ) : (
+          (Object.keys(grouped) as NotificationGroup[]).map((group) =>
+            grouped[group].length ? (
+              <View key={group} style={styles.groupSection}>
+                <Text style={styles.groupLabel}>{group.toUpperCase()}</Text>
+                <View style={styles.groupList}>
+                  {grouped[group].map((item) => {
+                    const unread = !item.is_read;
+                    return (
+                      <Pressable key={item.id} style={styles.notificationCard} onPress={() => void handleOpen(item)}>
+                        {unread ? <View style={styles.unreadRail} /> : null}
+                        <View style={styles.notificationIconWrap}>
+                          <MaterialIcons name={iconForType(item.type)} size={20} color={unread ? "#000000" : "#7E7576"} />
                         </View>
-                        <Text style={styles.notificationBody}>{item.body}</Text>
-                        {item.ctaLabel && item.onCtaPress ? (
-                          <Pressable
-                            style={styles.reviewButton}
-                            onPress={(event) => {
-                              event.stopPropagation();
-                              markRead(item.id);
-                              item.onCtaPress?.();
-                            }}
-                          >
-                            <Text style={styles.reviewButtonText}>{item.ctaLabel}</Text>
-                          </Pressable>
-                        ) : null}
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                        <View style={styles.notificationCopy}>
+                          <View style={styles.notificationHeader}>
+                            <Text style={[styles.notificationTitle, unread ? styles.notificationTitleUnread : null]}>{item.title}</Text>
+                            <View style={styles.notificationMeta}>
+                              {unread ? <View style={styles.unreadDot} /> : null}
+                              <Text style={styles.notificationTime}>{formatRelativeTime(item.created_at)}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.notificationBody}>{item.body}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
-            </View>
-          ) : null,
+            ) : null,
+          )
         )}
       </ScrollView>
     </AppScreen>
@@ -322,6 +363,36 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: "#785A1A",
   },
+  stateCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: "#E3E2E2",
+  },
+  stateTitle: {
+    color: "#1B1C1C",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  stateDetail: {
+    marginTop: spacing.sm,
+    color: "#4C4546",
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  retryButton: {
+    marginTop: spacing.md,
+    alignSelf: "flex-start",
+    backgroundColor: "#000000",
+    borderRadius: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
   groupSection: {
     marginBottom: spacing.xl,
   },
@@ -344,10 +415,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: spacing.lg,
-  },
-  notificationCardBorder: {
-    borderTopWidth: 1,
-    borderTopColor: "#E3E2E2",
+    borderWidth: 1,
+    borderColor: "#E3E2E2",
   },
   unreadRail: {
     position: "absolute",
@@ -408,18 +477,5 @@ const styles = StyleSheet.create({
     color: "#4C4546",
     fontSize: 16,
     lineHeight: 24,
-  },
-  reviewButton: {
-    marginTop: spacing.md,
-    alignSelf: "flex-start",
-    backgroundColor: "#000000",
-    borderRadius: 8,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-  },
-  reviewButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "500",
   },
 });

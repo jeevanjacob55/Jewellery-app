@@ -14,6 +14,7 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.notification_services import notify_new_product
 from apps.admin_ops.permissions import IsSuperAdmin
 
 from config.storage import build_mock_public_url, build_mock_signed_upload, get_mock_upload
@@ -870,6 +871,7 @@ class CompanyProductListCreateView(APIView):
         serializer = ProductWriteSerializer(data=request.data, context={"company": company})
         serializer.is_valid(raise_exception=True)
         product = serializer.save()
+        notify_new_product(product)
         product = (
             Product.objects.select_related("company", "category", "subcategory")
             .prefetch_related(

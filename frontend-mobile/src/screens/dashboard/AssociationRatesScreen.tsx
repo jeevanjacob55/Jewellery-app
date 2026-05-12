@@ -66,7 +66,7 @@ export function AssociationRatesScreen() {
       <PriceScreenHeader
         title="Other Associations"
         onBack={() => navigation.goBack()}
-        onNotifications={() => navigation.navigate("NotificationSettings")}
+        onNotifications={() => navigation.navigate("Notifications")}
       />
 
       {loading && !dashboard ? (
