@@ -329,41 +329,93 @@ function FeaturedPartnersSection({
 }) {
   const listRef = useRef<FlatList<MarketCompanyCard> | null>(null);
   const { width } = useWindowDimensions();
+  const renderedIndexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUserInteracting, setIsUserInteracting] = useState(false);
   const cardWidth = Math.max(width - spacing.lg * 2, 280);
+  const heroItems = useMemo(() => {
+    if (row.row_type !== "company_tier" || !row.items.length) {
+      return [];
+    }
+    if (row.items.length === 1) {
+      return row.items;
+    }
+    const firstItem = row.items[0];
+    const lastItem = row.items[row.items.length - 1];
+    return [lastItem, ...row.items, firstItem];
+  }, [row]);
 
   useEffect(() => {
     setActiveIndex(0);
+    renderedIndexRef.current = row.items.length > 1 ? 1 : 0;
   }, [row.items.length]);
+
+  useEffect(() => {
+    if (row.row_type !== "company_tier" || !heroItems.length) {
+      return;
+    }
+
+    const initialIndex = row.items.length > 1 ? 1 : 0;
+    renderedIndexRef.current = initialIndex;
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index: initialIndex, animated: false });
+    });
+  }, [cardWidth, heroItems.length, row.items.length, row.row_type]);
 
   useEffect(() => {
     if (row.row_type !== "company_tier" || row.items.length < 2 || isUserInteracting) {
       return;
     }
 
-    const timer = setInterval(() => {
-      setActiveIndex((currentIndex) => {
-        const nextIndex = (currentIndex + 1) % row.items.length;
-        listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-        return nextIndex;
-      });
+    const timer = setTimeout(() => {
+      const nextIndex = renderedIndexRef.current + 1;
+      renderedIndexRef.current = nextIndex;
+      listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
     }, autoScrollMs);
 
-    return () => clearInterval(timer);
-  }, [autoScrollMs, isUserInteracting, row.items.length, row.row_type]);
+    return () => clearTimeout(timer);
+  }, [activeIndex, autoScrollMs, isUserInteracting, row.items.length, row.row_type]);
 
   function handleMomentumEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
     if (row.row_type !== "company_tier" || !row.items.length) {
       return;
     }
 
-    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / cardWidth);
-    setActiveIndex(Math.max(0, Math.min(nextIndex, row.items.length - 1)));
+    const rawIndex = Math.round(event.nativeEvent.contentOffset.x / cardWidth);
+    if (row.items.length === 1) {
+      renderedIndexRef.current = 0;
+      setActiveIndex(0);
+      setIsUserInteracting(false);
+      return;
+    }
+
+    let normalizedRenderedIndex = rawIndex;
+    let normalizedActiveIndex = rawIndex - 1;
+
+    if (rawIndex <= 0) {
+      normalizedRenderedIndex = row.items.length;
+      normalizedActiveIndex = row.items.length - 1;
+      listRef.current?.scrollToIndex({ index: normalizedRenderedIndex, animated: false });
+    } else if (rawIndex >= heroItems.length - 1) {
+      normalizedRenderedIndex = 1;
+      normalizedActiveIndex = 0;
+      listRef.current?.scrollToIndex({ index: normalizedRenderedIndex, animated: false });
+    } else {
+      normalizedActiveIndex = rawIndex - 1;
+    }
+
+    renderedIndexRef.current = normalizedRenderedIndex;
+    setActiveIndex(Math.max(0, Math.min(normalizedActiveIndex, row.items.length - 1)));
     setIsUserInteracting(false);
   }
 
-  if (row.row_type !== "company_tier" || !row.items.length) {
+  function handleScrollToIndexFailed(info: { index: number }) {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index: info.index, animated: false });
+    });
+  }
+
+  if (row.row_type !== "company_tier" || !row.items.length || !heroItems.length) {
     return null;
   }
 
@@ -371,21 +423,27 @@ function FeaturedPartnersSection({
     <View style={styles.section}>
       <SectionHeader title="Featured Partners" />
       <View style={styles.featuredShell}>
-        <FlatList
+        <View style={styles.featuredViewport}>
+          <FlatList
           ref={listRef}
-          data={row.items}
-          keyExtractor={(company) => `${row.id}-${company.company_id}`}
+          data={heroItems}
+          initialScrollIndex={row.items.length > 1 ? 1 : 0}
+          keyExtractor={(company, index) => `${row.id}-${company.company_id}-${index}`}
           horizontal
-          pagingEnabled
-          decelerationRate="fast"
-          snapToInterval={cardWidth}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.featuredScroller}
-          onScrollBeginDrag={() => setIsUserInteracting(true)}
-          onMomentumScrollEnd={handleMomentumEnd}
-          getItemLayout={(_, index) => ({ length: cardWidth, offset: cardWidth * index, index })}
-          renderItem={({ item }) => <HeroCompanyCard company={item} width={cardWidth} onPress={() => onPressCompany(item, row)} />}
-        />
+            pagingEnabled
+            decelerationRate="fast"
+            snapToInterval={cardWidth}
+            snapToAlignment="start"
+            disableIntervalMomentum={false}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.featuredScroller}
+            onScrollBeginDrag={() => setIsUserInteracting(true)}
+            onMomentumScrollEnd={handleMomentumEnd}
+            onScrollToIndexFailed={handleScrollToIndexFailed}
+            getItemLayout={(_, index) => ({ length: cardWidth, offset: cardWidth * index, index })}
+            renderItem={({ item }) => <HeroCompanyCard company={item} width={cardWidth} onPress={() => onPressCompany(item, row)} />}
+          />
+        </View>
         {row.items.length > 1 ? (
           <View style={styles.featuredDots}>
             {row.items.map((company, index) => (
@@ -751,9 +809,12 @@ const styles = StyleSheet.create({
   featuredShell: {
     gap: spacing.sm,
   },
+  featuredViewport: {
+    marginHorizontal: spacing.lg,
+    overflow: "hidden",
+  },
   featuredScroller: {
-    paddingHorizontal: spacing.lg,
-    paddingRight: spacing.lg * 2,
+    paddingHorizontal: 0,
   },
   featuredDots: {
     flexDirection: "row",
@@ -813,7 +874,6 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     width: 320,
-    marginRight: spacing.md,
   },
   heroImage: {
     minHeight: 248,

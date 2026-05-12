@@ -782,6 +782,54 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(rows[1]["zone_key"], "featured_companies")
         self.assertTrue(all(row["zone_key"] != "latest_products" for row in rows))
 
+    @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=True, DIRECTORY_MARKET_MIXED_FEED_ENABLED=False)
+    def test_market_feed_returns_ten_hero_carousel_items_but_only_one_hero_exposure(self):
+        hero_zone = MarketZone.objects.get(key="hero_spotlight")
+        for index in range(1, 12):
+            self._create_company_with_product(
+                name=f"Hero House {index:02d}",
+                tier=self.featured_tier,
+                category_name="Rings",
+                product_name=f"Hero Ring {index:02d}",
+                product_public_url=f"https://example.com/hero-ring-{index:02d}.jpg",
+                company_public_url=f"https://example.com/hero-house-{index:02d}.jpg",
+                admin_priority=89 - index,
+            )
+        self._create_company_with_product(
+            name="Kaveri Ornament Hub",
+            tier=self.normal_tier,
+            category_name="Bangles",
+            product_name="Antiquity Bangles",
+            product_public_url="https://example.com/bangle.jpg",
+            company_public_url="https://example.com/kaveri-hero.jpg",
+        )
+
+        with patch(
+            "apps.directory.services._select_scheduled_hero",
+            return_value={
+                "selected": [{"company": self.company, "override_rank": 2}],
+                "candidate_count": 12,
+                "slot_key": "1234",
+                "slot_index": 1234,
+                "slot_time": datetime(2026, 1, 1, tzinfo=dt_timezone.utc),
+                "wildcard_slot": False,
+            },
+        ):
+            response = self.client.get(reverse("market_feed"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        hero_row = response.data["rows"][0]
+        hero_names = [item["name"] for item in hero_row["items"]]
+        self.assertEqual(hero_row["zone_key"], "hero_spotlight")
+        self.assertEqual(len(hero_names), 10)
+        self.assertEqual(hero_names[0], "Heritage Gold House")
+        self.assertIn("Hero House 01", hero_names)
+        self.assertIn("Hero House 09", hero_names)
+        self.assertNotIn("Hero House 10", hero_names)
+        self.assertNotIn("Hero House 11", hero_names)
+        self.assertNotIn("Kaveri Ornament Hub", hero_names)
+        self.assertEqual(ExposureLedger.objects.filter(zone=hero_zone).count(), 1)
+
     @override_settings(DIRECTORY_MARKET_ZONE_FEED_ENABLED=True, DIRECTORY_MARKET_MIXED_FEED_ENABLED=True)
     def test_market_feed_returns_mixed_payload_when_mixed_feed_enabled(self):
         self._configure_zone(

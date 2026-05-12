@@ -50,6 +50,7 @@ class MarketFeedBuildResult:
 FAIRNESS_ZONE_KEYS = {"featured_companies", "rising_companies"}
 ZERO_DECIMAL = Decimal("0")
 HUNDRED_DECIMAL = Decimal("100")
+HERO_CAROUSEL_ITEM_LIMIT = 10
 
 
 def _company_names_for_member_profiles(queryset) -> list[str]:
@@ -576,6 +577,13 @@ def _build_scheduled_hero_row(
         selected_company.last_featured_at = selection["slot_time"]
         selected_company.save(update_fields=["last_featured_at"])
 
+    carousel_companies = _build_scheduled_hero_carousel_companies(
+        zone,
+        visible_companies,
+        rules,
+        current_time,
+        selected=selected,
+    )
     exposures = _build_exposure_rows(
         zone,
         selected,
@@ -585,7 +593,7 @@ def _build_scheduled_hero_row(
     )
     applied_override_count = sum(1 for candidate in selected if candidate["override_rank"] < 2)
     return (
-        _build_zone_row_payload(zone, [candidate["company"] for candidate in selected]),
+        _build_zone_row_payload(zone, carousel_companies),
         candidate_count,
         applied_override_count,
         exposures if write_exposure else [],
@@ -726,6 +734,37 @@ def _build_zone_row_payload(zone: MarketZone, companies: list[Company]) -> dict:
         "serving_mode": zone.serving_mode,
         "resolved_items": companies,
     }
+
+
+def _build_scheduled_hero_carousel_companies(
+    zone: MarketZone,
+    visible_companies: list[Company],
+    rules: list[ZoneEligibilityRule],
+    current_time,
+    *,
+    selected: list[dict],
+) -> list[Company]:
+    if not selected:
+        return []
+
+    selected_company = selected[0]["company"]
+    candidates = _get_zone_candidates(zone, visible_companies, rules, current_time)
+    hero_candidates = [candidate for candidate in candidates if candidate["company"].tier_ref.hero_eligible]
+    hero_candidates.sort(key=lambda candidate: _company_sort_key(candidate, zone))
+
+    carousel_companies = [selected_company]
+    seen_company_ids = {selected_company.id}
+
+    for candidate in hero_candidates:
+        company = candidate["company"]
+        if company.id in seen_company_ids:
+            continue
+        carousel_companies.append(company)
+        seen_company_ids.add(company.id)
+        if len(carousel_companies) >= HERO_CAROUSEL_ITEM_LIMIT:
+            break
+
+    return carousel_companies
 
 
 def _build_exposure_rows(
