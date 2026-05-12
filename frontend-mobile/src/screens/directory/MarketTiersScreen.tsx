@@ -27,7 +27,7 @@ const SECTION_GOLD = "#775A19";
 const SECTION_MUTED = "#7E7576";
 const SECTION_BORDER = "#CFC4C5";
 const SECTION_CIRCLE = "#EFEDED";
-const FEATURED_AUTO_SCROLL_MS = 4500;
+const DEFAULT_FEATURED_AUTO_SCROLL_SECONDS = 5;
 
 function SkeletonBlock({ height, width = "100%", rounded = radii.md }: { height: number; width?: number | `${number}%`; rounded?: number }) {
   return <View style={[styles.skeletonBlock, { height, width, borderRadius: rounded }]} />;
@@ -195,6 +195,7 @@ export function MarketTiersScreen() {
   }
 
   const rows = marketFeed?.rows ?? [];
+  const featuredAutoScrollMs = (marketFeed?.settings.hero_auto_scroll_seconds ?? DEFAULT_FEATURED_AUTO_SCROLL_SECONDS) * 1000;
   const { featuredRow, categoryRow, establishedRow, arrivalsRow, directoryRow, remainingRows } = useMemo(() => {
     const nextFeaturedRow = rows.find((row) => row.row_type === "company_tier" && row.layout === "hero_company") ?? null;
     const nextCategoryRow = rows.find((row) => row.row_type === "category_collection") ?? null;
@@ -264,7 +265,7 @@ export function MarketTiersScreen() {
         </View>
       ) : null}
 
-      {featuredRow ? <FeaturedPartnersSection row={featuredRow} onPressCompany={openCompanyCatalog} /> : null}
+      {featuredRow ? <FeaturedPartnersSection row={featuredRow} onPressCompany={openCompanyCatalog} autoScrollMs={featuredAutoScrollMs} /> : null}
       {establishedRow ? <EstablishedMembersSection row={establishedRow} onPressCompany={openCompanyCatalog} /> : null}
       {categoryRow?.row_type === "category_collection" ? <ProductCategoriesSection row={categoryRow} onPressCategory={openCategoryResults} /> : null}
       {arrivalsRow?.row_type === "product_collection" ? <NewArrivalsSection row={arrivalsRow} onPressProduct={openProductDetail} onPressViewAll={() => navigation.navigate("ProductSearch")} /> : null}
@@ -317,7 +318,15 @@ function SectionHeader({
   );
 }
 
-function FeaturedPartnersSection({ row, onPressCompany }: { row: MarketRow; onPressCompany: CompanyPressHandler }) {
+function FeaturedPartnersSection({
+  row,
+  onPressCompany,
+  autoScrollMs,
+}: {
+  row: MarketRow;
+  onPressCompany: CompanyPressHandler;
+  autoScrollMs: number;
+}) {
   const listRef = useRef<FlatList<MarketCompanyCard> | null>(null);
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -339,10 +348,10 @@ function FeaturedPartnersSection({ row, onPressCompany }: { row: MarketRow; onPr
         listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
         return nextIndex;
       });
-    }, FEATURED_AUTO_SCROLL_MS);
+    }, autoScrollMs);
 
     return () => clearInterval(timer);
-  }, [isUserInteracting, row.items.length, row.row_type]);
+  }, [autoScrollMs, isUserInteracting, row.items.length, row.row_type]);
 
   function handleMomentumEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
     if (row.row_type !== "company_tier" || !row.items.length) {

@@ -10,6 +10,7 @@ from .models import (
     CompanyVerification,
     Enquiry,
     MarketRow,
+    MarketScreenSettings,
     MarketZone,
     MediaAsset,
     PlacementOverride,
@@ -19,13 +20,17 @@ from .models import (
     ProductCategory,
     ProductImage,
     ProductSubCategory,
+    ProductVisibilityTarget,
     ProductWishlist,
     ZoneEligibilityRule,
 )
 from .services import (
     TierValidationError,
+    build_product_visibility_summary,
     build_downgrade_warning,
     sync_product_images,
+    sync_product_visibility_targets,
+    validate_product_target_payload,
     validate_company_can_activate_product,
     validate_company_tier_capacity,
     validate_product_image_count,
@@ -52,6 +57,10 @@ def get_product_image_payload(product: Product) -> list[dict[str, str]]:
         if image.asset.public_url:
             payload.append({"url": image.asset.public_url, "type": "image"})
     return payload
+
+
+def get_product_visibility_payload(product: Product) -> dict[str, object]:
+    return build_product_visibility_summary(product)
 
 
 def get_product_attribute_payload(product: Product) -> list[dict[str, str]]:
@@ -260,6 +269,24 @@ class CompanyManagementProductImageSerializer(serializers.ModelSerializer):
         fields = ["asset_id", "url", "original_filename"]
 
 
+class ProductVisibilityTargetInputSerializer(serializers.Serializer):
+    target_type = serializers.ChoiceField(choices=ProductVisibilityTarget.TargetType.choices)
+    target_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+
+    def validate(self, attrs):
+        try:
+            validate_product_target_payload(attrs["target_type"], attrs.get("target_id"))
+        except TierValidationError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return attrs
+
+
+class ProductVisibilityTargetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductVisibilityTarget
+        fields = ["id", "target_type", "target_id", "mode"]
+
+
 class CompanyManagementProductSerializer(serializers.ModelSerializer):
     category_id = serializers.IntegerField(source="category.id", read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
@@ -270,6 +297,8 @@ class CompanyManagementProductSerializer(serializers.ModelSerializer):
     attribute_values = serializers.SerializerMethodField()
     image_count = serializers.SerializerMethodField()
     images = CompanyManagementProductImageSerializer(many=True, read_only=True)
+    visibility = serializers.SerializerMethodField()
+    targets = ProductVisibilityTargetSerializer(source="visibility_targets", many=True, read_only=True)
 
     class Meta:
         model = Product
@@ -291,6 +320,8 @@ class CompanyManagementProductSerializer(serializers.ModelSerializer):
             "created_at",
             "image_count",
             "images",
+            "targets",
+            "visibility",
         ]
 
     def get_image_count(self, obj: Product) -> int:
@@ -298,6 +329,9 @@ class CompanyManagementProductSerializer(serializers.ModelSerializer):
 
     def get_attribute_values(self, obj: Product) -> dict[str, str]:
         return get_product_attribute_map(obj)
+
+    def get_visibility(self, obj: Product) -> dict[str, object]:
+        return get_product_visibility_payload(obj)
 
 
 class CompanySerializer(serializers.ModelSerializer):
@@ -533,8 +567,21 @@ class MarketRowSerializer(serializers.Serializer):
         return MarketCompanyCardSerializer(items, many=True).data
 
 
+class MarketFeedSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MarketScreenSettings
+        fields = ["hero_auto_scroll_seconds"]
+
+
 class MarketFeedSerializer(serializers.Serializer):
     rows = MarketRowSerializer(many=True)
+    settings = MarketFeedSettingsSerializer()
+
+
+class MarketScreenSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MarketScreenSettings
+        fields = ["hero_auto_scroll_seconds"]
 
 
 class ProductSubCategorySerializer(serializers.ModelSerializer):
@@ -1375,6 +1422,8 @@ class ProductWriteSerializer(serializers.ModelSerializer):
     is_active = serializers.BooleanField(required=False, default=False)
     image_asset_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), write_only=True, required=False)
     attribute_values = serializers.DictField(child=serializers.CharField(allow_blank=True), write_only=True, required=False)
+    include_targets = ProductVisibilityTargetInputSerializer(many=True, write_only=True, required=False)
+    exclude_targets = ProductVisibilityTargetInputSerializer(many=True, write_only=True, required=False)
 
     class Meta:
         model = Product
@@ -1390,6 +1439,8 @@ class ProductWriteSerializer(serializers.ModelSerializer):
             "is_active",
             "image_asset_ids",
             "attribute_values",
+            "include_targets",
+            "exclude_targets",
         ]
         read_only_fields = ["id"]
 
@@ -1401,6 +1452,8 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         category = attrs.get("category", getattr(instance, "category", None))
         subcategory = attrs.get("subcategory", getattr(instance, "subcategory", None))
         attribute_values = attrs.get("attribute_values")
+        include_targets = attrs.get("include_targets")
+        exclude_targets = attrs.get("exclude_targets")
 
         if company.tier_ref_id is None:
             raise serializers.ValidationError("A company tier is required before products can be managed.")
@@ -1425,6 +1478,20 @@ class ProductWriteSerializer(serializers.ModelSerializer):
 
         if image_asset_ids is not None and len(MediaAsset.objects.filter(id__in=image_asset_ids)) != len(set(image_asset_ids)):
             raise serializers.ValidationError({"image_asset_ids": "One or more selected image assets do not exist."})
+
+        if include_targets is not None and not include_targets:
+            raise serializers.ValidationError({"include_targets": "At least one include target is required."})
+
+        if include_targets is not None:
+            attrs["validated_include_targets"] = [
+                {"target_type": target["target_type"], "target_id": target.get("target_id")}
+                for target in include_targets
+            ]
+        if exclude_targets is not None:
+            attrs["validated_exclude_targets"] = [
+                {"target_type": target["target_type"], "target_id": target.get("target_id")}
+                for target in exclude_targets
+            ]
 
         if target_is_active:
             existing_count = instance.images.count() if instance is not None else 0
@@ -1486,11 +1553,16 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         image_asset_ids = validated_data.pop("image_asset_ids", [])
         attribute_values = validated_data.pop("validated_attribute_values", {})
         definitions = validated_data.pop("validated_attribute_definitions", [])
+        include_targets = validated_data.pop("validated_include_targets", None)
+        exclude_targets = validated_data.pop("validated_exclude_targets", None)
         validated_data.pop("attribute_values", None)
+        validated_data.pop("include_targets", None)
+        validated_data.pop("exclude_targets", None)
         product = Product.objects.create(company=company, **validated_data)
         if image_asset_ids:
             sync_product_images(product, image_asset_ids)
         sync_product_attribute_values(product, definitions=definitions, values=attribute_values)
+        sync_product_visibility_targets(product, include_targets=include_targets, exclude_targets=exclude_targets)
         product.refresh_from_db()
         return product
 
@@ -1498,7 +1570,11 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         image_asset_ids = validated_data.pop("image_asset_ids", None)
         attribute_values = validated_data.pop("validated_attribute_values", None)
         definitions = validated_data.pop("validated_attribute_definitions", None)
+        include_targets = validated_data.pop("validated_include_targets", None)
+        exclude_targets = validated_data.pop("validated_exclude_targets", None)
         validated_data.pop("attribute_values", None)
+        validated_data.pop("include_targets", None)
+        validated_data.pop("exclude_targets", None)
         for attribute, value in validated_data.items():
             setattr(instance, attribute, value)
         instance.save()
@@ -1506,6 +1582,8 @@ class ProductWriteSerializer(serializers.ModelSerializer):
             sync_product_images(instance, image_asset_ids)
         if attribute_values is not None and definitions is not None:
             sync_product_attribute_values(instance, definitions=definitions, values=attribute_values)
+        if include_targets is not None or exclude_targets is not None:
+            sync_product_visibility_targets(instance, include_targets=include_targets, exclude_targets=exclude_targets)
         instance.refresh_from_db()
         return instance
 

@@ -2,6 +2,8 @@ import { getJson, patchJson, postJson } from "./client";
 import {
   Company,
   CompanyManagementDetail,
+  CompanyManagementProduct,
+  CompanyOption,
   CompanyProductWritePayload,
   CompanyTierManagementOverview,
   CompanyTierRequestActionResponse,
@@ -15,6 +17,7 @@ import {
   ProductEnquiryPayload,
   ProductFilterConfigResponse,
   ProductSearchResponse,
+  RegionState,
 } from "../types/api";
 
 export type MarketProductSearchParams = {
@@ -35,11 +38,11 @@ export type MarketProductSearchParams = {
 };
 
 export function getMarketFeed() {
-  return getJson<MarketFeedData>("/directory/market/");
+  return getJson<MarketFeedData>("/directory/market/", true);
 }
 
 export function getCompanies() {
-  return getJson<Company[]>("/directory/companies/");
+  return getJson<Company[]>("/directory/companies/", true);
 }
 
 export function getCompanyManagementDetail(companyId: number) {
@@ -51,7 +54,7 @@ export function getCompanyTierManagementOverview() {
 }
 
 export function getMarketFilterConfig() {
-  return getJson<ProductFilterConfigResponse>("/products/filter-config/");
+  return getJson<ProductFilterConfigResponse>("/products/filter-config/", true);
 }
 
 export function createCompanyTierRequest(payload: CompanyTierRequestCreatePayload) {
@@ -63,11 +66,11 @@ export function cancelCompanyTierRequest(requestId: number) {
 }
 
 export function createCompanyProduct(companyId: number, payload: CompanyProductWritePayload) {
-  return postJson<Product>(`/directory/companies/${companyId}/products/`, payload, true);
+  return postJson<CompanyManagementProduct>(`/directory/companies/${companyId}/products/`, payload, true);
 }
 
 export function updateCompanyProduct(companyId: number, productId: number, payload: CompanyProductWritePayload) {
-  return patchJson<Product>(`/directory/companies/${companyId}/products/${productId}/`, payload, true);
+  return patchJson<CompanyManagementProduct>(`/directory/companies/${companyId}/products/${productId}/`, payload, true);
 }
 
 export function createProductImageUploadSession(companyId: number, productId: number, filename: string) {
@@ -87,7 +90,7 @@ export function finalizeProductMediaAsset(companyId: number, productId: number, 
 }
 
 export function attachProductImage(companyId: number, productId: number, assetId: number) {
-  return postJson<Product>(
+  return postJson<CompanyManagementProduct>(
     `/directory/companies/${companyId}/products/${productId}/images/`,
     { asset_id: assetId },
     true,
@@ -143,11 +146,11 @@ export function searchMarketProducts(params: MarketProductSearchParams) {
   }
 
   const query = searchParams.toString();
-  return getJson<ProductSearchResponse>(`/products/${query ? `?${query}` : ""}`);
+  return getJson<ProductSearchResponse>(`/products/${query ? `?${query}` : ""}`, true);
 }
 
-export function getProductDetail(productId: number, authenticated = false) {
-  return getJson<ProductDetail>(`/products/${productId}/`, authenticated);
+export function getProductDetail(productId: number) {
+  return getJson<ProductDetail>(`/products/${productId}/`, true);
 }
 
 export function toggleProductWishlist(productId: number) {
@@ -155,5 +158,21 @@ export function toggleProductWishlist(productId: number) {
 }
 
 export function createProductEnquiry(productId: number, payload: ProductEnquiryPayload) {
-  return postJson(`/products/${productId}/enquiries/`, payload);
+  return postJson(`/products/${productId}/enquiries/`, payload, true);
+}
+
+export function getRegionHierarchy() {
+  return getJson<RegionState[]>("/regions/", true);
+}
+
+export async function getCompanyOptions() {
+  const companies = await getJson<Array<Partial<CompanyOption>>>("/directory/companies/", true);
+  return companies
+    .map((company) => ({
+      id: company.id ?? 0,
+      name: company.name ?? "Unnamed company",
+      city: company.city ?? "",
+      state: company.state ?? "",
+    }))
+    .filter((company) => company.id > 0);
 }

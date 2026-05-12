@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.text import slugify
 
@@ -155,6 +156,29 @@ class MarketZone(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class MarketScreenSettings(models.Model):
+    class Scope(models.TextChoices):
+        GLOBAL = "global", "Global"
+
+    class HeroAutoScrollSeconds(models.IntegerChoices):
+        THREE = 3, "3 seconds"
+        FIVE = 5, "5 seconds"
+
+    scope = models.CharField(max_length=20, choices=Scope.choices, default=Scope.GLOBAL, unique=True)
+    hero_auto_scroll_seconds = models.PositiveSmallIntegerField(
+        choices=HeroAutoScrollSeconds.choices,
+        default=HeroAutoScrollSeconds.FIVE,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return f"{self.get_scope_display()} market screen settings"
 
 
 class ZoneEligibilityRule(models.Model):
@@ -326,6 +350,54 @@ class Product(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args, **kwargs):
+        creating = self._state.adding
+        super().save(*args, **kwargs)
+        if creating and not self.visibility_targets.exists():
+            ProductVisibilityTarget.objects.create(
+                product=self,
+                target_type=ProductVisibilityTarget.TargetType.PLATFORM,
+                target_id=None,
+                mode=ProductVisibilityTarget.Mode.INCLUDE,
+            )
+
+
+class ProductVisibilityTarget(models.Model):
+    class TargetType(models.TextChoices):
+        PLATFORM = "platform", "Platform"
+        STATE = "state", "State"
+        ASSOCIATION = "association", "Association"
+        UNIT = "unit", "Unit"
+        COMPANY = "company", "Company"
+        USER = "user", "User"
+
+    class Mode(models.TextChoices):
+        INCLUDE = "include", "Include"
+        EXCLUDE = "exclude", "Exclude"
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="visibility_targets")
+    target_type = models.CharField(max_length=20, choices=TargetType.choices)
+    target_id = models.PositiveBigIntegerField(null=True, blank=True)
+    mode = models.CharField(max_length=10, choices=Mode.choices)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "target_type", "target_id", "mode"],
+                name="uniq_product_visibility_target_mode",
+            ),
+        ]
+
+    def clean(self):
+        if self.target_type == self.TargetType.PLATFORM and self.target_id is not None:
+            raise ValidationError({"target_id": "Platform targets must not define a target id."})
+        if self.target_type != self.TargetType.PLATFORM and self.target_id is None:
+            raise ValidationError({"target_id": "A target id is required for non-platform targets."})
+
+    def __str__(self) -> str:
+        target_label = "all" if self.target_id is None else str(self.target_id)
+        return f"{self.product_id}:{self.mode}:{self.target_type}:{target_label}"
 
 
 class ProductWishlist(models.Model):

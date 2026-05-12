@@ -107,6 +107,11 @@ export type CompanyOption = {
   state: string;
 };
 
+export type AudienceTargetInput = {
+  target_type: "platform" | "state" | "association" | "unit" | "company" | "user";
+  target_id: number | null;
+};
+
 export type ProductOption = {
   id: number;
   name: string;
@@ -114,10 +119,7 @@ export type ProductOption = {
   company_name: string;
 };
 
-export type NewsTargetInput = {
-  target_type: "platform" | "state" | "association" | "unit" | "company" | "user";
-  target_id: number | null;
-};
+export type NewsTargetInput = AudienceTargetInput;
 
 export type AdminNewsRecord = {
   id: number;
@@ -355,10 +357,26 @@ export type TierChangeRequestMutationResponse = {
   request: TierChangeRequestRecord;
 };
 
+export type MarketScreenSettings = {
+  hero_auto_scroll_seconds: 3 | 5;
+};
+
 export type CompanyManagementProductImage = {
   asset_id: number;
   url: string;
   original_filename: string;
+};
+
+export type CompanyManagementProductVisibility = {
+  status: "visible" | "hidden";
+  audience_label: string;
+  detail: string;
+  blockers: string[];
+};
+
+export type ProductVisibilityTargetRecord = AudienceTargetInput & {
+  id: number;
+  mode: "include" | "exclude";
 };
 
 export type CompanyManagementProduct = {
@@ -379,6 +397,8 @@ export type CompanyManagementProduct = {
   created_at: string;
   image_count: number;
   images: CompanyManagementProductImage[];
+  targets: ProductVisibilityTargetRecord[];
+  visibility: CompanyManagementProductVisibility;
 };
 
 export type CompanyManagementDetail = {
@@ -469,6 +489,8 @@ export type CompanyProductUpsertPayload = {
   is_active: boolean;
   image_asset_ids: number[];
   attribute_values?: Record<string, string>;
+  include_targets?: AudienceTargetInput[];
+  exclude_targets?: AudienceTargetInput[];
 };
 
 export type AdminTaxonomyAttribute = {
@@ -841,6 +863,17 @@ export async function saveAssociationRateCatalog(payload: { categories: RateCata
   });
 }
 
+export async function fetchAdminMarketScreenSettings() {
+  return requestJson<MarketScreenSettings>("/admin/market-screen-settings/");
+}
+
+export async function updateAdminMarketScreenSettings(payload: MarketScreenSettings) {
+  return requestJson<MarketScreenSettings>("/admin/market-screen-settings/", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function fetchCompanyManagement(companyId: number) {
   return requestJson<CompanyManagementDetail>(`/directory/companies/${companyId}/manage/`);
 }
@@ -994,14 +1027,14 @@ export async function attachCompanyImage(companyId: number, payload: CompanyImag
 }
 
 export async function createCompanyProduct(companyId: number, payload: CompanyProductUpsertPayload) {
-  return requestJson(`/directory/companies/${companyId}/products/`, {
+  return requestJson<CompanyManagementProduct>(`/directory/companies/${companyId}/products/`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function updateCompanyProduct(companyId: number, productId: number, payload: Partial<CompanyProductUpsertPayload>) {
-  return requestJson(`/directory/companies/${companyId}/products/${productId}/`, {
+  return requestJson<CompanyManagementProduct>(`/directory/companies/${companyId}/products/${productId}/`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

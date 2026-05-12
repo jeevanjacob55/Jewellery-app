@@ -14,6 +14,7 @@ from apps.directory.views import (
     AdminMarketReportSummaryView,
     AdminMarketRowDetailView,
     AdminMarketRowListCreateView,
+    AdminMarketScreenSettingsView,
     AdminMarketUnderServedReportView,
     AdminMarketZoneDetailView,
     AdminMarketZoneEligibilityRuleView,
@@ -82,6 +83,7 @@ urlpatterns = [
     path("placement-overrides/", AdminPlacementOverrideListCreateView.as_view(), name="admin_placement_override_list_create"),
     path("placement-overrides/<int:override_id>/", AdminPlacementOverrideDetailView.as_view(), name="admin_placement_override_detail"),
     path("market-preview/", AdminMarketPreviewView.as_view(), name="admin_market_preview"),
+    path("market-screen-settings/", AdminMarketScreenSettingsView.as_view(), name="admin_market_screen_settings"),
     path("market-report/summary/", AdminMarketReportSummaryView.as_view(), name="admin_market_report_summary"),
     path("market-report/under-served/", AdminMarketUnderServedReportView.as_view(), name="admin_market_report_under_served"),
     path(

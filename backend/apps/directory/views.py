@@ -23,6 +23,7 @@ from .models import (
     CompanyImage,
     CompanyTierChangeRequest,
     MarketRow,
+    MarketScreenSettings,
     MarketZone,
     CompanyTier,
     Enquiry,
@@ -47,6 +48,7 @@ from .serializers import (
     CompanyTierAdminDetailSerializer,
     CompanyImageAttachSerializer,
     CompanyManagementDetailSerializer,
+    CompanyManagementProductSerializer,
     CompanyManagementUpdateSerializer,
     CompanyMediaAssetFinalizeSerializer,
     CompanyMarketVisibilitySerializer,
@@ -60,6 +62,7 @@ from .serializers import (
     CompanyTierWriteSerializer,
     EnquirySerializer,
     MarketFeedSerializer,
+    MarketScreenSettingsSerializer,
     MarketPreviewSerializer,
     MarketReportSummarySerializer,
     MarketRowWriteSerializer,
@@ -81,6 +84,7 @@ from .serializers import (
 )
 from .services import (
     TierValidationError,
+    apply_product_visibility_filters,
     apply_tier_change_with_selected_products,
     build_latest_products_row,
     build_market_category_row,
@@ -98,19 +102,31 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
-def get_public_company_queryset():
-    active_product_queryset = Product.objects.filter(is_active=True).select_related("category", "subcategory").prefetch_related(
-        Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
-        Prefetch("attribute_values", queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by("attribute_definition__display_order", "id")),
-    )
-    return Company.objects.filter(is_active=True, is_approved=True).select_related("verification", "tier_ref").prefetch_related(
-        Prefetch("products", queryset=active_product_queryset),
+def get_public_company_queryset(user=None, *, include_products: bool = True):
+    queryset = Company.objects.filter(is_active=True, is_approved=True).select_related("verification", "tier_ref").prefetch_related(
         Prefetch("images", queryset=CompanyImage.objects.select_related("asset").order_by("is_logo", "id")),
     )
+    if not include_products:
+        return queryset
+
+    active_product_queryset = apply_product_visibility_filters(
+        Product.objects.filter(is_active=True).select_related("category", "subcategory").prefetch_related(
+            Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
+            Prefetch(
+                "attribute_values",
+                queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by(
+                    "attribute_definition__display_order",
+                    "id",
+                ),
+            ),
+        ),
+        user,
+    )
+    return queryset.prefetch_related(Prefetch("products", queryset=active_product_queryset))
 
 
-def get_public_product_queryset():
-    return Product.objects.filter(
+def get_public_product_queryset(user=None):
+    queryset = Product.objects.filter(
         is_active=True,
         company__is_active=True,
         company__is_approved=True,
@@ -118,13 +134,27 @@ def get_public_product_queryset():
         Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
         Prefetch("attribute_values", queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by("attribute_definition__display_order", "id")),
     )
+    return apply_product_visibility_filters(queryset, user)
+
+
+def get_market_screen_settings() -> MarketScreenSettings:
+    settings_record, _ = MarketScreenSettings.objects.get_or_create(
+        scope=MarketScreenSettings.Scope.GLOBAL,
+        defaults={"hero_auto_scroll_seconds": MarketScreenSettings.HeroAutoScrollSeconds.FIVE},
+    )
+    return settings_record
+
+
+def build_market_feed_settings_payload() -> MarketScreenSettings:
+    return get_market_screen_settings()
 
 
 def get_company_management_queryset():
     product_queryset = (
-        Product.objects.select_related("category", "subcategory")
+        Product.objects.select_related("company", "category", "subcategory")
         .prefetch_related(
             Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
+            "visibility_targets",
             Prefetch(
                 "attribute_values",
                 queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by("attribute_definition__display_order", "id"),
@@ -235,31 +265,31 @@ def build_admin_taxonomy_payload() -> dict:
     return {"product_types": grouped}
 
 
-def build_market_feed_payload() -> dict:
+def build_market_feed_payload(user=None) -> dict:
     if not settings.DIRECTORY_MARKET_ZONE_FEED_ENABLED:
         return build_legacy_market_feed_payload()
 
     if not settings.DIRECTORY_MARKET_MIXED_FEED_ENABLED:
-        return build_zone_market_feed_payload()
+        return build_zone_market_feed_payload(user=user)
 
     try:
-        return build_mixed_market_feed_payload()
+        return build_mixed_market_feed_payload(user=user)
     except Exception:
         logger.exception("Falling back to zone market feed after mixed market feed failure.")
-        return build_zone_market_feed_payload()
+        return build_zone_market_feed_payload(user=user)
 
 
-def build_zone_market_feed_payload() -> dict:
+def build_zone_market_feed_payload(*, user=None) -> dict:
     try:
-        result = build_market_zone_feed(get_public_company_queryset(), write_exposure=True)
+        result = build_market_zone_feed(get_public_company_queryset(user, include_products=False), write_exposure=True)
     except Exception:
         logger.exception("Falling back to legacy market-row feed after zone market feed failure.")
         return build_legacy_market_feed_payload()
-    return {"rows": result.rows}
+    return {"rows": result.rows, "settings": build_market_feed_settings_payload()}
 
 
-def build_mixed_market_feed_payload() -> dict:
-    company_result = build_market_zone_feed(get_public_company_queryset(), write_exposure=True)
+def build_mixed_market_feed_payload(*, user=None) -> dict:
+    company_result = build_market_zone_feed(get_public_company_queryset(user, include_products=False), write_exposure=True)
     company_rows_by_key = {
         row["zone_key"]: row
         for row in company_result.rows
@@ -277,7 +307,7 @@ def build_mixed_market_feed_payload() -> dict:
     latest_products_row = None
     if latest_products_zone is not None:
         latest_products = list(
-            get_public_product_queryset()
+            get_public_product_queryset(user)
             .filter(company__is_market_visible=True, company__tier_ref__is_active=True)
             .order_by("-created_at", "-id")[: latest_products_zone.capacity]
         )
@@ -295,7 +325,7 @@ def build_mixed_market_feed_payload() -> dict:
         ordered_rows.append(rising_row)
     if latest_products_row is not None:
         ordered_rows.append(latest_products_row)
-    return {"rows": ordered_rows}
+    return {"rows": ordered_rows, "settings": build_market_feed_settings_payload()}
 
 
 def build_legacy_market_feed_payload() -> dict:
@@ -314,38 +344,38 @@ def build_legacy_market_feed_payload() -> dict:
         )
 
     visible_rows = [row for row in rows if row.resolved_items]
-    return {"rows": visible_rows}
+    return {"rows": visible_rows, "settings": build_market_feed_settings_payload()}
 
 
 class CompanyListView(ListAPIView):
-    authentication_classes = []
     permission_classes = [permissions.AllowAny]
-    queryset = get_public_company_queryset().order_by("tier_ref__display_priority", "-admin_priority", "name")
     serializer_class = CompanySerializer
+
+    def get_queryset(self):
+        return get_public_company_queryset(self.request.user).order_by("tier_ref__display_priority", "-admin_priority", "name")
 
 
 class CompanyDetailView(RetrieveAPIView):
-    authentication_classes = []
     permission_classes = [permissions.AllowAny]
-    queryset = get_public_company_queryset()
     serializer_class = CompanySerializer
+
+    def get_queryset(self):
+        return get_public_company_queryset(self.request.user)
 
 
 class MarketFeedView(APIView):
-    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        payload = build_market_feed_payload()
+        payload = build_market_feed_payload(request.user)
         return Response(MarketFeedSerializer(payload).data)
 
 
 class ProductFilterConfigView(APIView):
-    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        public_products = get_public_product_queryset()
+        public_products = get_public_product_queryset(request.user)
         categories = ProductCategory.objects.filter(is_active=True).prefetch_related(
             Prefetch("subcategories", queryset=ProductSubCategory.objects.filter(is_active=True).order_by("display_order", "name")),
             Prefetch("attribute_definitions", queryset=ProductAttributeDefinition.objects.filter(is_active=True).order_by("display_order", "id")),
@@ -356,11 +386,8 @@ class ProductFilterConfigView(APIView):
             .values_list("purity", flat=True)
             .distinct()
         )
-        company_queryset = Company.objects.filter(
-            is_active=True,
-            is_approved=True,
-            products__is_active=True,
-        ).order_by("name", "id").distinct()
+        company_ids = list(public_products.order_by().values_list("company_id", flat=True).distinct())
+        company_queryset = Company.objects.filter(id__in=company_ids).order_by("name", "id")
         states = sorted(
             {
                 state.strip()
@@ -391,11 +418,10 @@ class ProductFilterConfigView(APIView):
 
 
 class ProductSearchView(APIView):
-    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        queryset = get_public_product_queryset()
+        queryset = get_public_product_queryset(request.user)
         search = request.query_params.get("search", "").strip()
         category_param = request.query_params.get("category")
         subcategory_param = request.query_params.get("subcategory")
@@ -501,18 +527,19 @@ class ProductSearchView(APIView):
 
 
 class ProductDetailView(RetrieveAPIView):
-    authentication_classes = []
     permission_classes = [permissions.AllowAny]
     lookup_url_kwarg = "product_id"
-    queryset = get_public_product_queryset()
     serializer_class = ProductDetailSerializer
+
+    def get_queryset(self):
+        return get_public_product_queryset(self.request.user)
 
 
 class ProductWishlistToggleView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, product_id: int):
-        product = get_object_or_404(get_public_product_queryset(), pk=product_id)
+        product = get_object_or_404(get_public_product_queryset(request.user), pk=product_id)
         wishlist, created = ProductWishlist.objects.get_or_create(user=request.user, product=product)
         if not created:
             wishlist.delete()
@@ -521,11 +548,10 @@ class ProductWishlistToggleView(APIView):
 
 
 class ProductEnquiryCreateView(APIView):
-    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, product_id: int):
-        product = get_object_or_404(get_public_product_queryset(), pk=product_id)
+        product = get_object_or_404(get_public_product_queryset(request.user), pk=product_id)
         serializer = ProductEnquiryWriteSerializer(data=request.data, context={"product": product})
         serializer.is_valid(raise_exception=True)
         enquiry = serializer.save()
@@ -844,8 +870,22 @@ class CompanyProductListCreateView(APIView):
         serializer = ProductWriteSerializer(data=request.data, context={"company": company})
         serializer.is_valid(raise_exception=True)
         product = serializer.save()
-        product.refresh_from_db()
-        return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
+        product = (
+            Product.objects.select_related("company", "category", "subcategory")
+            .prefetch_related(
+                Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
+                "visibility_targets",
+                Prefetch(
+                    "attribute_values",
+                    queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by(
+                        "attribute_definition__display_order",
+                        "id",
+                    ),
+                ),
+            )
+            .get(pk=product.id)
+        )
+        return Response(CompanyManagementProductSerializer(product).data, status=status.HTTP_201_CREATED)
 
 
 class CompanyProductDetailView(APIView):
@@ -863,7 +903,22 @@ class CompanyProductDetailView(APIView):
         serializer = ProductWriteSerializer(product, data=request.data, partial=True, context={"company": company})
         serializer.is_valid(raise_exception=True)
         updated_product = serializer.save()
-        return Response(ProductSerializer(updated_product).data)
+        updated_product = (
+            Product.objects.select_related("company", "category", "subcategory")
+            .prefetch_related(
+                Prefetch("images", queryset=ProductImage.objects.select_related("asset").order_by("id")),
+                "visibility_targets",
+                Prefetch(
+                    "attribute_values",
+                    queryset=ProductAttributeValue.objects.select_related("attribute_definition").order_by(
+                        "attribute_definition__display_order",
+                        "id",
+                    ),
+                ),
+            )
+            .get(pk=updated_product.id)
+        )
+        return Response(CompanyManagementProductSerializer(updated_product).data)
 
 
 class ProductImageUploadSessionView(APIView):
@@ -1286,6 +1341,20 @@ class AdminMarketPreviewView(APIView):
 
         payload = build_market_preview_payload(get_public_company_queryset(), hero_days=hero_days)
         return Response(MarketPreviewSerializer(payload).data)
+
+
+class AdminMarketScreenSettingsView(APIView):
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        return Response(MarketScreenSettingsSerializer(get_market_screen_settings()).data)
+
+    def patch(self, request):
+        settings_record = get_market_screen_settings()
+        serializer = MarketScreenSettingsSerializer(settings_record, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class AdminMarketReportSummaryView(APIView):

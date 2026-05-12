@@ -9,6 +9,7 @@ import { AdminNewsCreatePage } from "./pages/AdminNewsCreatePage";
 import { AdvertisementUploadPage } from "./pages/AdvertisementUploadPage";
 import { CompanyManagementPage } from "./pages/CompanyManagementPage";
 import { LoginPage } from "./pages/LoginPage";
+import { MarketScreenPage } from "./pages/MarketScreenPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { RateManagementPage } from "./pages/RateManagementPage";
 import { TierManagementPage } from "./pages/TierManagementPage";
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="approvals" element={<ApprovalDashboardPage />} />
         <Route path="company" element={<CompanyManagementPage />} />
         <Route path="tiers" element={<TierManagementPage />} />
+        <Route path="market-screen" element={<MarketScreenPage />} />
         <Route path="taxonomy" element={<TaxonomyManagementPage />} />
         <Route path="rates" element={<RateManagementPage />} />
         <Route

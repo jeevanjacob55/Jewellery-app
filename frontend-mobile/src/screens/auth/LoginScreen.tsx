@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getJson, postJson } from "../../api/client";
@@ -269,7 +270,7 @@ export function LoginScreen() {
                     placeholderTextColor="#6B7280"
                   />
                   <Pressable style={styles.passwordToggle} onPress={() => setShowPassword((current) => !current)}>
-                    <Text style={styles.passwordToggleIcon}>{showPassword ? "🙈" : "👁"}</Text>
+                    <MaterialIcons name={showPassword ? "visibility-off" : "visibility"} size={22} color="#4B5563" />
                   </Pressable>
                 </View>
 

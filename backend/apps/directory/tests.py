@@ -21,6 +21,7 @@ from .models import (
     ExposureLedger,
     Enquiry,
     MarketRow,
+    MarketScreenSettings,
     MarketZone,
     MediaAsset,
     PlacementOverride,
@@ -30,6 +31,7 @@ from .models import (
     ProductCategory,
     ProductImage,
     ProductSubCategory,
+    ProductVisibilityTarget,
     ProductWishlist,
     ZoneEligibilityRule,
 )
@@ -205,6 +207,35 @@ class DirectoryApiTests(APITestCase):
         )
         ProductImage.objects.create(product=product, asset=asset)
 
+    def _set_product_targets(
+        self,
+        product: Product,
+        *,
+        include_targets: list[tuple[str, int | None]],
+        exclude_targets: list[tuple[str, int | None]] | None = None,
+    ) -> None:
+        product.visibility_targets.all().delete()
+        ProductVisibilityTarget.objects.bulk_create(
+            [
+                ProductVisibilityTarget(
+                    product=product,
+                    target_type=target_type,
+                    target_id=target_id,
+                    mode=ProductVisibilityTarget.Mode.INCLUDE,
+                )
+                for target_type, target_id in include_targets
+            ]
+            + [
+                ProductVisibilityTarget(
+                    product=product,
+                    target_type=target_type,
+                    target_id=target_id,
+                    mode=ProductVisibilityTarget.Mode.EXCLUDE,
+                )
+                for target_type, target_id in (exclude_targets or [])
+            ]
+        )
+
     def _configure_zone(self, key: str, **updates) -> MarketZone:
         zone = MarketZone.objects.get(key=key)
         for field_name, value in updates.items():
@@ -307,6 +338,57 @@ class DirectoryApiTests(APITestCase):
         self.assertIn("category_product_type", response.data["products"][0])
         self.assertIn("attribute_values", response.data["products"][0])
         self.assertIn("asset_id", response.data["products"][0]["images"][0])
+
+    def test_company_management_detail_includes_visible_product_audience(self):
+        self.client.force_authenticate(user=self.company_admin)
+        self.company.is_market_visible = False
+        self.company.save(update_fields=["is_market_visible"])
+
+        response = self.client.get(reverse("company_manage_detail", args=[self.company.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        visibility = response.data["products"][0]["visibility"]
+        self.assertEqual(visibility["status"], "visible")
+        self.assertEqual(visibility["audience_label"], "Public catalog visitors, members, and admins")
+        self.assertIn("Included audiences: Platform.", visibility["detail"])
+        self.assertIn("currently hidden for this company", visibility["detail"])
+        self.assertEqual(visibility["blockers"], [])
+        product_payload = next(product for product in response.data["products"] if product["id"] == self.product.id)
+        self.assertEqual(
+            product_payload["targets"],
+            [
+                {
+                    "id": self.product.visibility_targets.get(mode=ProductVisibilityTarget.Mode.INCLUDE).id,
+                    "target_type": "platform",
+                    "target_id": None,
+                    "mode": "include",
+                }
+            ],
+        )
+
+    def test_company_management_detail_includes_hidden_product_blockers(self):
+        self.client.force_authenticate(user=self.company_admin)
+        self.product.is_active = False
+        self.product.save(update_fields=["is_active"])
+        self.company.is_active = False
+        self.company.is_approved = False
+        self.company.save(update_fields=["is_active", "is_approved"])
+
+        response = self.client.get(reverse("company_manage_detail", args=[self.company.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        hidden_product = next(product for product in response.data["products"] if product["id"] == self.product.id)
+        visibility = hidden_product["visibility"]
+        self.assertEqual(visibility["status"], "hidden")
+        self.assertEqual(visibility["audience_label"], "Company managers and admins only")
+        self.assertEqual(
+            visibility["blockers"],
+            [
+                "This product is inactive.",
+                "The company profile is inactive.",
+                "The company is awaiting admin approval.",
+            ],
+        )
 
     def test_company_admin_cannot_get_other_company_management_detail(self):
         other_company = self._create_company_with_product(
@@ -1202,6 +1284,86 @@ class DirectoryApiTests(APITestCase):
         self.assertFalse(response.data["is_wishlisted"])
         self.assertIn(f"/api/products/{self.chain_product.id}/", response.data["share_url"])
 
+    def test_anonymous_users_only_see_platform_targeted_products(self):
+        from .views import get_public_product_queryset
+
+        matching_user = get_user_model().objects.create_user(username="product_target_user", password="DemoPass123!")
+        self._set_product_targets(
+            self.chain_product,
+            include_targets=[(ProductVisibilityTarget.TargetType.USER, matching_user.id)],
+        )
+
+        detail_response = self.client.get(reverse("product_detail", args=[self.chain_product.id]))
+        company_response = self.client.get(reverse("company_detail", args=[self.company.id]))
+        visible_ids = list(get_public_product_queryset(None).values_list("id", flat=True))
+
+        self.assertNotIn(self.chain_product.id, visible_ids)
+        self.assertEqual(detail_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual([product["id"] for product in company_response.data["products"]], [self.product.id])
+
+    def test_matching_authenticated_user_can_access_targeted_product_surfaces(self):
+        from .views import get_public_product_queryset
+
+        matching_user = get_user_model().objects.create_user(username="matching_target_user", password="DemoPass123!")
+        self._set_product_targets(
+            self.chain_product,
+            include_targets=[(ProductVisibilityTarget.TargetType.USER, matching_user.id)],
+            exclude_targets=[(ProductVisibilityTarget.TargetType.USER, self.company_admin.id)],
+        )
+        self.client.force_authenticate(user=matching_user)
+
+        detail_response = self.client.get(reverse("product_detail", args=[self.chain_product.id]))
+        wishlist_response = self.client.post(reverse("product_wishlist_toggle", args=[self.chain_product.id]), {}, format="json")
+        enquiry_response = self.client.post(
+            reverse("product_enquiry_create", args=[self.chain_product.id]),
+            {
+                "type": "FINAL_PRICE_REQUEST",
+                "message": "Please share the final price and availability.",
+                "requester_name": "Riya",
+                "requester_phone": "9888888888",
+            },
+            format="json",
+        )
+        company_response = self.client.get(reverse("company_detail", args=[self.company.id]))
+        visible_ids = list(get_public_product_queryset(matching_user).values_list("id", flat=True))
+
+        self.assertIn(self.chain_product.id, visible_ids)
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(wishlist_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(wishlist_response.data["is_wishlisted"])
+        self.assertEqual(enquiry_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(sorted(product["id"] for product in company_response.data["products"]), sorted([self.product.id, self.chain_product.id]))
+
+    def test_non_matching_or_excluded_user_cannot_access_targeted_product(self):
+        from .views import get_public_product_queryset
+
+        other_user = get_user_model().objects.create_user(username="other_member", password="DemoPass123!")
+        MemberProfile.objects.create(
+            user=other_user,
+            company_name="Other Company",
+            state=self.tamil_nadu,
+            association=self.tnja,
+            district_operational_unit=self.chennai_district,
+            unit=self.t_nagar,
+        )
+        self._set_product_targets(
+            self.chain_product,
+            include_targets=[(ProductVisibilityTarget.TargetType.USER, self.user.id)],
+            exclude_targets=[(ProductVisibilityTarget.TargetType.USER, self.company_admin.id)],
+        )
+
+        self.client.force_authenticate(user=other_user)
+        other_user_detail = self.client.get(reverse("product_detail", args=[self.chain_product.id]))
+        other_user_visible_ids = list(get_public_product_queryset(other_user).values_list("id", flat=True))
+        self.assertEqual(other_user_detail.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertNotIn(self.chain_product.id, other_user_visible_ids)
+
+        self.client.force_authenticate(user=self.company_admin)
+        excluded_user_detail = self.client.get(reverse("product_detail", args=[self.chain_product.id]))
+        excluded_user_visible_ids = list(get_public_product_queryset(self.company_admin).values_list("id", flat=True))
+        self.assertEqual(excluded_user_detail.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertNotIn(self.chain_product.id, excluded_user_visible_ids)
+
     def test_product_wishlist_toggle_toggles_state_for_authenticated_user(self):
         self.client.force_authenticate(user=self.user)
 
@@ -1369,6 +1531,119 @@ class DirectoryApiTests(APITestCase):
                 attribute_definition=self.chain_length_attribute,
                 value="20 inch",
             ).exists()
+        )
+        self.assertEqual(
+            list(
+                created_product.visibility_targets.order_by("mode", "target_type", "target_id").values(
+                    "target_type",
+                    "target_id",
+                    "mode",
+                )
+            ),
+            [
+                {
+                    "target_type": ProductVisibilityTarget.TargetType.PLATFORM,
+                    "target_id": None,
+                    "mode": ProductVisibilityTarget.Mode.INCLUDE,
+                }
+            ],
+        )
+
+    def test_company_admin_can_create_product_with_granular_visibility_targets(self):
+        self.client.force_authenticate(user=self.company_admin)
+        extra_asset = self._create_media_asset(object_key="products/new/targeted-product.jpg", public_url="https://example.com/targeted-product.jpg")
+
+        response = self.client.post(
+            reverse("company_product_create", args=[self.company.id]),
+            {
+                "category": self.chain_category.id,
+                "subcategory": self.chain_subcategory.id,
+                "name": "Targeted Audience Chain",
+                "weight_grams": "16.50",
+                "purity": "22K",
+                "description": "Created with granular audience targets.",
+                "is_active": False,
+                "image_asset_ids": [extra_asset.id],
+                "attribute_values": {"length": "20 inch"},
+                "include_targets": [
+                    {"target_type": ProductVisibilityTarget.TargetType.ASSOCIATION, "target_id": self.kgsma.id},
+                    {"target_type": ProductVisibilityTarget.TargetType.COMPANY, "target_id": self.company.id},
+                ],
+                "exclude_targets": [
+                    {"target_type": ProductVisibilityTarget.TargetType.USER, "target_id": self.company_admin.id},
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        created_product = Product.objects.get(name="Targeted Audience Chain")
+        self.assertEqual(
+            list(
+                created_product.visibility_targets.order_by("mode", "target_type", "target_id").values(
+                    "target_type",
+                    "target_id",
+                    "mode",
+                )
+            ),
+            [
+                {
+                    "target_type": ProductVisibilityTarget.TargetType.USER,
+                    "target_id": self.company_admin.id,
+                    "mode": ProductVisibilityTarget.Mode.EXCLUDE,
+                },
+                {
+                    "target_type": ProductVisibilityTarget.TargetType.ASSOCIATION,
+                    "target_id": self.kgsma.id,
+                    "mode": ProductVisibilityTarget.Mode.INCLUDE,
+                },
+                {
+                    "target_type": ProductVisibilityTarget.TargetType.COMPANY,
+                    "target_id": self.company.id,
+                    "mode": ProductVisibilityTarget.Mode.INCLUDE,
+                },
+            ],
+        )
+        self.assertEqual(len(response.data["targets"]), 3)
+
+    def test_company_admin_can_update_product_granular_visibility_targets(self):
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.patch(
+            reverse("company_product_detail", args=[self.company.id, self.product.id]),
+            {
+                "include_targets": [
+                    {"target_type": ProductVisibilityTarget.TargetType.STATE, "target_id": self.kerala.id},
+                ],
+                "exclude_targets": [
+                    {"target_type": ProductVisibilityTarget.TargetType.COMPANY, "target_id": self.company.id},
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.product.refresh_from_db()
+        self.assertEqual(
+            list(
+                self.product.visibility_targets.order_by("mode", "target_type", "target_id").values(
+                    "target_type",
+                    "target_id",
+                    "mode",
+                )
+            ),
+            [
+                {
+                    "target_type": ProductVisibilityTarget.TargetType.COMPANY,
+                    "target_id": self.company.id,
+                    "mode": ProductVisibilityTarget.Mode.EXCLUDE,
+                },
+                {
+                    "target_type": ProductVisibilityTarget.TargetType.STATE,
+                    "target_id": self.kerala.id,
+                    "mode": ProductVisibilityTarget.Mode.INCLUDE,
+                },
+            ],
         )
 
     def test_company_admin_cannot_use_attribute_from_wrong_category(self):
@@ -2008,6 +2283,56 @@ class CompanyTierAdminApiTests(APITestCase):
         self.assertEqual(ExposureLedger.objects.count(), 0)
         self.occupied_featured_company.refresh_from_db()
         self.assertIsNone(self.occupied_featured_company.last_featured_at)
+
+    def test_market_feed_includes_default_market_screen_settings(self):
+        response = self.client.get(reverse("market_feed"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["settings"]["hero_auto_scroll_seconds"], 5)
+        self.assertTrue(
+            MarketScreenSettings.objects.filter(
+                scope=MarketScreenSettings.Scope.GLOBAL,
+                hero_auto_scroll_seconds=5,
+            ).exists()
+        )
+
+    def test_super_admin_can_get_and_update_market_screen_settings(self):
+        self.client.force_authenticate(user=self.super_admin)
+
+        get_response = self.client.get(reverse("admin_market_screen_settings"))
+        self.assertEqual(get_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(get_response.data["hero_auto_scroll_seconds"], 5)
+
+        patch_response = self.client.patch(
+            reverse("admin_market_screen_settings"),
+            {"hero_auto_scroll_seconds": 3},
+            format="json",
+        )
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_response.data["hero_auto_scroll_seconds"], 3)
+
+        updated_feed_response = self.client.get(reverse("market_feed"))
+        self.assertEqual(updated_feed_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(updated_feed_response.data["settings"]["hero_auto_scroll_seconds"], 3)
+
+    def test_market_screen_settings_reject_invalid_auto_scroll_seconds(self):
+        self.client.force_authenticate(user=self.super_admin)
+
+        response = self.client.patch(
+            reverse("admin_market_screen_settings"),
+            {"hero_auto_scroll_seconds": 4},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("hero_auto_scroll_seconds", response.data)
+
+    def test_non_super_admin_cannot_access_market_screen_settings(self):
+        self.client.force_authenticate(user=self.company_admin)
+
+        response = self.client.get(reverse("admin_market_screen_settings"))
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @override_settings(DIRECTORY_MARKET_FAIRNESS_ENABLED=True)
     def test_market_preview_can_include_hero_schedule_without_side_effects(self):

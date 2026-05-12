@@ -186,6 +186,13 @@ export interface RegionState {
   associations: Association[];
 }
 
+export interface CompanyOption {
+  id: number;
+  name: string;
+  city: string;
+  state: string;
+}
+
 export interface DashboardData {
   association: { id: number | null; name: string };
   updated_at_label: string;
@@ -373,6 +380,23 @@ export interface CompanyManagementProductImage {
   original_filename: string;
 }
 
+export interface CompanyManagementProductVisibility {
+  status: "visible" | "hidden";
+  audience_label: string;
+  detail: string;
+  blockers: string[];
+}
+
+export interface AudienceTargetInput {
+  target_type: "platform" | "state" | "association" | "unit" | "company" | "user";
+  target_id: number | null;
+}
+
+export interface ProductVisibilityTargetRecord extends AudienceTargetInput {
+  id: number;
+  mode: "include" | "exclude";
+}
+
 export interface CompanyManagementProduct {
   id: number;
   name: string;
@@ -391,6 +415,8 @@ export interface CompanyManagementProduct {
   created_at: string;
   image_count: number;
   images: CompanyManagementProductImage[];
+  targets: ProductVisibilityTargetRecord[];
+  visibility: CompanyManagementProductVisibility;
 }
 
 export interface CompanyManagementDetail {
@@ -486,6 +512,8 @@ export interface CompanyProductWritePayload {
   is_active?: boolean;
   image_asset_ids?: number[];
   attribute_values?: Record<string, string>;
+  include_targets?: AudienceTargetInput[];
+  exclude_targets?: AudienceTargetInput[];
 }
 
 export interface MarketCompanyCard {
@@ -555,8 +583,13 @@ export interface MarketProductRow extends MarketRowBase {
 
 export type MarketRow = MarketCompanyRow | MarketCategoryRow | MarketProductRow;
 
+export interface MarketFeedSettings {
+  hero_auto_scroll_seconds: 3 | 5;
+}
+
 export interface MarketFeedData {
   rows: MarketRow[];
+  settings: MarketFeedSettings;
 }
 
 export interface AdminMarketHeroScheduleEntry {

@@ -3,15 +3,20 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import {
   attachCompanyImage,
+  AudienceTargetInput,
+  CompanyOption,
   CompanyManagementDetail,
   CompanyManagementProduct,
   CompanyManagementUpdatePayload,
   createCompanyProduct,
+  fetchCompanyOptions,
   fetchCompanyManagement,
   fetchProductFilterConfig,
+  fetchRegionHierarchy,
   finalizeCompanyMediaAsset,
   ProductTypeKey,
   ProductFilterConfig,
+  RegionHierarchyState,
   requestCompanyUploadSession,
   saveCompanyManagement,
   updateCompanyProduct,
@@ -44,6 +49,19 @@ type ProductFormState = {
   attributeValues: Record<string, string>;
   isActive: boolean;
   images: ProductDraftImage[];
+  includeTargets: AudienceDraft[];
+  excludeTargets: AudienceDraft[];
+};
+
+type AudienceDraft = {
+  key: string;
+  targetType: AudienceTargetInput["target_type"];
+  targetId: string;
+};
+
+type HierarchyOption = {
+  id: number;
+  label: string;
 };
 
 const PRODUCT_TYPE_LABELS: Record<ProductTypeKey, string> = {
@@ -52,6 +70,48 @@ const PRODUCT_TYPE_LABELS: Record<ProductTypeKey, string> = {
   silver: "Silver",
   other: "Other",
 };
+
+const PRODUCT_TARGET_TYPE_LABELS: Record<AudienceTargetInput["target_type"], string> = {
+  platform: "Platform",
+  state: "State",
+  association: "Association",
+  unit: "Unit",
+  company: "Company",
+  user: "User",
+};
+
+let nextAudienceDraftId = 1;
+
+function createAudienceDraft(
+  targetType: AudienceTargetInput["target_type"] = "platform",
+  targetId = "",
+): AudienceDraft {
+  const key = `product-audience-${nextAudienceDraftId}`;
+  nextAudienceDraftId += 1;
+  return {
+    key,
+    targetType,
+    targetId,
+  };
+}
+
+function buildAudienceDrafts(
+  product: CompanyManagementProduct | undefined,
+  mode: "include" | "exclude",
+): AudienceDraft[] {
+  if (!product) {
+    return mode === "include" ? [createAudienceDraft("platform")] : [];
+  }
+
+  const drafts = product.targets
+    .filter((target) => target.mode === mode)
+    .map((target) => createAudienceDraft(target.target_type, target.target_id ? String(target.target_id) : ""));
+
+  if (mode === "include" && !drafts.length) {
+    return [createAudienceDraft("platform")];
+  }
+  return drafts;
+}
 
 function buildProfileForm(detail: CompanyManagementDetail | null): CompanyManagementUpdatePayload {
   if (!detail) {
@@ -91,6 +151,8 @@ function buildProductForm(product?: CompanyManagementProduct): ProductFormState 
       attributeValues: {},
       isActive: false,
       images: [],
+      includeTargets: [createAudienceDraft("platform")],
+      excludeTargets: [],
     };
   }
 
@@ -109,14 +171,130 @@ function buildProductForm(product?: CompanyManagementProduct): ProductFormState 
     images: product.images.map((image) => ({
       kind: "existing" as const,
       assetId: image.asset_id,
-      url: image.url,
-      originalFilename: image.original_filename,
-    })),
+        url: image.url,
+        originalFilename: image.original_filename,
+      })),
+    includeTargets: buildAudienceDrafts(product, "include"),
+    excludeTargets: buildAudienceDrafts(product, "exclude"),
   };
 }
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString();
+}
+
+function getProductVisibilityTitle(product: CompanyManagementProduct) {
+  return product.visibility.status === "visible" ? "Visible now" : "Hidden from public view";
+}
+
+function getAudienceTargetTypeLabel(targetType: AudienceTargetInput["target_type"]) {
+  return PRODUCT_TARGET_TYPE_LABELS[targetType];
+}
+
+function formatAudienceTargetLabel(
+  targetType: AudienceTargetInput["target_type"],
+  targetId: string,
+  options: HierarchyOption[],
+) {
+  if (targetType === "platform") {
+    return "Platform-wide audience";
+  }
+
+  const matchedOption = options.find((option) => String(option.id) === targetId);
+  if (matchedOption) {
+    return `${getAudienceTargetTypeLabel(targetType)}: ${matchedOption.label}`;
+  }
+
+  if (targetId.trim()) {
+    return `${getAudienceTargetTypeLabel(targetType)} #${targetId.trim()}`;
+  }
+
+  return `${getAudienceTargetTypeLabel(targetType)} target`;
+}
+
+function buildEditorVisibilityPreview(
+  isActive: boolean,
+  includeTargets: AudienceDraft[],
+  excludeTargets: AudienceDraft[],
+  detail: CompanyManagementDetail | null,
+  getTargetOptions: (targetType: AudienceTargetInput["target_type"]) => HierarchyOption[],
+) {
+  const blockers: string[] = [];
+
+  if (!isActive) {
+    blockers.push("This product is saved as a hidden draft.");
+  }
+  if (detail && !detail.company.is_active) {
+    blockers.push("The company profile is inactive.");
+  }
+  if (detail && !detail.company.is_approved) {
+    blockers.push("The company is awaiting admin approval.");
+  }
+  if (!includeTargets.length) {
+    blockers.push("Add at least one audience include target.");
+  }
+
+  const includeLabels = includeTargets.map((item) => formatAudienceTargetLabel(item.targetType, item.targetId, getTargetOptions(item.targetType)));
+  const excludeLabels = excludeTargets.map((item) => formatAudienceTargetLabel(item.targetType, item.targetId, getTargetOptions(item.targetType)));
+
+  if (blockers.length) {
+    return {
+      status: "hidden" as const,
+      title: "Hidden from public view",
+      audienceLabel: "Only company managers and admins can access it from management screens.",
+      detail: "The product will stay out of the public catalog until every blocker is cleared.",
+      blockers,
+    };
+  }
+
+  const isPlatformOnly =
+    includeTargets.length === 1 &&
+    includeTargets[0]?.targetType === "platform" &&
+    !includeTargets[0]?.targetId &&
+    excludeTargets.length === 0;
+
+  const detailParts = [
+    includeLabels.length ? `Included audiences: ${includeLabels.join(", ")}.` : "No audiences selected yet.",
+  ];
+
+  if (excludeLabels.length) {
+    detailParts.push(`Excluded audiences: ${excludeLabels.join(", ")}.`);
+  }
+
+  detailParts.push(
+    detail?.company.is_market_visible
+      ? "Visible in public product search, product details, wishlist, and enquiry flows."
+      : "Visible in public product search, product details, wishlist, and enquiry flows. Market screen placement is controlled separately and is currently hidden for this company.",
+  );
+
+  return {
+    status: "visible" as const,
+    title: isPlatformOnly ? "Public listing" : "Targeted listing",
+    audienceLabel: isPlatformOnly
+      ? "Public catalog visitors, signed-in members, and admins can view it."
+      : "Only matching signed-in users, company managers, and admins can view this product.",
+    detail: detailParts.join(" "),
+    blockers: [],
+  };
+}
+
+function parseAudienceTargetDraft(item: AudienceDraft, label: string): AudienceTargetInput {
+  if (item.targetType === "platform") {
+    return {
+      target_type: "platform",
+      target_id: null,
+    };
+  }
+
+  const parsedId = Number(item.targetId);
+  if (!Number.isInteger(parsedId) || parsedId < 1) {
+    throw new Error(`${label} needs a valid target id.`);
+  }
+
+  return {
+    target_type: item.targetType,
+    target_id: parsedId,
+  };
 }
 
 async function readImageDimensions(file: File) {
@@ -141,6 +319,9 @@ export function CompanyManagementPage() {
   const isCompanyAdmin = session?.user.role === "COMPANY_ADMIN";
   const [detail, setDetail] = useState<CompanyManagementDetail | null>(null);
   const [filterConfig, setFilterConfig] = useState<ProductFilterConfig | null>(null);
+  const [hierarchy, setHierarchy] = useState<RegionHierarchyState[]>([]);
+  const [companyOptions, setCompanyOptions] = useState<CompanyOption[]>([]);
+  const [audienceOptionsError, setAudienceOptionsError] = useState("");
   const [profileForm, setProfileForm] = useState<CompanyManagementUpdatePayload>(buildProfileForm(null));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -160,15 +341,44 @@ export function CompanyManagementPage() {
     setLoading(true);
     setError("");
     try {
-      const [nextDetail, nextFilterConfig] = await Promise.all([
+      const [detailResult, filterConfigResult, hierarchyResult, companyOptionsResult] = await Promise.allSettled([
         fetchCompanyManagement(companyId),
         fetchProductFilterConfig(),
+        fetchRegionHierarchy(),
+        fetchCompanyOptions(),
       ]);
-      setDetail(nextDetail);
-      setFilterConfig(nextFilterConfig);
-      setProfileForm(buildProfileForm(nextDetail));
+
+      if (detailResult.status === "rejected") {
+        throw detailResult.reason;
+      }
+
+      setDetail(detailResult.value);
+      setProfileForm(buildProfileForm(detailResult.value));
+
+      const optionErrors: string[] = [];
+
+      if (filterConfigResult.status === "fulfilled") {
+        setFilterConfig(filterConfigResult.value);
+      } else {
+        optionErrors.push("Product categories could not be refreshed.");
+      }
+
+      if (hierarchyResult.status === "fulfilled") {
+        setHierarchy(hierarchyResult.value);
+      } else {
+        optionErrors.push("Audience region options could not be refreshed.");
+      }
+
+      if (companyOptionsResult.status === "fulfilled") {
+        setCompanyOptions(companyOptionsResult.value);
+      } else {
+        optionErrors.push("Company audience options could not be refreshed.");
+      }
+
+      setAudienceOptionsError(optionErrors.join(" "));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load company management.");
+      setAudienceOptionsError("");
     } finally {
       setLoading(false);
     }
@@ -196,6 +406,76 @@ export function CompanyManagementPage() {
     [filterConfig, productForm.productType],
   );
 
+  const stateOptions = useMemo<HierarchyOption[]>(
+    () => hierarchy.map((item) => ({ id: item.id, label: item.name })),
+    [hierarchy],
+  );
+
+  const associationOptions = useMemo<HierarchyOption[]>(
+    () =>
+      hierarchy.flatMap((state) =>
+        state.associations.map((association) => ({
+          id: association.id,
+          label: `${association.name} (${state.name})`,
+        })),
+      ),
+    [hierarchy],
+  );
+
+  const unitOptions = useMemo<HierarchyOption[]>(
+    () =>
+      hierarchy.flatMap((state) =>
+        state.associations.flatMap((association) =>
+          association.district_units.flatMap((districtUnit) =>
+            districtUnit.units.map((unit) => ({
+              id: unit.id,
+              label: `${unit.name} (${districtUnit.name}, ${association.name})`,
+            })),
+          ),
+        ),
+      ),
+    [hierarchy],
+  );
+
+  const selectableCompanyOptions = useMemo<HierarchyOption[]>(
+    () =>
+      companyOptions.map((company) => ({
+        id: company.id,
+        label: `${company.name}${company.city ? ` (${company.city}, ${company.state})` : ""}`,
+      })),
+    [companyOptions],
+  );
+
+  const getTargetOptions = useCallback(
+    (targetType: AudienceTargetInput["target_type"]) => {
+      if (targetType === "state") {
+        return stateOptions;
+      }
+      if (targetType === "association") {
+        return associationOptions;
+      }
+      if (targetType === "unit") {
+        return unitOptions;
+      }
+      if (targetType === "company") {
+        return selectableCompanyOptions;
+      }
+      return [];
+    },
+    [associationOptions, selectableCompanyOptions, stateOptions, unitOptions],
+  );
+
+  const editorVisibility = useMemo(
+    () => buildEditorVisibilityPreview(
+      productForm.isActive,
+      productForm.includeTargets,
+      productForm.excludeTargets,
+      detail,
+      getTargetOptions,
+    ),
+    [detail, getTargetOptions, productForm.excludeTargets, productForm.includeTargets, productForm.isActive],
+  );
+
   function openCreateProduct() {
     setProductForm(buildProductForm());
     setProductEditorOpen(true);
@@ -213,6 +493,85 @@ export function CompanyManagementPage() {
   function closeProductEditor() {
     setProductEditorOpen(false);
     setProductForm(buildProductForm());
+  }
+
+  function updateAudienceDraft(mode: "include" | "exclude", key: string, patch: Partial<AudienceDraft>) {
+    const field = mode === "include" ? "includeTargets" : "excludeTargets";
+    setProductForm((current) => ({
+      ...current,
+      [field]: current[field].map((item) => {
+        if (item.key !== key) {
+          return item;
+        }
+        const nextItem = { ...item, ...patch };
+        if (patch.targetType === "platform") {
+          nextItem.targetId = "";
+        }
+        return nextItem;
+      }),
+    }));
+  }
+
+  function addAudienceDraft(mode: "include" | "exclude") {
+    const field = mode === "include" ? "includeTargets" : "excludeTargets";
+    setProductForm((current) => ({
+      ...current,
+      [field]: [...current[field], createAudienceDraft("platform")],
+    }));
+  }
+
+  function removeAudienceDraft(mode: "include" | "exclude", key: string) {
+    const field = mode === "include" ? "includeTargets" : "excludeTargets";
+    setProductForm((current) => {
+      const nextItems = current[field].filter((item) => item.key !== key);
+      return {
+        ...current,
+        [field]: mode === "include" && !nextItems.length ? [createAudienceDraft("platform")] : nextItems,
+      };
+    });
+  }
+
+  function renderTargetIdField(mode: "include" | "exclude", item: AudienceDraft, index: number) {
+    const options = getTargetOptions(item.targetType);
+    const fieldId = `${mode}-target-${index}`;
+
+    if (item.targetType === "platform") {
+      return (
+        <div className="content-form__helper-card">
+          <strong>Platform audience</strong>
+          <p>This target applies globally and does not need an id.</p>
+        </div>
+      );
+    }
+
+    if (options.length) {
+      return (
+        <label className="rates-form__field">
+          <span>Target</span>
+          <select value={item.targetId} onChange={(event) => updateAudienceDraft(mode, item.key, { targetId: event.target.value })}>
+            <option value="">Select a target</option>
+            {options.map((option) => (
+              <option key={`${fieldId}-${option.id}`} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    }
+
+    return (
+      <label className="rates-form__field">
+        <span>Target id</span>
+        <input
+          type="number"
+          min="1"
+          value={item.targetId}
+          onChange={(event) => updateAudienceDraft(mode, item.key, { targetId: event.target.value })}
+          placeholder={item.targetType === "user" ? "Enter user id" : "Enter target id"}
+        />
+      </label>
+    );
   }
 
   async function handleProfileSave() {
@@ -343,6 +702,8 @@ export function CompanyManagementPage() {
             .map(([key, value]) => [key, value.trim()])
             .filter(([, value]) => value),
         ),
+        include_targets: productForm.includeTargets.map((item, index) => parseAudienceTargetDraft(item, `Include target ${index + 1}`)),
+        exclude_targets: productForm.excludeTargets.map((item, index) => parseAudienceTargetDraft(item, `Exclude target ${index + 1}`)),
       };
 
       if (productForm.id) {
@@ -548,6 +909,7 @@ export function CompanyManagementPage() {
                   <th>Weight</th>
                   <th>Price</th>
                   <th>Status</th>
+                  <th>Visibility</th>
                   <th>Images</th>
                   <th>Created</th>
                   <th />
@@ -565,6 +927,18 @@ export function CompanyManagementPage() {
                     <td>{product.weight_grams} g</td>
                     <td>{product.price ?? "Pending"}</td>
                     <td>{product.is_active ? "Active" : "Inactive"}</td>
+                    <td>
+                      <div className={`company-visibility company-visibility--${product.visibility.status}`}>
+                        <strong>{getProductVisibilityTitle(product)}</strong>
+                        <span>{product.visibility.audience_label}</span>
+                        <span>{product.visibility.detail}</span>
+                        {product.visibility.blockers.map((blocker) => (
+                          <span key={blocker} className="company-visibility__blocker">
+                            {blocker}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td>{product.image_count}</td>
                     <td>{formatDate(product.created_at)}</td>
                     <td>
@@ -723,10 +1097,139 @@ export function CompanyManagementPage() {
                   </label>
                 );
               })}
-              <label className="company-checkbox">
-                <input type="checkbox" checked={productForm.isActive} onChange={(event) => setProductForm((current) => ({ ...current, isActive: event.target.checked }))} />
-                <span>Keep this product active in the market</span>
-              </label>
+              <div className="company-form__field--full company-visibility-editor">
+                <div className="company-visibility-editor__header">
+                  <span className="company-visibility-editor__eyebrow">Product Visibility</span>
+                  <strong>Choose who can view this product after you save it</strong>
+                </div>
+                <div className="company-visibility-editor__choices">
+                  <button
+                    className={`company-visibility-toggle${!productForm.isActive ? " company-visibility-toggle--active" : ""}`}
+                    type="button"
+                    onClick={() => setProductForm((current) => ({ ...current, isActive: false }))}
+                  >
+                    <strong>Hidden draft</strong>
+                    <span>Keep it off the public catalog while you prepare details and images.</span>
+                  </button>
+                  <button
+                    className={`company-visibility-toggle${productForm.isActive ? " company-visibility-toggle--active" : ""}`}
+                    type="button"
+                    onClick={() => setProductForm((current) => ({ ...current, isActive: true }))}
+                  >
+                    <strong>Public listing</strong>
+                    <span>Turn on public visibility rules once audience targets and company approval are ready.</span>
+                  </button>
+                </div>
+                <div className="content-audience">
+                  <section className="content-audience__section">
+                    <div className="content-audience__section-header">
+                      <div>
+                        <p className="content-audience__label">Include targets</p>
+                        <h4>Who should be able to view this product</h4>
+                      </div>
+                      <button className="content-audience__button" type="button" onClick={() => addAudienceDraft("include")}>
+                        Add include target
+                      </button>
+                    </div>
+                    <div className="content-audience__rows">
+                      {productForm.includeTargets.map((item, index) => (
+                        <div key={item.key} className="content-audience__row">
+                          <label className="rates-form__field">
+                            <span>Audience type</span>
+                            <select
+                              value={item.targetType}
+                              onChange={(event) =>
+                                updateAudienceDraft("include", item.key, {
+                                  targetType: event.target.value as AudienceTargetInput["target_type"],
+                                  targetId: "",
+                                })
+                              }
+                            >
+                              {Object.entries(PRODUCT_TARGET_TYPE_LABELS).map(([value, label]) => (
+                                <option key={`include-${value}`} value={value}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          {renderTargetIdField("include", item, index)}
+                          <button
+                            className="content-audience__remove"
+                            type="button"
+                            onClick={() => removeAudienceDraft("include", item.key)}
+                            disabled={productForm.includeTargets.length === 1}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="content-audience__section">
+                    <div className="content-audience__section-header">
+                      <div>
+                        <p className="content-audience__label">Exclude targets</p>
+                        <h4>Optional audience overrides to hide this product</h4>
+                      </div>
+                      <button className="content-audience__button" type="button" onClick={() => addAudienceDraft("exclude")}>
+                        Add exclude target
+                      </button>
+                    </div>
+                    {productForm.excludeTargets.length ? (
+                      <div className="content-audience__rows">
+                        {productForm.excludeTargets.map((item, index) => (
+                          <div key={item.key} className="content-audience__row">
+                            <label className="rates-form__field">
+                              <span>Audience type</span>
+                              <select
+                                value={item.targetType}
+                                onChange={(event) =>
+                                  updateAudienceDraft("exclude", item.key, {
+                                    targetType: event.target.value as AudienceTargetInput["target_type"],
+                                    targetId: "",
+                                  })
+                                }
+                              >
+                                {Object.entries(PRODUCT_TARGET_TYPE_LABELS).map(([value, label]) => (
+                                  <option key={`exclude-${value}`} value={value}>
+                                    {label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            {renderTargetIdField("exclude", item, index)}
+                            <button className="content-audience__remove" type="button" onClick={() => removeAudienceDraft("exclude", item.key)}>
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="content-form__helper-card">
+                        <strong>No exclusions yet</strong>
+                        <p>Add an exclusion only when a matching audience should be blocked even though it was included above.</p>
+                      </div>
+                    )}
+                  </section>
+                </div>
+                {audienceOptionsError ? (
+                  <div className="content-form__helper-card">
+                    <strong>Audience reference options are unavailable</strong>
+                    <p>{audienceOptionsError}</p>
+                  </div>
+                ) : null}
+                <div className={`company-visibility-preview company-visibility-preview--${editorVisibility.status}`}>
+                  <strong>{editorVisibility.title}</strong>
+                  <span>{editorVisibility.audienceLabel}</span>
+                  <span>{editorVisibility.detail}</span>
+                  {editorVisibility.blockers.map((blocker) => (
+                    <span key={blocker} className="company-visibility__blocker">
+                      {blocker}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="company-product-images">

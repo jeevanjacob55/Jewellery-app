@@ -7,14 +7,25 @@ from decimal import Decimal
 from typing import Iterable
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.accounts.models import MemberProfile, UserRole
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .models import Company, CompanyTier, ExposureLedger, MarketZone, PlacementOverride, Product, ProductCategory, ZoneEligibilityRule
+from .models import (
+    Company,
+    CompanyTier,
+    ExposureLedger,
+    MarketZone,
+    PlacementOverride,
+    Product,
+    ProductCategory,
+    ProductVisibilityTarget,
+    ZoneEligibilityRule,
+)
 
 
 class TierValidationError(Exception):
@@ -47,6 +58,14 @@ def _company_names_for_member_profiles(queryset) -> list[str]:
         .values_list("company_name", flat=True)
         .distinct()
     )
+
+
+PRODUCT_TARGET_MODEL_BY_TYPE = {
+    ProductVisibilityTarget.TargetType.STATE: RegionState,
+    ProductVisibilityTarget.TargetType.ASSOCIATION: Association,
+    ProductVisibilityTarget.TargetType.UNIT: Unit,
+    ProductVisibilityTarget.TargetType.COMPANY: Company,
+}
 
 
 def get_admin_manageable_company_queryset(user):
@@ -121,6 +140,242 @@ def user_can_manage_company(user, company_id: int) -> bool:
         return False
     return get_manageable_company_queryset(user).filter(pk=company_id).exists()
 
+
+def validate_product_target_payload(target_type: str, target_id: int | None) -> None:
+    if target_type == ProductVisibilityTarget.TargetType.PLATFORM:
+        if target_id is not None:
+            raise TierValidationError("Platform targets must not include a target id.")
+        return
+
+    if target_id is None:
+        raise TierValidationError("A target id is required for this target type.")
+
+    if target_type == ProductVisibilityTarget.TargetType.USER:
+        if not get_user_model().objects.filter(pk=target_id).exists():
+            raise TierValidationError("Selected user target does not exist.")
+        return
+
+    model_class = PRODUCT_TARGET_MODEL_BY_TYPE.get(target_type)
+    if model_class is None:
+        raise TierValidationError("Unsupported target type.")
+    if not model_class.objects.filter(pk=target_id).exists():
+        raise TierValidationError(f"Selected {target_type} target does not exist.")
+
+
+def _company_member_profiles(company_id: int):
+    company = Company.objects.filter(pk=company_id).first()
+    if company is None:
+        return MemberProfile.objects.none()
+    return MemberProfile.objects.filter(company_name=company.name).select_related(
+        "state",
+        "association",
+        "district_operational_unit",
+        "unit",
+    )
+
+
+def _company_association_ids(company_id: int) -> set[int]:
+    return set(_company_member_profiles(company_id).exclude(association=None).values_list("association_id", flat=True))
+
+
+def _company_unit_ids(company_id: int) -> set[int]:
+    return set(_company_member_profiles(company_id).exclude(unit=None).values_list("unit_id", flat=True))
+
+
+def _company_state_ids(company_id: int) -> set[int]:
+    return set(_company_member_profiles(company_id).exclude(state=None).values_list("state_id", flat=True))
+
+
+def _user_company_ids(user) -> set[int]:
+    if not user or not user.is_authenticated:
+        return set()
+    company_ids = set(
+        user.scoped_roles.filter(
+            role=UserRole.Role.COMPANY_ADMIN,
+            scope_type=UserRole.ScopeType.COMPANY,
+        ).values_list("scope_id", flat=True)
+    )
+    member_profile = getattr(user, "member_profile", None)
+    if member_profile and member_profile.company_name:
+        company_ids.update(Company.objects.filter(name=member_profile.company_name).values_list("id", flat=True))
+    return company_ids
+
+
+def get_product_visibility_tokens(user) -> set[tuple[str, int | None]]:
+    tokens: set[tuple[str, int | None]] = {(ProductVisibilityTarget.TargetType.PLATFORM, None)}
+    if not user or not user.is_authenticated:
+        return tokens
+
+    tokens.add((ProductVisibilityTarget.TargetType.USER, user.id))
+
+    member_profile = getattr(user, "member_profile", None)
+    if member_profile:
+        if member_profile.state_id:
+            tokens.add((ProductVisibilityTarget.TargetType.STATE, member_profile.state_id))
+        if member_profile.association_id:
+            tokens.add((ProductVisibilityTarget.TargetType.ASSOCIATION, member_profile.association_id))
+        if member_profile.unit_id:
+            tokens.add((ProductVisibilityTarget.TargetType.UNIT, member_profile.unit_id))
+
+    for company_id in _user_company_ids(user):
+        tokens.add((ProductVisibilityTarget.TargetType.COMPANY, company_id))
+        for association_id in _company_association_ids(company_id):
+            tokens.add((ProductVisibilityTarget.TargetType.ASSOCIATION, association_id))
+        for unit_id in _company_unit_ids(company_id):
+            tokens.add((ProductVisibilityTarget.TargetType.UNIT, unit_id))
+        for state_id in _company_state_ids(company_id):
+            tokens.add((ProductVisibilityTarget.TargetType.STATE, state_id))
+
+    return tokens
+
+
+def _build_target_match_q(tokens: set[tuple[str, int | None]]) -> Q:
+    query = Q()
+    for target_type, target_id in tokens:
+        condition = Q(target_type=target_type)
+        if target_id is None:
+            condition &= Q(target_id__isnull=True)
+        else:
+            condition &= Q(target_id=target_id)
+        query |= condition
+    return query
+
+
+def apply_product_visibility_filters(queryset, user):
+    tokens = get_product_visibility_tokens(user)
+    target_query = _build_target_match_q(tokens)
+    include_product_ids = ProductVisibilityTarget.objects.filter(
+        mode=ProductVisibilityTarget.Mode.INCLUDE,
+    ).filter(target_query).values_list("product_id", flat=True)
+    exclude_product_ids = ProductVisibilityTarget.objects.filter(
+        mode=ProductVisibilityTarget.Mode.EXCLUDE,
+    ).filter(target_query).values_list("product_id", flat=True)
+    return queryset.filter(id__in=include_product_ids).exclude(id__in=exclude_product_ids).distinct()
+
+
+def _format_product_target_label(target: ProductVisibilityTarget) -> str:
+    if target.target_type == ProductVisibilityTarget.TargetType.PLATFORM:
+        return "Platform"
+    if target.target_id is None:
+        return target.target_type.replace("_", " ").title()
+    if target.target_type == ProductVisibilityTarget.TargetType.USER:
+        return f"User #{target.target_id}"
+    return f"{target.target_type.replace('_', ' ').title()} #{target.target_id}"
+
+
+def build_product_visibility_summary(product: Product, *, company: Company | None = None) -> dict[str, object]:
+    resolved_company = company or product.company
+    blockers: list[str] = []
+
+    if not product.is_active:
+        blockers.append("This product is inactive.")
+    if not resolved_company.is_active:
+        blockers.append("The company profile is inactive.")
+    if not resolved_company.is_approved:
+        blockers.append("The company is awaiting admin approval.")
+
+    include_targets = [target for target in product.visibility_targets.all() if target.mode == ProductVisibilityTarget.Mode.INCLUDE]
+    exclude_targets = [target for target in product.visibility_targets.all() if target.mode == ProductVisibilityTarget.Mode.EXCLUDE]
+
+    if not include_targets:
+        blockers.append("No include audience has been configured.")
+
+    if blockers:
+        return {
+            "status": "hidden",
+            "audience_label": "Company managers and admins only",
+            "detail": "Hidden from the public product catalog until these blockers are cleared.",
+            "blockers": blockers,
+        }
+
+    include_labels = ", ".join(_format_product_target_label(target) for target in include_targets)
+    exclude_labels = ", ".join(_format_product_target_label(target) for target in exclude_targets)
+    detail = f"Included audiences: {include_labels}."
+    if exclude_labels:
+        detail = f"{detail} Excluding: {exclude_labels}."
+    if not resolved_company.is_market_visible:
+        detail = f"{detail} Market screen placement is controlled separately and is currently hidden for this company."
+
+    is_platform_default = (
+        len(include_targets) == 1
+        and include_targets[0].target_type == ProductVisibilityTarget.TargetType.PLATFORM
+        and include_targets[0].target_id is None
+        and not exclude_targets
+    )
+
+    return {
+        "status": "visible",
+        "audience_label": "Public catalog visitors, members, and admins" if is_platform_default else "Selected audience targets",
+        "detail": detail,
+        "blockers": [],
+    }
+
+
+def sync_product_visibility_targets(
+    product: Product,
+    *,
+    include_targets: list[dict] | None = None,
+    exclude_targets: list[dict] | None = None,
+) -> None:
+    if include_targets is None and exclude_targets is None:
+        return
+
+    next_include_targets = include_targets if include_targets is not None else [
+        {"target_type": target.target_type, "target_id": target.target_id}
+        for target in product.visibility_targets.filter(mode=ProductVisibilityTarget.Mode.INCLUDE)
+    ]
+    next_exclude_targets = exclude_targets if exclude_targets is not None else [
+        {"target_type": target.target_type, "target_id": target.target_id}
+        for target in product.visibility_targets.filter(mode=ProductVisibilityTarget.Mode.EXCLUDE)
+    ]
+
+    if not next_include_targets:
+        raise TierValidationError("At least one include target is required.")
+
+    for target in [*next_include_targets, *next_exclude_targets]:
+        validate_product_target_payload(target["target_type"], target.get("target_id"))
+
+    normalized_include_targets = list(
+        {
+            (target["target_type"], target.get("target_id")): {
+                "target_type": target["target_type"],
+                "target_id": target.get("target_id"),
+            }
+            for target in next_include_targets
+        }.values()
+    )
+    normalized_exclude_targets = list(
+        {
+            (target["target_type"], target.get("target_id")): {
+                "target_type": target["target_type"],
+                "target_id": target.get("target_id"),
+            }
+            for target in next_exclude_targets
+        }.values()
+    )
+
+    with transaction.atomic():
+        product.visibility_targets.all().delete()
+        ProductVisibilityTarget.objects.bulk_create(
+            [
+                ProductVisibilityTarget(
+                    product=product,
+                    target_type=target["target_type"],
+                    target_id=target.get("target_id"),
+                    mode=ProductVisibilityTarget.Mode.INCLUDE,
+                )
+                for target in normalized_include_targets
+            ]
+            + [
+                ProductVisibilityTarget(
+                    product=product,
+                    target_type=target["target_type"],
+                    target_id=target.get("target_id"),
+                    mode=ProductVisibilityTarget.Mode.EXCLUDE,
+                )
+                for target in normalized_exclude_targets
+            ]
+        )
 
 def get_company_active_product_count(company: Company, *, exclude_product_id: int | None = None) -> int:
     queryset = company.products.filter(is_active=True)

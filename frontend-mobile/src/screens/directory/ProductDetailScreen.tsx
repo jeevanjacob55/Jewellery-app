@@ -85,7 +85,7 @@ export function ProductDetailScreen() {
       }
 
       try {
-        const nextProduct = await getProductDetail(params.productId, status === "authenticated");
+        const nextProduct = await getProductDetail(params.productId);
         if (!active) {
           return;
         }

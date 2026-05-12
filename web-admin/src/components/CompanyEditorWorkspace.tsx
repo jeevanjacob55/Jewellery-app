@@ -115,6 +115,46 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString();
 }
 
+function getProductVisibilityTitle(product: CompanyManagementProduct) {
+  return product.visibility.status === "visible" ? "Visible now" : "Hidden from public view";
+}
+
+function buildEditorVisibilityPreview(isActive: boolean, detail: CompanyManagementDetail | null) {
+  const blockers: string[] = [];
+
+  if (!isActive) {
+    blockers.push("This product is saved as a hidden draft.");
+  }
+  if (detail && !detail.company.is_active) {
+    blockers.push("The company profile is inactive.");
+  }
+  if (detail && !detail.company.is_approved) {
+    blockers.push("The company is awaiting admin approval.");
+  }
+
+  if (blockers.length) {
+    return {
+      status: "hidden" as const,
+      title: "Hidden from public view",
+      audienceLabel: "Only company managers and admins can access it from management screens.",
+      detail: "The product will stay out of the public catalog until every blocker is cleared.",
+      blockers,
+    };
+  }
+
+  const detailText = detail?.company.is_market_visible
+    ? "Visible in public product search, product details, wishlist, and enquiry flows."
+    : "Visible in public product search, product details, wishlist, and enquiry flows. Market screen placement is controlled separately and is currently hidden for this company.";
+
+  return {
+    status: "visible" as const,
+    title: "Public listing",
+    audienceLabel: "Public catalog visitors, signed-in members, and admins can view it.",
+    detail: detailText,
+    blockers: [],
+  };
+}
+
 async function readImageDimensions(file: File) {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -177,6 +217,8 @@ export function CompanyEditorWorkspace({ companyId, emptyState }: CompanyEditorW
     () => filterConfig?.categories.find((category) => String(category.id) === productForm.categoryId) ?? null,
     [filterConfig, productForm.categoryId],
   );
+
+  const editorVisibility = useMemo(() => buildEditorVisibilityPreview(productForm.isActive, detail), [detail, productForm.isActive]);
 
   function openCreateProduct() {
     setProductForm(buildProductForm());
@@ -531,6 +573,7 @@ export function CompanyEditorWorkspace({ companyId, emptyState }: CompanyEditorW
                   <th>Weight</th>
                   <th>Price</th>
                   <th>Status</th>
+                  <th>Visibility</th>
                   <th>Images</th>
                   <th>Created</th>
                   <th />
@@ -548,6 +591,18 @@ export function CompanyEditorWorkspace({ companyId, emptyState }: CompanyEditorW
                     <td>{product.weight_grams} g</td>
                     <td>{product.price ?? "Pending"}</td>
                     <td>{product.is_active ? "Active" : "Inactive"}</td>
+                    <td>
+                      <div className={`company-visibility company-visibility--${product.visibility.status}`}>
+                        <strong>{getProductVisibilityTitle(product)}</strong>
+                        <span>{product.visibility.audience_label}</span>
+                        <span>{product.visibility.detail}</span>
+                        {product.visibility.blockers.map((blocker) => (
+                          <span key={blocker} className="company-visibility__blocker">
+                            {blocker}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td>{product.image_count}</td>
                     <td>{formatDate(product.created_at)}</td>
                     <td>
@@ -645,10 +700,40 @@ export function CompanyEditorWorkspace({ companyId, emptyState }: CompanyEditorW
                 <span>Description</span>
                 <textarea value={productForm.description} onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))} rows={4} />
               </label>
-              <label className="company-checkbox">
-                <input type="checkbox" checked={productForm.isActive} onChange={(event) => setProductForm((current) => ({ ...current, isActive: event.target.checked }))} />
-                <span>Keep this product active in the market</span>
-              </label>
+              <div className="company-form__field--full company-visibility-editor">
+                <div className="company-visibility-editor__header">
+                  <span className="company-visibility-editor__eyebrow">Product Visibility</span>
+                  <strong>Choose who can view this product after you save it</strong>
+                </div>
+                <div className="company-visibility-editor__choices">
+                  <button
+                    className={`company-visibility-toggle${!productForm.isActive ? " company-visibility-toggle--active" : ""}`}
+                    type="button"
+                    onClick={() => setProductForm((current) => ({ ...current, isActive: false }))}
+                  >
+                    <strong>Hidden draft</strong>
+                    <span>Keep it off the public catalog while you prepare details and images.</span>
+                  </button>
+                  <button
+                    className={`company-visibility-toggle${productForm.isActive ? " company-visibility-toggle--active" : ""}`}
+                    type="button"
+                    onClick={() => setProductForm((current) => ({ ...current, isActive: true }))}
+                  >
+                    <strong>Public listing</strong>
+                    <span>Show it to catalog visitors when company approval and plan rules are satisfied.</span>
+                  </button>
+                </div>
+                <div className={`company-visibility-preview company-visibility-preview--${editorVisibility.status}`}>
+                  <strong>{editorVisibility.title}</strong>
+                  <span>{editorVisibility.audienceLabel}</span>
+                  <span>{editorVisibility.detail}</span>
+                  {editorVisibility.blockers.map((blocker) => (
+                    <span key={blocker} className="company-visibility__blocker">
+                      {blocker}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="company-product-images">
