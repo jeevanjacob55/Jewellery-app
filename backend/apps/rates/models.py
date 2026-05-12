@@ -1,6 +1,7 @@
 from django.db import models
 
 from apps.accounts.models import User
+from apps.directory.models import MediaAsset
 from apps.regions.models import Association
 
 
@@ -75,3 +76,26 @@ class AssociationRateSubcategory(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["category", "slug"], name="uniq_rate_subcategory_per_category_slug"),
         ]
+
+
+class AssociationSpotlightMedia(models.Model):
+    association = models.ForeignKey(Association, on_delete=models.CASCADE, related_name="spotlight_media")
+    asset = models.OneToOneField(MediaAsset, on_delete=models.CASCADE, related_name="association_spotlight_media")
+    title = models.CharField(max_length=140, blank=True)
+    subtitle = models.CharField(max_length=255, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_association_spotlight_media",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]

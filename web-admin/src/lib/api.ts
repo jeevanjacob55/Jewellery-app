@@ -361,6 +361,49 @@ export type MarketScreenSettings = {
   hero_auto_scroll_seconds: 3 | 5;
 };
 
+export type AssociationSpotlightItem = {
+  id: number;
+  association: number;
+  association_name: string;
+  state_name: string;
+  asset_id: number;
+  image_url: string;
+  title: string;
+  subtitle: string;
+  sort_order: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AssociationSpotlightCollection = {
+  association: {
+    id: number;
+    name: string;
+    state_name: string;
+  };
+  config: {
+    enabled: boolean;
+    duration_seconds: number;
+    scroll_speed: "slow" | "medium" | "fast" | string;
+    max_items: number;
+    reshow_policy: "next_app_launch" | "every_dashboard_visit" | string;
+  };
+  items: AssociationSpotlightItem[];
+};
+
+export type AssociationSpotlightPayload = {
+  association_id?: number;
+  asset_id: number;
+  title?: string;
+  subtitle?: string;
+  is_active?: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
+};
+
 export type CompanyManagementProductImage = {
   asset_id: number;
   url: string;
@@ -860,6 +903,72 @@ export async function saveAssociationRateCatalog(payload: { categories: RateCata
   return requestJson<AssociationRateCatalog>("/dashboard/admin/association-rate-catalog/", {
     method: "PUT",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function requestAssociationSpotlightUploadSession(filename: string, associationId?: number) {
+  return requestJson<UploadSession>("/dashboard/admin/association-spotlights/upload-session/", {
+    method: "POST",
+    body: JSON.stringify({
+      filename,
+      association_id: associationId ?? null,
+    }),
+  });
+}
+
+export async function finalizeAssociationSpotlightMediaAsset(payload: {
+  object_key: string;
+  bucket_name: string;
+  original_filename: string;
+  mime_type: string;
+  file_size: number;
+  width: number;
+  height: number;
+  association_id?: number;
+}) {
+  return requestJson<FinalizedMediaAsset>("/dashboard/admin/association-spotlights/media-assets/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchAssociationSpotlights(associationId?: number) {
+  const params = new URLSearchParams();
+  if (associationId) {
+    params.set("association_id", String(associationId));
+  }
+  return requestJson<AssociationSpotlightCollection>(
+    `/dashboard/admin/association-spotlights/${params.toString() ? `?${params.toString()}` : ""}`,
+  );
+}
+
+export async function createAssociationSpotlight(payload: AssociationSpotlightPayload) {
+  return requestJson<AssociationSpotlightItem>("/dashboard/admin/association-spotlights/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAssociationSpotlight(itemId: number, payload: Partial<AssociationSpotlightPayload>) {
+  return requestJson<AssociationSpotlightItem>(`/dashboard/admin/association-spotlights/${itemId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAssociationSpotlight(itemId: number) {
+  return requestJson<{ message: string }>(`/dashboard/admin/association-spotlights/${itemId}/`, {
+    method: "DELETE",
+  });
+}
+
+export async function reorderAssociationSpotlights(itemIds: number[], associationId?: number) {
+  return requestJson<{ items: AssociationSpotlightItem[] }>("/dashboard/admin/association-spotlights/reorder/", {
+    method: "POST",
+    body: JSON.stringify({
+      item_ids: itemIds,
+      association_id: associationId ?? null,
+    }),
   });
 }
 

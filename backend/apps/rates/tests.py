@@ -1,15 +1,18 @@
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from django.contrib.auth import get_user_model
-from django.utils import timezone
+from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import MemberProfile, UserRole
+from apps.directory.models import MediaAsset
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
-from .models import AssociationRate, ExternalMarketRate, GlobalTrendSnapshot
+from .models import AssociationRate, AssociationSpotlightMedia, ExternalMarketRate, GlobalTrendSnapshot
 
 
 class DashboardApiTests(APITestCase):
@@ -462,3 +465,240 @@ class AssociationAdminRateCatalogApiTests(APITestCase):
         response = self.client.get(reverse("admin_association_rate_catalog"))
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class AssociationSpotlightApiTests(APITestCase):
+    def setUp(self):
+        self.state = RegionState.objects.create(name="Kerala")
+        self.other_state = RegionState.objects.create(name="Tamil Nadu")
+        self.association = Association.objects.create(state=self.state, name="KGSMA")
+        self.other_association = Association.objects.create(state=self.other_state, name="TNJA")
+        self.district = DistrictOperationalUnit.objects.create(association=self.association, name="Ernakulam District Unit")
+        self.other_district = DistrictOperationalUnit.objects.create(association=self.other_association, name="Chennai District Unit")
+        self.unit = Unit.objects.create(district_operational_unit=self.district, name="Kadavanthra Unit")
+        self.other_unit = Unit.objects.create(district_operational_unit=self.other_district, name="T Nagar Unit")
+
+        user_model = get_user_model()
+        self.association_admin = user_model.objects.create_user(username="spotlight-association-admin", password="StrongPass123!")
+        UserRole.objects.create(
+            user=self.association_admin,
+            role=UserRole.Role.ASSOCIATION_ADMIN,
+            scope_type=UserRole.ScopeType.ASSOCIATION,
+            scope_id=self.association.id,
+        )
+        MemberProfile.objects.create(
+            user=self.association_admin,
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district,
+            unit=self.unit,
+        )
+
+        self.member = user_model.objects.create_user(username="spotlight-member", password="StrongPass123!")
+        MemberProfile.objects.create(
+            user=self.member,
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district,
+            unit=self.unit,
+        )
+
+        self.other_member = user_model.objects.create_user(username="other-spotlight-member", password="StrongPass123!")
+        MemberProfile.objects.create(
+            user=self.other_member,
+            state=self.other_state,
+            association=self.other_association,
+            district_operational_unit=self.other_district,
+            unit=self.other_unit,
+        )
+
+        self.super_admin = user_model.objects.create_user(
+            username="spotlight-super-admin",
+            password="StrongPass123!",
+            role=user_model.Role.SUPER_ADMIN,
+            is_staff=True,
+        )
+        UserRole.objects.create(
+            user=self.super_admin,
+            role=UserRole.Role.SUPER_ADMIN,
+            scope_type=UserRole.ScopeType.PLATFORM,
+            scope_id=None,
+        )
+
+    def _create_media_asset(self, *, name: str) -> MediaAsset:
+        return MediaAsset.objects.create(
+            uploader=self.association_admin,
+            object_key=f"association-spotlights/test/{name}.jpg",
+            bucket_name="demo-public-media",
+            original_filename=f"{name}.jpg",
+            mime_type="image/jpeg",
+            public_url=f"https://example.com/{name}.jpg",
+            width=1200,
+            height=800,
+            file_size=245760,
+            visibility=MediaAsset.Visibility.PUBLIC,
+            moderation_status=MediaAsset.ModerationStatus.APPROVED,
+        )
+
+    def _create_spotlight_item(self, *, association: Association, name: str, sort_order: int = 0, is_active: bool = True) -> AssociationSpotlightMedia:
+        return AssociationSpotlightMedia.objects.create(
+            association=association,
+            asset=self._create_media_asset(name=name),
+            title=f"{name} title",
+            subtitle=f"{name} subtitle",
+            sort_order=sort_order,
+            is_active=is_active,
+            created_by=self.association_admin,
+        )
+
+    @override_settings(
+        DASHBOARD_WELCOME_FILMSTRIP_ENABLED=True,
+        DASHBOARD_WELCOME_FILMSTRIP_DURATION_SECONDS=5,
+        DASHBOARD_WELCOME_FILMSTRIP_SCROLL_SPEED="medium",
+        DASHBOARD_WELCOME_FILMSTRIP_MAX_ITEMS=10,
+        DASHBOARD_WELCOME_FILMSTRIP_RESHOW_POLICY="next_app_launch",
+    )
+    def test_dashboard_welcome_filmstrip_is_scoped_to_authenticated_member_association(self):
+        self._create_spotlight_item(association=self.association, name="member-association-spotlight", sort_order=0)
+        self._create_spotlight_item(association=self.other_association, name="other-association-spotlight", sort_order=0)
+
+        guest_response = self.client.get(reverse("dashboard"))
+        self.assertEqual(guest_response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(guest_response.data["dashboard_welcome_filmstrip"])
+
+        self.client.force_authenticate(user=self.member)
+        member_response = self.client.get(reverse("dashboard"))
+        self.assertEqual(member_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(member_response.data["dashboard_welcome_filmstrip"]["association_id"], self.association.id)
+        self.assertEqual(
+            [item["title"] for item in member_response.data["dashboard_welcome_filmstrip"]["items"]],
+            ["member-association-spotlight title"],
+        )
+
+        self.client.force_authenticate(user=self.other_member)
+        other_member_response = self.client.get(reverse("dashboard"))
+        self.assertEqual(other_member_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(other_member_response.data["dashboard_welcome_filmstrip"]["association_id"], self.other_association.id)
+        self.assertEqual(
+            [item["title"] for item in other_member_response.data["dashboard_welcome_filmstrip"]["items"]],
+            ["other-association-spotlight title"],
+        )
+
+    @override_settings(DASHBOARD_WELCOME_FILMSTRIP_ENABLED=True)
+    def test_dashboard_welcome_filmstrip_hides_when_association_has_no_active_items(self):
+        self._create_spotlight_item(association=self.association, name="inactive-spotlight", is_active=False)
+
+        self.client.force_authenticate(user=self.member)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["dashboard_welcome_filmstrip"])
+
+    def test_association_admin_can_upload_create_update_reorder_and_delete_spotlight_items(self):
+        self.client.force_authenticate(user=self.association_admin)
+
+        upload_session_response = self.client.post(
+            reverse("admin_association_spotlight_upload_session"),
+            {"filename": "welcome-filmstrip.jpg"},
+            format="json",
+        )
+        self.assertEqual(upload_session_response.status_code, status.HTTP_200_OK)
+
+        mock_upload_response = self.client.put(
+            f"{reverse('mock_upload')}?object_key={upload_session_response.data['object_key']}",
+            b"mock-spotlight-image",
+            content_type="image/jpeg",
+        )
+        self.assertEqual(mock_upload_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        finalize_response = self.client.post(
+            reverse("admin_association_spotlight_media_asset_finalize"),
+            {
+                "object_key": upload_session_response.data["object_key"],
+                "bucket_name": upload_session_response.data["bucket_name"],
+                "original_filename": "welcome-filmstrip.jpg",
+                "mime_type": "image/jpeg",
+                "file_size": len(b"mock-spotlight-image"),
+                "width": 1280,
+                "height": 720,
+            },
+            format="json",
+        )
+        self.assertEqual(finalize_response.status_code, status.HTTP_201_CREATED)
+        parsed_media_url = urlsplit(finalize_response.data["public_url"])
+        media_response = self.client.get(f"{parsed_media_url.path}?{parsed_media_url.query}")
+        self.assertEqual(media_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(media_response.content, b"mock-spotlight-image")
+
+        create_response = self.client.post(
+            reverse("admin_association_spotlight_list_create"),
+            {
+                "asset_id": finalize_response.data["asset_id"],
+                "title": "Welcome Board",
+                "subtitle": "Association welcome visual",
+                "is_active": True,
+            },
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        first_item_id = create_response.data["id"]
+
+        second_item = self._create_spotlight_item(association=self.association, name="second-spotlight", sort_order=1)
+
+        update_response = self.client.patch(
+            reverse("admin_association_spotlight_detail", args=[first_item_id]),
+            {"title": "Updated Welcome Board", "is_active": False},
+            format="json",
+        )
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_response.data["title"], "Updated Welcome Board")
+        self.assertFalse(update_response.data["is_active"])
+
+        reorder_response = self.client.post(
+            reverse("admin_association_spotlight_reorder"),
+            {"item_ids": [second_item.id, first_item_id]},
+            format="json",
+        )
+        self.assertEqual(reorder_response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["id"] for item in reorder_response.data["items"]], [second_item.id, first_item_id])
+
+        delete_response = self.client.delete(reverse("admin_association_spotlight_detail", args=[first_item_id]))
+        self.assertEqual(delete_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(AssociationSpotlightMedia.objects.filter(pk=first_item_id).exists())
+
+    def test_association_admin_cannot_manage_other_association_spotlights(self):
+        other_item = self._create_spotlight_item(association=self.other_association, name="other-association-locked")
+        self.client.force_authenticate(user=self.association_admin)
+
+        response = self.client.patch(
+            reverse("admin_association_spotlight_detail", args=[other_item.id]),
+            {"title": "Should fail"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_super_admin_can_manage_selected_association_spotlights(self):
+        self.client.force_authenticate(user=self.super_admin)
+        asset = self._create_media_asset(name="super-admin-created")
+
+        create_response = self.client.post(
+            reverse("admin_association_spotlight_list_create"),
+            {
+                "association_id": self.other_association.id,
+                "asset_id": asset.id,
+                "title": "Platform-managed spotlight",
+                "subtitle": "Managed by super admin",
+            },
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        created_item_id = create_response.data["id"]
+        self.assertEqual(create_response.data["association"], self.other_association.id)
+
+        list_response = self.client.get(
+            f"{reverse('admin_association_spotlight_list_create')}?association_id={self.other_association.id}"
+        )
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_response.data["association"]["id"], self.other_association.id)
+        self.assertEqual([item["id"] for item in list_response.data["items"]], [created_item_id])

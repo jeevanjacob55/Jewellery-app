@@ -7,6 +7,7 @@ import { ApprovalDashboardPage } from "./pages/ApprovalDashboardPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminNewsCreatePage } from "./pages/AdminNewsCreatePage";
 import { AdvertisementUploadPage } from "./pages/AdvertisementUploadPage";
+import { AssociationSpotlightPage } from "./pages/AssociationSpotlightPage";
 import { CompanyManagementPage } from "./pages/CompanyManagementPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MarketScreenPage } from "./pages/MarketScreenPage";
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route path="market-screen" element={<MarketScreenPage />} />
         <Route path="taxonomy" element={<TaxonomyManagementPage />} />
         <Route path="rates" element={<RateManagementPage />} />
+        <Route path="welcome-spotlight" element={<AssociationSpotlightPage />} />
         <Route
           path="company-profiles"
           element={

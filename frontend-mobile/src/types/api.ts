@@ -208,6 +208,23 @@ export interface DashboardData {
     silver_oz: number;
   };
   quick_actions: string[];
+  dashboard_welcome_filmstrip: DashboardWelcomeFilmstripData | null;
+}
+
+export interface DashboardWelcomeFilmstripItem {
+  id: number;
+  image_url: string;
+  title: string;
+  subtitle: string;
+}
+
+export interface DashboardWelcomeFilmstripData {
+  enabled: boolean;
+  association_id: number;
+  duration_seconds: number;
+  scroll_speed: "slow" | "medium" | "fast" | string;
+  reshow_policy: "next_app_launch" | "every_dashboard_visit" | string;
+  items: DashboardWelcomeFilmstripItem[];
 }
 
 export interface DashboardRateMetric {

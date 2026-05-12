@@ -1,26 +1,44 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
-from rest_framework import permissions
+from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import UserRole
 from apps.admin_ops.permissions import HasAdminAccess
+from apps.directory.models import MediaAsset
 from apps.regions.models import Association, RegionState
+from config.storage import build_mock_public_url, build_mock_signed_upload, get_mock_upload
 
-from .models import AssociationRate, AssociationRateCategory, AssociationRateSubcategory, ExternalMarketRate, GlobalTrendSnapshot
+from .models import (
+    AssociationRate,
+    AssociationRateCategory,
+    AssociationRateSubcategory,
+    AssociationSpotlightMedia,
+    ExternalMarketRate,
+    GlobalTrendSnapshot,
+)
 from .serializers import (
     AssociationRateCatalogPayloadSerializer,
     AssociationRateCatalogResponseSerializer,
     AssociationRateDetailResponseSerializer,
+    AssociationSpotlightAssociationSelectorSerializer,
+    AssociationSpotlightCollectionSerializer,
+    AssociationSpotlightMediaFinalizeSerializer,
+    AssociationSpotlightMediaReorderSerializer,
+    AssociationSpotlightMediaSerializer,
+    AssociationSpotlightMediaWriteSerializer,
+    AssociationSpotlightUploadSessionSerializer,
     DashboardResponseSerializer,
     StateRatesResponseSerializer,
 )
+from django.conf import settings
 
 
 QUICK_ACTIONS = [
@@ -33,6 +51,10 @@ QUICK_ACTIONS = [
 ]
 
 STATIC_GLOBAL_TRENDS = {"usd_inr": 83.50, "gold_oz": 2350.0, "silver_oz": 28.40}
+DEFAULT_FILMSTRIP_SCROLL_SPEED = "medium"
+ALLOWED_FILMSTRIP_SCROLL_SPEEDS = {"slow", "medium", "fast"}
+DEFAULT_FILMSTRIP_RESHOW_POLICY = "next_app_launch"
+ALLOWED_FILMSTRIP_RESHOW_POLICIES = {"next_app_launch", "every_dashboard_visit"}
 
 
 def _rate_trend(current_value: float, previous_value: float | None) -> str:
@@ -213,6 +235,114 @@ def _resolve_admin_association(request) -> Association:
     return association
 
 
+def _resolve_spotlight_admin_association(request, association_id: int | None = None) -> Association:
+    user = request.user
+    if getattr(user, "is_super_admin_user", False):
+        if association_id is None:
+            raise PermissionDenied("Association selection is required for super-admin spotlight management.")
+        association = Association.objects.select_related("state").filter(pk=association_id).first()
+        if association is None:
+            raise PermissionDenied("Selected association could not be resolved.")
+        return association
+    return _resolve_admin_association(request)
+
+
+def _user_can_manage_spotlights(user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if getattr(user, "is_super_admin_user", False):
+        return True
+    return user.scoped_roles.filter(
+        role=UserRole.Role.ASSOCIATION_ADMIN,
+        scope_type=UserRole.ScopeType.ASSOCIATION,
+    ).exists()
+
+
+def _filmstrip_config_payload() -> dict:
+    scroll_speed = settings.DASHBOARD_WELCOME_FILMSTRIP_SCROLL_SPEED
+    if scroll_speed not in ALLOWED_FILMSTRIP_SCROLL_SPEEDS:
+        scroll_speed = DEFAULT_FILMSTRIP_SCROLL_SPEED
+    reshow_policy = settings.DASHBOARD_WELCOME_FILMSTRIP_RESHOW_POLICY
+    if reshow_policy not in ALLOWED_FILMSTRIP_RESHOW_POLICIES:
+        reshow_policy = DEFAULT_FILMSTRIP_RESHOW_POLICY
+    return {
+        "enabled": bool(settings.DASHBOARD_WELCOME_FILMSTRIP_ENABLED),
+        "duration_seconds": max(int(settings.DASHBOARD_WELCOME_FILMSTRIP_DURATION_SECONDS), 1),
+        "scroll_speed": scroll_speed,
+        "max_items": max(int(settings.DASHBOARD_WELCOME_FILMSTRIP_MAX_ITEMS), 1),
+        "reshow_policy": reshow_policy,
+    }
+
+
+def _serialize_association_context(association: Association) -> dict:
+    return {
+        "id": association.id,
+        "name": association.name,
+        "state_name": association.state.name,
+    }
+
+
+def _get_active_spotlight_items(association: Association, *, now=None) -> list[AssociationSpotlightMedia]:
+    current_time = now or timezone.now()
+    return list(
+        AssociationSpotlightMedia.objects.filter(
+            association=association,
+            is_active=True,
+        )
+        .filter(Q(starts_at__isnull=True) | Q(starts_at__lte=current_time))
+        .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=current_time))
+        .select_related("asset", "association", "association__state")
+        .order_by("sort_order", "id")[: _filmstrip_config_payload()["max_items"]]
+    )
+
+
+def _build_dashboard_welcome_filmstrip_payload(request, association: Association | None) -> dict | None:
+    config = _filmstrip_config_payload()
+    if not config["enabled"] or association is None:
+        return None
+
+    items = _get_active_spotlight_items(association)
+    if not items:
+        return None
+
+    return {
+        "enabled": True,
+        "association_id": association.id,
+        "duration_seconds": config["duration_seconds"],
+        "scroll_speed": config["scroll_speed"],
+        "reshow_policy": config["reshow_policy"],
+        "items": [
+            {
+                "id": item.id,
+                "image_url": item.asset.public_url,
+                "title": item.title,
+                "subtitle": item.subtitle,
+            }
+            for item in items
+        ],
+    }
+
+
+def _build_spotlight_collection_payload(association: Association) -> dict:
+    config = _filmstrip_config_payload()
+    items = list(
+        AssociationSpotlightMedia.objects.filter(association=association)
+        .select_related("asset", "association", "association__state")
+        .order_by("sort_order", "id")
+    )
+    return {
+        "association": _serialize_association_context(association),
+        "config": {
+            "enabled": config["enabled"],
+            "duration_seconds": config["duration_seconds"],
+            "scroll_speed": config["scroll_speed"],
+            "max_items": config["max_items"],
+            "reshow_policy": config["reshow_policy"],
+        },
+        "items": items,
+    }
+
+
 def _get_custom_rate_categories(association: Association):
     return (
         AssociationRateCategory.objects.filter(association=association)
@@ -386,6 +516,7 @@ def build_dashboard_payload(request) -> dict:
             "other_associations": _build_other_association_rates(active_association),
             "global_trends": STATIC_GLOBAL_TRENDS,
             "quick_actions": QUICK_ACTIONS,
+            "dashboard_welcome_filmstrip": _build_dashboard_welcome_filmstrip_payload(request, active_association),
         }
 
     return {
@@ -409,6 +540,7 @@ def build_dashboard_payload(request) -> dict:
         "other_associations": _build_other_association_rates(latest_rate.association if latest_rate.association_id else active_association),
         "global_trends": STATIC_GLOBAL_TRENDS,
         "quick_actions": QUICK_ACTIONS,
+        "dashboard_welcome_filmstrip": _build_dashboard_welcome_filmstrip_payload(request, active_association),
     }
 
 
@@ -619,3 +751,202 @@ class AssociationAdminRateCatalogView(APIView):
 
         payload = _serialize_rate_catalog(association)
         return Response(AssociationRateCatalogResponseSerializer(payload).data)
+
+
+class AssociationSpotlightUploadSessionView(APIView):
+    permission_classes = [HasAdminAccess]
+
+    def post(self, request):
+        if not _user_can_manage_spotlights(request.user):
+            raise PermissionDenied("Only association admins and super admins can manage dashboard welcome spotlights.")
+        selector_serializer = AssociationSpotlightAssociationSelectorSerializer(data=request.data)
+        selector_serializer.is_valid(raise_exception=True)
+        association = _resolve_spotlight_admin_association(
+            request,
+            association_id=getattr(selector_serializer.validated_data.get("association"), "id", None),
+        )
+        serializer = AssociationSpotlightUploadSessionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        session = build_mock_signed_upload("association-spotlights", association.id, serializer.validated_data["filename"], visibility="public")
+        return Response(session.__dict__)
+
+
+class AssociationSpotlightMediaFinalizeView(APIView):
+    permission_classes = [HasAdminAccess]
+
+    def post(self, request):
+        if not _user_can_manage_spotlights(request.user):
+            raise PermissionDenied("Only association admins and super admins can manage dashboard welcome spotlights.")
+        selector_serializer = AssociationSpotlightAssociationSelectorSerializer(data=request.data)
+        selector_serializer.is_valid(raise_exception=True)
+        association = _resolve_spotlight_admin_association(
+            request,
+            association_id=getattr(selector_serializer.validated_data.get("association"), "id", None),
+        )
+        serializer = AssociationSpotlightMediaFinalizeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+        expected_prefix = f"association-spotlights/{association.id}/"
+        if not payload["object_key"].startswith(expected_prefix):
+            return Response({"object_key": ["Object key does not match the association spotlight upload path."]}, status=status.HTTP_400_BAD_REQUEST)
+        mock_upload = get_mock_upload(payload["object_key"])
+        if mock_upload is None:
+            return Response({"object_key": ["Uploaded object not found in mock storage."]}, status=status.HTTP_400_BAD_REQUEST)
+        if mock_upload.content_type != payload["mime_type"]:
+            return Response({"mime_type": ["Uploaded file metadata did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
+        if mock_upload.size != payload["file_size"]:
+            return Response({"file_size": ["Uploaded file size did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        public_url = build_mock_public_url(payload["object_key"], request=request)
+        media_asset, created = MediaAsset.objects.get_or_create(
+            object_key=payload["object_key"],
+            defaults={
+                "uploader": request.user,
+                "bucket_name": payload["bucket_name"],
+                "original_filename": payload["original_filename"],
+                "mime_type": payload["mime_type"],
+                "public_url": public_url,
+                "width": payload["width"],
+                "height": payload["height"],
+                "file_size": payload["file_size"],
+                "visibility": MediaAsset.Visibility.PUBLIC,
+                "moderation_status": MediaAsset.ModerationStatus.APPROVED,
+            },
+        )
+        if not created:
+            media_asset.uploader = request.user
+            media_asset.bucket_name = payload["bucket_name"]
+            media_asset.original_filename = payload["original_filename"]
+            media_asset.mime_type = payload["mime_type"]
+            media_asset.public_url = public_url
+            media_asset.width = payload["width"]
+            media_asset.height = payload["height"]
+            media_asset.file_size = payload["file_size"]
+            media_asset.visibility = MediaAsset.Visibility.PUBLIC
+            media_asset.moderation_status = MediaAsset.ModerationStatus.APPROVED
+            media_asset.save(
+                update_fields=[
+                    "uploader",
+                    "bucket_name",
+                    "original_filename",
+                    "mime_type",
+                    "public_url",
+                    "width",
+                    "height",
+                    "file_size",
+                    "visibility",
+                    "moderation_status",
+                ]
+            )
+        return Response(
+            {
+                "asset_id": media_asset.id,
+                "object_key": media_asset.object_key,
+                "public_url": media_asset.public_url,
+                "original_filename": media_asset.original_filename,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AssociationSpotlightListCreateView(APIView):
+    permission_classes = [HasAdminAccess]
+
+    def get(self, request):
+        if not _user_can_manage_spotlights(request.user):
+            raise PermissionDenied("Only association admins and super admins can manage dashboard welcome spotlights.")
+        selector_serializer = AssociationSpotlightAssociationSelectorSerializer(data=request.query_params)
+        selector_serializer.is_valid(raise_exception=True)
+        association = _resolve_spotlight_admin_association(
+            request,
+            association_id=getattr(selector_serializer.validated_data.get("association"), "id", None),
+        )
+        return Response(AssociationSpotlightCollectionSerializer(_build_spotlight_collection_payload(association)).data)
+
+    def post(self, request):
+        if not _user_can_manage_spotlights(request.user):
+            raise PermissionDenied("Only association admins and super admins can manage dashboard welcome spotlights.")
+        selector_serializer = AssociationSpotlightAssociationSelectorSerializer(data=request.data)
+        selector_serializer.is_valid(raise_exception=True)
+        association = _resolve_spotlight_admin_association(
+            request,
+            association_id=getattr(selector_serializer.validated_data.get("association"), "id", None),
+        )
+        serializer = AssociationSpotlightMediaWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        next_sort_order = (
+            AssociationSpotlightMedia.objects.filter(association=association).order_by("-sort_order", "-id").values_list("sort_order", flat=True).first()
+        )
+        spotlight_item = AssociationSpotlightMedia.objects.create(
+            association=association,
+            created_by=request.user,
+            sort_order=(next_sort_order + 1) if next_sort_order is not None else 0,
+            **serializer.validated_data,
+        )
+        spotlight_item = AssociationSpotlightMedia.objects.select_related("asset", "association", "association__state").get(pk=spotlight_item.id)
+        return Response(AssociationSpotlightMediaSerializer(spotlight_item).data, status=status.HTTP_201_CREATED)
+
+
+class AssociationSpotlightDetailView(APIView):
+    permission_classes = [HasAdminAccess]
+
+    def patch(self, request, item_id: int):
+        if not _user_can_manage_spotlights(request.user):
+            raise PermissionDenied("Only association admins and super admins can manage dashboard welcome spotlights.")
+        spotlight_item = get_object_or_404(
+            AssociationSpotlightMedia.objects.select_related("association", "association__state", "asset"),
+            pk=item_id,
+        )
+        association = _resolve_spotlight_admin_association(request, association_id=spotlight_item.association_id)
+        if spotlight_item.association_id != association.id:
+            raise PermissionDenied("You do not have access to this association spotlight item.")
+        serializer = AssociationSpotlightMediaWriteSerializer(spotlight_item, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        for field_name, value in serializer.validated_data.items():
+            setattr(spotlight_item, field_name, value)
+        spotlight_item.save()
+        spotlight_item.refresh_from_db()
+        return Response(AssociationSpotlightMediaSerializer(spotlight_item).data)
+
+    def delete(self, request, item_id: int):
+        if not _user_can_manage_spotlights(request.user):
+            raise PermissionDenied("Only association admins and super admins can manage dashboard welcome spotlights.")
+        spotlight_item = get_object_or_404(AssociationSpotlightMedia.objects.select_related("association"), pk=item_id)
+        association = _resolve_spotlight_admin_association(request, association_id=spotlight_item.association_id)
+        if spotlight_item.association_id != association.id:
+            raise PermissionDenied("You do not have access to this association spotlight item.")
+        asset = spotlight_item.asset
+        spotlight_item.delete()
+        asset.delete()
+        return Response({"message": "Spotlight item deleted."}, status=status.HTTP_200_OK)
+
+
+class AssociationSpotlightReorderView(APIView):
+    permission_classes = [HasAdminAccess]
+
+    def post(self, request):
+        if not _user_can_manage_spotlights(request.user):
+            raise PermissionDenied("Only association admins and super admins can manage dashboard welcome spotlights.")
+        selector_serializer = AssociationSpotlightAssociationSelectorSerializer(data=request.data)
+        selector_serializer.is_valid(raise_exception=True)
+        association = _resolve_spotlight_admin_association(
+            request,
+            association_id=getattr(selector_serializer.validated_data.get("association"), "id", None),
+        )
+        serializer = AssociationSpotlightMediaReorderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        item_ids = serializer.validated_data["item_ids"]
+        existing_ids = list(
+            AssociationSpotlightMedia.objects.filter(association=association).order_by("sort_order", "id").values_list("id", flat=True)
+        )
+        if sorted(existing_ids) != sorted(item_ids):
+            return Response({"item_ids": ["Reorder payload must include every spotlight item for the selected association exactly once."]}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            for index, item_id in enumerate(item_ids):
+                AssociationSpotlightMedia.objects.filter(association=association, pk=item_id).update(sort_order=index)
+        items = list(
+            AssociationSpotlightMedia.objects.filter(association=association)
+            .select_related("asset", "association", "association__state")
+            .order_by("sort_order", "id")
+        )
+        return Response({"items": AssociationSpotlightMediaSerializer(items, many=True).data})

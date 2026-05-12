@@ -9,6 +9,7 @@ import { AppHeader } from "../../components/AppHeader";
 import { AppScreen } from "../../components/AppScreen";
 import { ScreenState } from "../../components/ScreenState";
 import { useSession } from "../../session/SessionProvider";
+import { DashboardWelcomeFilmstrip } from "./DashboardWelcomeFilmstrip";
 import { colors, radii, spacing, typography } from "../../theme/tokens";
 import { AdvertisementItem, DashboardData, NewsData } from "../../types/api";
 import { executeAdvertisementAction } from "../../utils/advertisements";
@@ -22,6 +23,8 @@ type DashboardUpdate = {
   icon: string;
   onPress: () => void;
 };
+
+const dismissedAssociationFilmstrips = new Set<number>();
 
 export function HomeDashboardScreen() {
   const navigation = useNavigation<any>();
@@ -128,6 +131,16 @@ export function HomeDashboardScreen() {
     { label: "Gold/Oz (USD)", value: `$${formatCompactNumber(dashboard.global_trends.gold_oz)}`, trend: "down" },
     { label: "Silver/Oz (USD)", value: `$${formatCompactNumber(dashboard.global_trends.silver_oz)}`, trend: "up" },
   ];
+  const welcomeFilmstrip = dashboard.dashboard_welcome_filmstrip;
+  const welcomeFilmstripDismissed =
+    welcomeFilmstrip?.reshow_policy === "next_app_launch" && welcomeFilmstrip
+      ? dismissedAssociationFilmstrips.has(welcomeFilmstrip.association_id)
+      : false;
+  const shouldShowWelcomeFilmstrip =
+    status === "authenticated" &&
+    Boolean(welcomeFilmstrip?.enabled) &&
+    Boolean(welcomeFilmstrip?.items.length) &&
+    (welcomeFilmstrip?.reshow_policy === "every_dashboard_visit" || !welcomeFilmstripDismissed);
   const shortcuts = [
     {
       key: "other-associations",
@@ -188,6 +201,17 @@ export function HomeDashboardScreen() {
           </Pressable>
         }
       />
+
+      {shouldShowWelcomeFilmstrip && welcomeFilmstrip ? (
+        <DashboardWelcomeFilmstrip
+          payload={welcomeFilmstrip}
+          onDismiss={() => {
+            if (welcomeFilmstrip.reshow_policy === "next_app_launch") {
+              dismissedAssociationFilmstrips.add(welcomeFilmstrip.association_id);
+            }
+          }}
+        />
+      ) : null}
 
       <View style={styles.heroCard}>
         <View style={styles.heroWatermark}>
