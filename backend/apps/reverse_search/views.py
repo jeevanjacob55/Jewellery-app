@@ -1,10 +1,11 @@
 from rest_framework import permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.directory.models import MediaAsset
-from config.storage import build_mock_signed_upload, get_mock_upload
+from apps.media_platform.models import MediaAsset
+from apps.media_platform.service import create_upload_session, finalize_media_asset
 
 from .models import ReverseSearchAttachment, ReverseSearchRequest
 from .serializers import (
@@ -47,7 +48,12 @@ class ReverseSearchUploadSessionView(APIView):
         if reverse_search_request.attachments.exists():
             return Response({"request_id": ["This request already has an attachment."]}, status=status.HTTP_400_BAD_REQUEST)
 
-        session = build_mock_signed_upload(f"reverse-search/{reverse_search_request.id}/original", "upload", filename, visibility="private")
+        session = create_upload_session(
+            prefix=f"reverse-search/{reverse_search_request.id}/original",
+            owner_id="upload",
+            filename=filename,
+            visibility="private",
+        )
         return Response(session.__dict__)
 
 
@@ -65,58 +71,20 @@ class ReverseSearchFinalizeAttachmentView(APIView):
         if reverse_search_request.attachments.exists():
             return Response({"request_id": ["This request already has an attachment."]}, status=status.HTTP_400_BAD_REQUEST)
 
-        expected_prefix = f"reverse-search/{reverse_search_request.id}/original/"
-        if not payload["object_key"].startswith(expected_prefix):
-            return Response({"object_key": ["Object key does not match the request upload path."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        mock_upload = get_mock_upload(payload["object_key"])
-        if mock_upload is None:
-            return Response({"object_key": ["Uploaded object not found in mock storage."]}, status=status.HTTP_400_BAD_REQUEST)
-        if mock_upload.content_type != payload["mime_type"]:
-            return Response({"mime_type": ["Uploaded file metadata did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
-        if mock_upload.size != payload["file_size"]:
-            return Response({"file_size": ["Uploaded file size did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        media_asset, created = MediaAsset.objects.get_or_create(
-            object_key=payload["object_key"],
-            defaults={
-                "uploader": request.user,
-                "bucket_name": payload["bucket_name"],
-                "original_filename": payload["original_filename"],
-                "mime_type": payload["mime_type"],
-                "width": payload["width"],
-                "height": payload["height"],
-                "file_size": payload["file_size"],
-                "visibility": MediaAsset.Visibility.PRIVATE,
-                "moderation_status": MediaAsset.ModerationStatus.PENDING,
-            },
-        )
-        if not created and hasattr(media_asset, "reverse_search_attachment"):
-            return Response({"object_key": ["This uploaded object is already attached to a request."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not created:
-            media_asset.uploader = request.user
-            media_asset.bucket_name = payload["bucket_name"]
-            media_asset.original_filename = payload["original_filename"]
-            media_asset.mime_type = payload["mime_type"]
-            media_asset.width = payload["width"]
-            media_asset.height = payload["height"]
-            media_asset.file_size = payload["file_size"]
-            media_asset.visibility = MediaAsset.Visibility.PRIVATE
-            media_asset.moderation_status = MediaAsset.ModerationStatus.PENDING
-            media_asset.save(
-                update_fields=[
-                    "uploader",
-                    "bucket_name",
-                    "original_filename",
-                    "mime_type",
-                    "width",
-                    "height",
-                    "file_size",
-                    "visibility",
-                    "moderation_status",
-                ]
+        try:
+            media_asset = finalize_media_asset(
+                payload=payload,
+                request=request,
+                uploader=request.user,
+                expected_prefix=f"reverse-search/{reverse_search_request.id}/original/",
+                expected_prefix_error="Object key does not match the request upload path.",
+                visibility=MediaAsset.Visibility.PRIVATE,
+                moderation_status=MediaAsset.ModerationStatus.PENDING,
             )
+        except ValidationError as exc:
+            return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+        if hasattr(media_asset, "reverse_search_attachment"):
+            return Response({"object_key": ["This uploaded object is already attached to a request."]}, status=status.HTTP_400_BAD_REQUEST)
 
         ReverseSearchAttachment.objects.create(request=reverse_search_request, asset=media_asset)
         refreshed_request = _request_queryset().get(id=reverse_search_request.id)

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.directory.models import MediaAsset
+from apps.media_platform.models import MediaAsset
 
 from .models import ReverseSearchAttachment, ReverseSearchRequest, ReverseSearchResponse
 

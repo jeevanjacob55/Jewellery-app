@@ -5,7 +5,7 @@ from django.urls import include, path
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from config.storage import MockUploadView
+from apps.media_platform.views import MediaUploadView
 
 
 class HealthView(APIView):
@@ -19,7 +19,8 @@ class HealthView(APIView):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", HealthView.as_view(), name="health"),
-    path("api/mock-uploads/", MockUploadView.as_view(), name="mock_upload"),
+    path("api/media/uploads/", MediaUploadView.as_view(), name="media_upload"),
+    path("api/mock-uploads/", MediaUploadView.as_view(), name="mock_upload"),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/me/", include("apps.accounts.me_urls")),
     path("api/notifications/", include("apps.accounts.notification_urls")),

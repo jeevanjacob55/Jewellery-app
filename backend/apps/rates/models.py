@@ -1,7 +1,7 @@
 from django.db import models
 
 from apps.accounts.models import User
-from apps.directory.models import MediaAsset
+from apps.media_platform.models import MediaAsset
 from apps.regions.models import Association
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 from django.utils.text import slugify
+from apps.media_platform.service import resolve_media_asset_url
 
 from .models import (
     Company,
@@ -39,23 +40,27 @@ from .services import (
 
 def get_company_image_url(company: Company, *, is_logo: bool) -> str | None:
     for image in company.images.all():
-        if image.is_logo == is_logo and image.asset.public_url:
-            return image.asset.public_url
+        if image.is_logo == is_logo:
+            resolved_url = resolve_media_asset_url(image.asset)
+            if resolved_url:
+                return resolved_url
     return None
 
 
 def get_product_image_url(product: Product) -> str | None:
     for image in product.images.all():
-        if image.asset.public_url:
-            return image.asset.public_url
+        resolved_url = resolve_media_asset_url(image.asset)
+        if resolved_url:
+            return resolved_url
     return None
 
 
 def get_product_image_payload(product: Product) -> list[dict[str, str]]:
     payload: list[dict[str, str]] = []
     for image in product.images.all():
-        if image.asset.public_url:
-            payload.append({"url": image.asset.public_url, "type": "image"})
+        resolved_url = resolve_media_asset_url(image.asset)
+        if resolved_url:
+            payload.append({"url": resolved_url, "type": "image"})
     return payload
 
 
@@ -261,12 +266,15 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class CompanyManagementProductImageSerializer(serializers.ModelSerializer):
     asset_id = serializers.IntegerField(source="asset.id", read_only=True)
-    url = serializers.CharField(source="asset.public_url", read_only=True)
+    url = serializers.SerializerMethodField()
     original_filename = serializers.CharField(source="asset.original_filename", read_only=True)
 
     class Meta:
         model = ProductImage
         fields = ["asset_id", "url", "original_filename"]
+
+    def get_url(self, obj: ProductImage) -> str | None:
+        return resolve_media_asset_url(obj.asset, request=self.context.get("request"))
 
 
 class ProductVisibilityTargetInputSerializer(serializers.Serializer):

@@ -9,6 +9,7 @@ from rest_framework.test import APITestCase
 
 from apps.accounts.models import MemberProfile, NotificationPreference, UserNotification, UserRole
 from apps.directory.models import Company, CompanyTier
+from apps.media_platform.models import MediaAsset
 from apps.rates.models import AssociationRate
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
@@ -266,6 +267,56 @@ class NewsFeedTests(ScopedNewsMeetingBase):
         )
         self.assertIn(self.member.id, recipient_ids)
         self.assertNotIn(self.other_member.id, recipient_ids)
+
+    def test_association_admin_can_upload_and_attach_news_image_asset(self):
+        self.client.force_authenticate(user=self.association_admin)
+
+        upload_session_response = self.client.post(
+            reverse("news_upload_session"),
+            {"filename": "association-news.jpg"},
+            format="json",
+        )
+        self.assertEqual(upload_session_response.status_code, status.HTTP_200_OK)
+
+        upload_response = self.client.put(
+            upload_session_response.data["upload_url"],
+            b"news-image-bytes",
+            content_type="image/jpeg",
+        )
+        self.assertEqual(upload_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        finalize_response = self.client.post(
+            reverse("news_media_asset_finalize"),
+            {
+                "object_key": upload_session_response.data["object_key"],
+                "bucket_name": upload_session_response.data["bucket_name"],
+                "original_filename": "association-news.jpg",
+                "mime_type": "image/jpeg",
+                "file_size": len(b"news-image-bytes"),
+                "width": 1280,
+                "height": 720,
+            },
+            format="json",
+        )
+        self.assertEqual(finalize_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(MediaAsset.objects.count(), 1)
+
+        create_response = self.client.post(
+            reverse("news_feed"),
+            {
+                "title": "Association News With Image",
+                "description": "Published with a media asset.",
+                "image_asset_id": finalize_response.data["asset_id"],
+                "publisher_type": News.PublisherType.ASSOCIATION,
+                "publisher_id": self.kgsma.id,
+                "include_targets": [{"target_type": NewsTarget.TargetType.ASSOCIATION, "target_id": self.kgsma.id}],
+            },
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data["image_asset_id"], finalize_response.data["asset_id"])
+        self.assertIsNotNone(create_response.data["image_url"])
+        self.assertTrue(create_response.data["image_url"].startswith("http://testserver/api/media/uploads/"))
 
     def test_unit_admin_out_of_scope_news_requires_association_approval(self):
         self.client.force_authenticate(user=self.unit_admin)

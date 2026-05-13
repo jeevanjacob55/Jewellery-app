@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from apps.directory.models import MediaAsset
+from apps.media_platform.models import MediaAsset
+from apps.media_platform.service import resolve_media_asset_url
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
-from config.storage import resolve_public_media_url
 
 from .models import AdAsset, AdClick, AdImpression, AdTargeting, Advertisement
 
 
 def get_advertisement_image_url(advertisement: Advertisement, request=None) -> str | None:
     for ad_asset in advertisement.assets.select_related("asset").order_by("id"):
-        return resolve_public_media_url(ad_asset.asset.object_key, ad_asset.asset.public_url, request=request)
+        return resolve_media_asset_url(ad_asset.asset, request=request)
     return None
 
 

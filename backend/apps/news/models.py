@@ -3,6 +3,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from apps.media_platform.models import MediaAsset
+
 
 class News(models.Model):
     class PublisherType(models.TextChoices):
@@ -21,6 +23,7 @@ class News(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     image = models.ImageField(upload_to="news/images/", null=True, blank=True)
+    image_asset = models.OneToOneField(MediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name="news_item")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="created_news_items")
     publisher_type = models.CharField(max_length=20, choices=PublisherType.choices)
     publisher_id = models.PositiveBigIntegerField(null=True, blank=True)

@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.accounts.models import MemberProfile, UserRole
 from apps.directory.models import Company
+from apps.media_platform.models import MediaAsset
 from apps.regions.models import Association, RegionState, Unit
 
 from .models import Meeting, MeetingResponse, MeetingTarget, News, NewsTarget
@@ -75,6 +76,18 @@ def validate_news_publisher_scope(user, *, publisher_type: str, publisher_id: in
     }[publisher_type]
     if not user.has_scoped_role(expected_role, scope_type=scope_type, scope_id=publisher_id):
         raise NewsValidationError("You cannot create news for a publisher scope you do not manage.")
+
+
+def validate_news_image_asset(user, image_asset: MediaAsset | None) -> None:
+    if image_asset is None:
+        return
+    if image_asset.visibility != MediaAsset.Visibility.PUBLIC:
+        raise NewsValidationError("News images must use a public media asset.")
+    if image_asset.uploader_id is not None and image_asset.uploader_id != user.id:
+        raise NewsValidationError("You can only attach image media that you uploaded.")
+    attached_news = getattr(image_asset, "news_item", None)
+    if attached_news is not None:
+        raise NewsValidationError("This image asset is already attached to another news item.")
 
 
 def validate_target_payload(target_type: str, target_id: int | None) -> None:
@@ -241,8 +254,10 @@ def create_news_with_targets(
     include_targets: list[dict],
     exclude_targets: list[dict],
     save_as_draft: bool,
+    image_asset: MediaAsset | None = None,
 ) -> News:
     validate_news_publisher_scope(user, publisher_type=publisher_type, publisher_id=publisher_id)
+    validate_news_image_asset(user, image_asset)
     if not include_targets:
         raise NewsValidationError("At least one include target is required.")
 
@@ -259,6 +274,7 @@ def create_news_with_targets(
     news = News.objects.create(
         title=title,
         description=description,
+        image_asset=image_asset,
         created_by=user,
         publisher_type=publisher_type,
         publisher_id=publisher_id,

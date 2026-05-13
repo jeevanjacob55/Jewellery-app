@@ -1,9 +1,15 @@
 from rest_framework import serializers
 
+from apps.media_platform.models import MediaAsset
+from apps.media_platform.service import resolve_media_asset_url
+
 from .models import Meeting, MeetingResponse, MeetingTarget, News, NewsTarget
 
 
 def get_news_image_url(news: News, *, request) -> str | None:
+    image_asset_url = resolve_media_asset_url(getattr(news, "image_asset", None), request=request)
+    if image_asset_url:
+        return image_asset_url
     if not news.image:
         return None
     image_url = news.image.url
@@ -116,6 +122,7 @@ class NewsSerializer(serializers.ModelSerializer):
     created_by_id = serializers.IntegerField(source="created_by.id", read_only=True)
     approved_by_id = serializers.IntegerField(source="approved_by.id", read_only=True)
     image_url = serializers.SerializerMethodField()
+    image_asset_id = serializers.IntegerField(source="image_asset.id", read_only=True, allow_null=True)
 
     class Meta:
         model = News
@@ -124,6 +131,7 @@ class NewsSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "image_url",
+            "image_asset_id",
             "created_by_id",
             "publisher_type",
             "publisher_id",
@@ -143,11 +151,32 @@ class NewsSerializer(serializers.ModelSerializer):
 class CreateNewsSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     description = serializers.CharField()
+    image_asset_id = serializers.PrimaryKeyRelatedField(queryset=MediaAsset.objects.all(), source="image_asset", required=False, allow_null=True, default=None)
     publisher_type = serializers.ChoiceField(choices=News.PublisherType.choices)
     publisher_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     include_targets = NewsTargetInputSerializer(many=True)
     exclude_targets = NewsTargetInputSerializer(many=True, required=False, default=list)
     save_as_draft = serializers.BooleanField(required=False, default=False)
+
+
+class NewsUploadSessionSerializer(serializers.Serializer):
+    filename = serializers.CharField(max_length=255, required=False, default="news-image.jpg")
+
+
+class NewsMediaAssetFinalizeSerializer(serializers.Serializer):
+    object_key = serializers.CharField(max_length=500)
+    bucket_name = serializers.CharField(max_length=255)
+    original_filename = serializers.CharField(max_length=255)
+    mime_type = serializers.CharField(max_length=120)
+    file_size = serializers.IntegerField(min_value=1)
+    width = serializers.IntegerField(min_value=0)
+    height = serializers.IntegerField(min_value=0)
+
+    def validate_mime_type(self, value: str) -> str:
+        allowed = {"image/jpeg", "image/png", "image/webp"}
+        if value not in allowed:
+            raise serializers.ValidationError("Unsupported image type.")
+        return value
 
 
 class RejectNewsSerializer(serializers.Serializer):

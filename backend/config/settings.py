@@ -1,15 +1,19 @@
+import importlib.util
 from datetime import timedelta
 from pathlib import Path
 
 import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+HAS_WHITENOISE = importlib.util.find_spec("whitenoise") is not None
 
 env = environ.Env(
     DEBUG=(bool, True),
     JWT_ACCESS_MINUTES=(int, 30),
     JWT_REFRESH_DAYS=(int, 7),
     MEDIA_SIGNED_URL_TTL=(int, 900),
+    MEDIA_STORAGE_PROVIDER=(str, "mock"),
+    GCS_SERVICE_ACCOUNT_JSON=(str, ""),
     COMPANY_PLAN_UPGRADE_URL=(str, ""),
     DIRECTORY_MARKET_ZONE_FEED_ENABLED=(bool, False),
     DIRECTORY_MARKET_MIXED_FEED_ENABLED=(bool, False),
@@ -37,6 +41,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
+    "apps.media_platform",
     "apps.accounts",
     "apps.regions",
     "apps.rates",
@@ -58,6 +63,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+if HAS_WHITENOISE:
+    MIDDLEWARE.insert(2, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 ROOT_URLCONF = "config.urls"
 
@@ -104,6 +111,18 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if HAS_WHITENOISE
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -131,6 +150,8 @@ CORS_ALLOWED_ORIGINS = [
 
 GCS_BUCKET_NAME = env("GCS_BUCKET_NAME", default="")
 GCS_PRIVATE_BUCKET_NAME = env("GCS_PRIVATE_BUCKET_NAME", default="")
+GCS_SERVICE_ACCOUNT_JSON = env("GCS_SERVICE_ACCOUNT_JSON", default="")
+MEDIA_STORAGE_PROVIDER = env("MEDIA_STORAGE_PROVIDER")
 MEDIA_SIGNED_URL_TTL = env("MEDIA_SIGNED_URL_TTL")
 COMPANY_PLAN_UPGRADE_URL = env("COMPANY_PLAN_UPGRADE_URL", default="").strip()
 DIRECTORY_MARKET_ZONE_FEED_ENABLED = env("DIRECTORY_MARKET_ZONE_FEED_ENABLED")

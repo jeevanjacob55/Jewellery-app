@@ -126,6 +126,7 @@ export type AdminNewsRecord = {
   title: string;
   description: string;
   image_url: string | null;
+  image_asset_id: number | null;
   created_by_id: number;
   publisher_type: "platform" | "association" | "unit" | "company";
   publisher_id: number | null;
@@ -146,6 +147,7 @@ export type AdminNewsRecord = {
 export type AdminNewsCreatePayload = {
   title: string;
   description: string;
+  image_asset_id?: number | null;
   publisher_type: AdminNewsRecord["publisher_type"];
   publisher_id: number | null;
   include_targets: NewsTargetInput[];
@@ -818,6 +820,28 @@ export async function fetchCompanyOptions() {
     city: company.city ?? "",
     state: company.state ?? "",
   })).filter((company) => company.id > 0);
+}
+
+export async function requestNewsUploadSession(filename: string) {
+  return requestJson<UploadSession>("/news/upload-session/", {
+    method: "POST",
+    body: JSON.stringify({ filename }),
+  });
+}
+
+export async function finalizeNewsMediaAsset(payload: {
+  object_key: string;
+  bucket_name: string;
+  original_filename: string;
+  mime_type: string;
+  file_size: number;
+  width: number;
+  height: number;
+}) {
+  return requestJson<FinalizedMediaAsset>("/news/media-assets/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function fetchProductOptions(companyId?: number) {

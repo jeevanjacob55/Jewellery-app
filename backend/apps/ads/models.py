@@ -3,7 +3,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
-from apps.directory.models import Company, MediaAsset
+from apps.directory.models import Company
+from apps.media_platform.models import MediaAsset
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 

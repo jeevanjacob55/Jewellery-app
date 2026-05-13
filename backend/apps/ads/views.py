@@ -10,8 +10,9 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User, UserRole
 from apps.admin_ops.views import _resolve_admin_scope, _scoped_advertisement_queryset
-from apps.directory.models import Company, MediaAsset
-from config.storage import build_mock_public_url, build_mock_signed_upload, get_mock_upload
+from apps.directory.models import Company
+from apps.media_platform.models import MediaAsset
+from apps.media_platform.service import build_media_asset_response, create_upload_session, finalize_media_asset
 
 from .models import AdAsset, AdClick, AdImpression, Advertisement
 from .serializers import (
@@ -117,7 +118,7 @@ class AdvertisementUploadSessionView(APIView):
     def post(self, request):
         company = _require_company_advertiser(request.user, require_active_approved=True)
         filename = request.data.get("filename", "banner.jpg")
-        session = build_mock_signed_upload("ads/banners", company.id, filename, visibility="public")
+        session = create_upload_session(prefix="ads/banners", owner_id=company.id, filename=filename, visibility="public")
         return Response(session.__dict__)
 
 
@@ -130,70 +131,16 @@ class AdvertisementMediaAssetFinalizeView(APIView):
         serializer.is_valid(raise_exception=True)
         payload = serializer.validated_data
 
-        expected_prefix = f"ads/banners/{company.id}/"
-        if not payload["object_key"].startswith(expected_prefix):
-            raise ValidationError({"object_key": ["Object key does not match the advertisement upload path."]})
-
-        mock_upload = get_mock_upload(payload["object_key"])
-        if mock_upload is None:
-            raise ValidationError({"object_key": ["Uploaded object not found in mock storage."]})
-        if mock_upload.content_type != payload["mime_type"]:
-            raise ValidationError({"mime_type": ["Uploaded file metadata did not match the finalize payload."]})
-        if mock_upload.size != payload["file_size"]:
-            raise ValidationError({"file_size": ["Uploaded file size did not match the finalize payload."]})
-
-        public_url = build_mock_public_url(payload["object_key"], request=request)
-        media_asset, created = MediaAsset.objects.get_or_create(
-            object_key=payload["object_key"],
-            defaults={
-                "uploader": request.user,
-                "bucket_name": payload["bucket_name"],
-                "original_filename": payload["original_filename"],
-                "mime_type": payload["mime_type"],
-                "public_url": public_url,
-                "width": payload["width"],
-                "height": payload["height"],
-                "file_size": payload["file_size"],
-                "visibility": MediaAsset.Visibility.PUBLIC,
-                "moderation_status": MediaAsset.ModerationStatus.APPROVED,
-            },
+        media_asset = finalize_media_asset(
+            payload=payload,
+            request=request,
+            uploader=request.user,
+            expected_prefix=f"ads/banners/{company.id}/",
+            expected_prefix_error="Object key does not match the advertisement upload path.",
+            visibility=MediaAsset.Visibility.PUBLIC,
+            moderation_status=MediaAsset.ModerationStatus.APPROVED,
         )
-
-        if not created:
-            media_asset.uploader = request.user
-            media_asset.bucket_name = payload["bucket_name"]
-            media_asset.original_filename = payload["original_filename"]
-            media_asset.mime_type = payload["mime_type"]
-            media_asset.public_url = public_url
-            media_asset.width = payload["width"]
-            media_asset.height = payload["height"]
-            media_asset.file_size = payload["file_size"]
-            media_asset.visibility = MediaAsset.Visibility.PUBLIC
-            media_asset.moderation_status = MediaAsset.ModerationStatus.APPROVED
-            media_asset.save(
-                update_fields=[
-                    "uploader",
-                    "bucket_name",
-                    "original_filename",
-                    "mime_type",
-                    "public_url",
-                    "width",
-                    "height",
-                    "file_size",
-                    "visibility",
-                    "moderation_status",
-                ]
-            )
-
-        return Response(
-            {
-                "asset_id": media_asset.id,
-                "object_key": media_asset.object_key,
-                "public_url": media_asset.public_url,
-                "original_filename": media_asset.original_filename,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(build_media_asset_response(media_asset, request=request), status=status.HTTP_201_CREATED)
 
 
 class AdvertisementCampaignListCreateView(APIView):

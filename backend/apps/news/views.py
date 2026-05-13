@@ -1,10 +1,13 @@
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.notification_services import notify_published_meeting, notify_published_news
+from apps.media_platform.models import MediaAsset
+from apps.media_platform.service import build_media_asset_response, create_upload_session, finalize_media_asset
 from apps.rates.models import AssociationRate
 
 from .models import Alert, Meeting, News, NewsBookmark, NewsItem
@@ -15,12 +18,15 @@ from .serializers import (
     MeetingSerializer,
     NewsDetailSerializer,
     NewsFeedResponseSerializer,
+    NewsMediaAssetFinalizeSerializer,
     NewsSerializer,
+    NewsUploadSessionSerializer,
     RejectNewsSerializer,
     UpdateMeetingSerializer,
 )
 from .services import (
     NewsValidationError,
+    user_can_create_news,
     can_manage_meeting,
     can_user_review_news,
     create_meeting_with_targets,
@@ -38,7 +44,7 @@ def _build_meeting_queryset_with_relations():
 
 
 def _build_news_queryset_with_relations():
-    return News.objects.prefetch_related("targets").select_related("created_by", "approved_by")
+    return News.objects.prefetch_related("targets").select_related("created_by", "approved_by", "image_asset")
 
 
 def _get_visible_published_news(user, *, exclude_news_id: int | None = None) -> list[News]:
@@ -129,6 +135,7 @@ class NewsFeedView(APIView):
                 include_targets=serializer.validated_data["include_targets"],
                 exclude_targets=serializer.validated_data.get("exclude_targets", []),
                 save_as_draft=serializer.validated_data.get("save_as_draft", False),
+                image_asset=serializer.validated_data.get("image_asset"),
             )
         except NewsValidationError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -166,6 +173,46 @@ class NewsDetailView(APIView):
         )
 
 
+class NewsImageUploadSessionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not user_can_create_news(request.user):
+            return Response({"detail": "You do not have permission to upload news images."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = NewsUploadSessionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        session = create_upload_session(
+            prefix="news/images",
+            owner_id=request.user.id,
+            filename=serializer.validated_data["filename"],
+            visibility="public",
+        )
+        return Response(session.__dict__)
+
+
+class NewsMediaAssetFinalizeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if not user_can_create_news(request.user):
+            return Response({"detail": "You do not have permission to upload news images."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = NewsMediaAssetFinalizeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            media_asset = finalize_media_asset(
+                payload=serializer.validated_data,
+                request=request,
+                uploader=request.user,
+                expected_prefix=f"news/images/{request.user.id}/",
+                expected_prefix_error="Object key does not match the news upload path.",
+                visibility=MediaAsset.Visibility.PUBLIC,
+                moderation_status=MediaAsset.ModerationStatus.APPROVED,
+            )
+        except ValidationError as exc:
+            return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+        return Response(build_media_asset_response(media_asset, request=request), status=status.HTTP_201_CREATED)
+
+
 class NewsBookmarkToggleView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -185,7 +232,7 @@ class NewsApproveView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk: int):
-        news = News.objects.prefetch_related("targets").select_related("created_by").filter(pk=pk).first()
+        news = News.objects.prefetch_related("targets").select_related("created_by", "image_asset").filter(pk=pk).first()
         if news is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         if news.status != News.Status.PENDING_APPROVAL:
@@ -203,7 +250,7 @@ class NewsRejectView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk: int):
-        news = News.objects.prefetch_related("targets").select_related("created_by").filter(pk=pk).first()
+        news = News.objects.prefetch_related("targets").select_related("created_by", "image_asset").filter(pk=pk).first()
         if news is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         if news.status != News.Status.PENDING_APPROVAL:

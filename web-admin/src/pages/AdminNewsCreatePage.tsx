@@ -8,8 +8,11 @@ import {
   NewsTargetInput,
   RegionHierarchyState,
   createAdminNews,
+  finalizeNewsMediaAsset,
   fetchCompanyOptions,
   fetchRegionHierarchy,
+  requestNewsUploadSession,
+  uploadFileToSession,
 } from "../lib/api";
 
 type AudienceDraft = {
@@ -28,6 +31,12 @@ type SubmitBanner = {
 type HierarchyOption = {
   id: number;
   label: string;
+};
+
+type UploadedNewsImage = {
+  assetId: number;
+  publicUrl: string;
+  originalFilename: string;
 };
 
 const PUBLISHER_TYPE_LABELS: Record<AdminNewsCreatePayload["publisher_type"], string> = {
@@ -144,6 +153,22 @@ function getScopeLabel(
   return associationName ?? stateName ?? "Admin scope";
 }
 
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+      URL.revokeObjectURL(objectUrl);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read the selected image."));
+    };
+    image.src = objectUrl;
+  });
+}
+
 export function AdminNewsCreatePage() {
   const { session } = useAuth();
   const role = session?.user.role;
@@ -170,6 +195,9 @@ export function AdminNewsCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitBanner, setSubmitBanner] = useState<SubmitBanner | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<UploadedNewsImage | null>(null);
 
   useEffect(() => {
     setPublisherType(defaultPublisherType);
@@ -373,12 +401,52 @@ export function AdminNewsCreatePage() {
     return {
       title: nextTitle,
       description: nextDescription,
+      image_asset_id: uploadedImage?.assetId ?? null,
       publisher_type: publisherType,
       publisher_id: resolvedPublisherId,
       include_targets: includeTargets.map((item, index) => parseTargetDraft(item, `Include target ${index + 1}`)),
       exclude_targets: excludeTargets.map((item, index) => parseTargetDraft(item, `Exclude target ${index + 1}`)),
       save_as_draft: saveAsDraft,
     };
+  }
+
+  async function handleImageSelected(file: File | null) {
+    if (!file) {
+      setUploadedImage(null);
+      setImageError(null);
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setImageError("Please choose a JPG, PNG, or WebP image.");
+      return;
+    }
+
+    setImageError(null);
+    setImageUploading(true);
+    try {
+      const dimensions = await readImageDimensions(file);
+      const session = await requestNewsUploadSession(file.name);
+      await uploadFileToSession(session.upload_url, file);
+      const finalized = await finalizeNewsMediaAsset({
+        object_key: session.object_key,
+        bucket_name: session.bucket_name,
+        original_filename: file.name,
+        mime_type: file.type || "application/octet-stream",
+        file_size: file.size,
+        width: dimensions.width,
+        height: dimensions.height,
+      });
+      setUploadedImage({
+        assetId: finalized.asset_id,
+        publicUrl: finalized.public_url,
+        originalFilename: finalized.original_filename,
+      });
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "Unable to upload the image.");
+      setUploadedImage(null);
+    } finally {
+      setImageUploading(false);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -626,12 +694,42 @@ export function AdminNewsCreatePage() {
             <div className="content-panel__header">
               <div>
                 <p className="content-panel__eyebrow">Feature Image</p>
-                <h3 className="content-panel__title">Reserved for a later phase</h3>
+                <h3 className="content-panel__title">Upload a publish-ready image</h3>
               </div>
             </div>
-            <div className="content-image-placeholder">
-              <strong>Image upload is not wired yet</strong>
-              <p>This placeholder keeps the layout ready for the later media phase without implying a live upload flow today.</p>
+            <div className="content-form">
+              <label className="content-form__field content-form__field--full">
+                <span>Feature image</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => {
+                    const [file] = Array.from(event.target.files ?? []);
+                    void handleImageSelected(file ?? null);
+                  }}
+                />
+              </label>
+              {imageUploading ? (
+                <div className="content-form__helper-card">
+                  <strong>Uploading image</strong>
+                  <p>The file is being pushed to the shared media pipeline and finalized as a reusable asset.</p>
+                </div>
+              ) : null}
+              {uploadedImage ? (
+                <div className="content-form__helper-card">
+                  <strong>{uploadedImage.originalFilename}</strong>
+                  <p>Uploaded as asset #{uploadedImage.assetId}.</p>
+                  {uploadedImage.publicUrl ? <img src={uploadedImage.publicUrl} alt={uploadedImage.originalFilename} /> : null}
+                </div>
+              ) : null}
+              {imageError ? (
+                <div className="content-feedback content-feedback--error">
+                  <div>
+                    <strong>Image upload failed</strong>
+                    <p>{imageError}</p>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -762,7 +860,7 @@ export function AdminNewsCreatePage() {
         </div>
 
         <div className="content-page__actions">
-          <button className="content-page__submit" type="submit" disabled={submitting}>
+          <button className="content-page__submit" type="submit" disabled={submitting || imageUploading}>
             {submitting ? "Submitting..." : saveAsDraft ? "Save Draft" : "Submit News"}
           </button>
         </div>

@@ -9,15 +9,14 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework import permissions, status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.notification_services import notify_new_product
 from apps.admin_ops.permissions import IsSuperAdmin
-
-from config.storage import build_mock_public_url, build_mock_signed_upload, get_mock_upload
+from apps.media_platform.service import build_media_asset_response, create_upload_session, finalize_media_asset
 
 from .models import (
     Company,
@@ -578,7 +577,7 @@ class CompanyImageUploadSessionView(APIView):
         if not user_can_manage_company(request.user, company.id):
             return Response({"detail": "You do not have permission to manage media for this company."}, status=status.HTTP_403_FORBIDDEN)
         filename = request.data.get("filename", "company-image.jpg")
-        session = build_mock_signed_upload("companies/gallery", company_id, filename, visibility="public")
+        session = create_upload_session(prefix="companies/gallery", owner_id=company_id, filename=filename, visibility="public")
         return Response(session.__dict__)
 
 
@@ -682,72 +681,19 @@ class CompanyMediaAssetFinalizeView(APIView):
 
         serializer = CompanyMediaAssetFinalizeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        payload = serializer.validated_data
-
-        expected_prefix = f"companies/gallery/{company.id}/"
-        if not payload["object_key"].startswith(expected_prefix):
-            return Response({"object_key": ["Object key does not match the company upload path."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        mock_upload = get_mock_upload(payload["object_key"])
-        if mock_upload is None:
-            return Response({"object_key": ["Uploaded object not found in mock storage."]}, status=status.HTTP_400_BAD_REQUEST)
-        if mock_upload.content_type != payload["mime_type"]:
-            return Response({"mime_type": ["Uploaded file metadata did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
-        if mock_upload.size != payload["file_size"]:
-            return Response({"file_size": ["Uploaded file size did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        public_url = build_mock_public_url(payload["object_key"], request=request)
-        media_asset, created = MediaAsset.objects.get_or_create(
-            object_key=payload["object_key"],
-            defaults={
-                "uploader": request.user,
-                "bucket_name": payload["bucket_name"],
-                "original_filename": payload["original_filename"],
-                "mime_type": payload["mime_type"],
-                "public_url": public_url,
-                "width": payload["width"],
-                "height": payload["height"],
-                "file_size": payload["file_size"],
-                "visibility": MediaAsset.Visibility.PUBLIC,
-                "moderation_status": MediaAsset.ModerationStatus.APPROVED,
-            },
-        )
-
-        if not created:
-            media_asset.uploader = request.user
-            media_asset.bucket_name = payload["bucket_name"]
-            media_asset.original_filename = payload["original_filename"]
-            media_asset.mime_type = payload["mime_type"]
-            media_asset.public_url = public_url
-            media_asset.width = payload["width"]
-            media_asset.height = payload["height"]
-            media_asset.file_size = payload["file_size"]
-            media_asset.visibility = MediaAsset.Visibility.PUBLIC
-            media_asset.moderation_status = MediaAsset.ModerationStatus.APPROVED
-            media_asset.save(
-                update_fields=[
-                    "uploader",
-                    "bucket_name",
-                    "original_filename",
-                    "mime_type",
-                    "public_url",
-                    "width",
-                    "height",
-                    "file_size",
-                    "visibility",
-                    "moderation_status",
-                ]
+        try:
+            media_asset = finalize_media_asset(
+                payload=serializer.validated_data,
+                request=request,
+                uploader=request.user,
+                expected_prefix=f"companies/gallery/{company.id}/",
+                expected_prefix_error="Object key does not match the company upload path.",
+                visibility=MediaAsset.Visibility.PUBLIC,
+                moderation_status=MediaAsset.ModerationStatus.APPROVED,
             )
-
-        return Response(
-            {
-                "asset_id": media_asset.id,
-                "object_key": media_asset.object_key,
-                "public_url": media_asset.public_url,
-                "original_filename": media_asset.original_filename,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        except ValidationError as exc:
+            return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+        return Response(build_media_asset_response(media_asset, request=request), status=status.HTTP_201_CREATED)
 
 
 class ProductMediaAssetFinalizeView(APIView):
@@ -762,72 +708,19 @@ class ProductMediaAssetFinalizeView(APIView):
 
         serializer = CompanyMediaAssetFinalizeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        payload = serializer.validated_data
-
-        expected_prefix = f"products/gallery/{product_id}/"
-        if not payload["object_key"].startswith(expected_prefix):
-            return Response({"object_key": ["Object key does not match the product upload path."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        mock_upload = get_mock_upload(payload["object_key"])
-        if mock_upload is None:
-            return Response({"object_key": ["Uploaded object not found in mock storage."]}, status=status.HTTP_400_BAD_REQUEST)
-        if mock_upload.content_type != payload["mime_type"]:
-            return Response({"mime_type": ["Uploaded file metadata did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
-        if mock_upload.size != payload["file_size"]:
-            return Response({"file_size": ["Uploaded file size did not match the finalize payload."]}, status=status.HTTP_400_BAD_REQUEST)
-
-        public_url = build_mock_public_url(payload["object_key"], request=request)
-        media_asset, created = MediaAsset.objects.get_or_create(
-            object_key=payload["object_key"],
-            defaults={
-                "uploader": request.user,
-                "bucket_name": payload["bucket_name"],
-                "original_filename": payload["original_filename"],
-                "mime_type": payload["mime_type"],
-                "public_url": public_url,
-                "width": payload["width"],
-                "height": payload["height"],
-                "file_size": payload["file_size"],
-                "visibility": MediaAsset.Visibility.PUBLIC,
-                "moderation_status": MediaAsset.ModerationStatus.APPROVED,
-            },
-        )
-
-        if not created:
-            media_asset.uploader = request.user
-            media_asset.bucket_name = payload["bucket_name"]
-            media_asset.original_filename = payload["original_filename"]
-            media_asset.mime_type = payload["mime_type"]
-            media_asset.public_url = public_url
-            media_asset.width = payload["width"]
-            media_asset.height = payload["height"]
-            media_asset.file_size = payload["file_size"]
-            media_asset.visibility = MediaAsset.Visibility.PUBLIC
-            media_asset.moderation_status = MediaAsset.ModerationStatus.APPROVED
-            media_asset.save(
-                update_fields=[
-                    "uploader",
-                    "bucket_name",
-                    "original_filename",
-                    "mime_type",
-                    "public_url",
-                    "width",
-                    "height",
-                    "file_size",
-                    "visibility",
-                    "moderation_status",
-                ]
+        try:
+            media_asset = finalize_media_asset(
+                payload=serializer.validated_data,
+                request=request,
+                uploader=request.user,
+                expected_prefix=f"products/gallery/{product_id}/",
+                expected_prefix_error="Object key does not match the product upload path.",
+                visibility=MediaAsset.Visibility.PUBLIC,
+                moderation_status=MediaAsset.ModerationStatus.APPROVED,
             )
-
-        return Response(
-            {
-                "asset_id": media_asset.id,
-                "object_key": media_asset.object_key,
-                "public_url": media_asset.public_url,
-                "original_filename": media_asset.original_filename,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        except ValidationError as exc:
+            return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+        return Response(build_media_asset_response(media_asset, request=request), status=status.HTTP_201_CREATED)
 
 
 class CompanyImageAttachView(APIView):
@@ -935,7 +828,7 @@ class ProductImageUploadSessionView(APIView):
         serializer = ProductImageUploadSessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         filename = serializer.validated_data["filename"]
-        session = build_mock_signed_upload("products/gallery", product_id, filename, visibility="public")
+        session = create_upload_session(prefix="products/gallery", owner_id=product_id, filename=filename, visibility="public")
         return Response(session.__dict__)
 
 

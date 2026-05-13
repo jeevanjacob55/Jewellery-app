@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from apps.directory.models import MediaAsset
+from apps.media_platform.models import MediaAsset
+from apps.media_platform.service import resolve_media_asset_url
 from apps.regions.models import Association
 
 from .models import AssociationSpotlightMedia
@@ -204,7 +205,7 @@ class AssociationSpotlightMediaSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "association", "association_name", "state_name", "sort_order", "created_at", "updated_at"]
 
     def get_image_url(self, obj: AssociationSpotlightMedia) -> str:
-        return obj.asset.public_url
+        return resolve_media_asset_url(obj.asset, request=self.context.get("request")) or ""
 
 
 class AssociationSpotlightCollectionSerializer(serializers.Serializer):
