@@ -25,14 +25,24 @@ services:
       - key: CSRF_TRUSTED_ORIGINS
         value: https://admin.yourdomain.com
       - key: MEDIA_STORAGE_PROVIDER
-        value: gcs
+        value: r2
       - key: DATABASE_URL
         fromDatabase:
           name: jewellery-association-preview-db
           property: connectionString
-      - key: GCS_BUCKET_NAME
+      - key: MEDIA_PUBLIC_BUCKET_NAME
         sync: false
-      - key: GCS_PRIVATE_BUCKET_NAME
+      - key: MEDIA_PRIVATE_BUCKET_NAME
         sync: false
-      - key: GCS_SERVICE_ACCOUNT_JSON
+      - key: MEDIA_PUBLIC_BASE_URL
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_REGION
+        value: auto
+      - key: R2_ENDPOINT_URL
         sync: false

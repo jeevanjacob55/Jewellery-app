@@ -10,6 +10,7 @@ from google.oauth2 import service_account
 
 from apps.media_platform.paths import build_object_key, normalize_object_key
 from apps.media_platform.providers.base import StorageProvider
+from apps.media_platform.providers.config import resolve_bucket_name
 from apps.media_platform.providers.mock import MOCK_STORAGE_HOST
 from apps.media_platform.types import UploadSession, UploadedObjectInfo
 
@@ -25,8 +26,7 @@ class GCSStorageProvider(StorageProvider):
         return storage.Client()
 
     def _resolve_bucket_name(self, visibility: str) -> str:
-        bucket_name = settings.GCS_PRIVATE_BUCKET_NAME if visibility == "private" else settings.GCS_BUCKET_NAME
-        return bucket_name or "replace-with-cloud-bucket"
+        return resolve_bucket_name(visibility)
 
     def create_upload_session(self, *, prefix: str, owner_id: int | str, filename: str, visibility: str) -> UploadSession:
         bucket_name = self._resolve_bucket_name(visibility)

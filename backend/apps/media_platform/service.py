@@ -8,7 +8,6 @@ from rest_framework.exceptions import ValidationError
 
 from apps.media_platform.models import MediaAsset
 from apps.media_platform.providers.base import StorageProvider
-from apps.media_platform.providers.gcs import GCSStorageProvider
 from apps.media_platform.providers.local import LocalStorageProvider
 from apps.media_platform.providers.mock import MockStorageProvider, build_mock_public_url
 from apps.media_platform.types import UploadSession
@@ -20,7 +19,13 @@ _PROVIDER_CACHE: dict[str, StorageProvider] = {}
 def get_storage_provider() -> StorageProvider:
     provider_name = getattr(settings, "MEDIA_STORAGE_PROVIDER", "mock").strip().lower() or "mock"
     if provider_name not in _PROVIDER_CACHE:
-        if provider_name == "gcs":
+        if provider_name in {"r2", "cloudflare_r2", "s3"}:
+            from apps.media_platform.providers.r2 import R2StorageProvider
+
+            _PROVIDER_CACHE[provider_name] = R2StorageProvider()
+        elif provider_name == "gcs":
+            from apps.media_platform.providers.gcs import GCSStorageProvider
+
             _PROVIDER_CACHE[provider_name] = GCSStorageProvider()
         elif provider_name == "local":
             _PROVIDER_CACHE[provider_name] = LocalStorageProvider()

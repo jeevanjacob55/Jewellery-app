@@ -162,7 +162,7 @@ class AdvertisementApiTests(APITestCase):
         self.assertEqual(click.action_type, Advertisement.ActionType.COMPANY)
         self.assertEqual(click.action_payload, {"company_id": 45})
 
-    @override_settings(GCS_BUCKET_NAME="jewellery-association-public-media")
+    @override_settings(MEDIA_PUBLIC_BUCKET_NAME="jewellery-association-public-media")
     def test_ads_upload_session_returns_public_upload_for_authenticated_user(self):
         self.client.force_authenticate(user=self.user)
 

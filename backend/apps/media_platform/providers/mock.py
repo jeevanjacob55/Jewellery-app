@@ -8,6 +8,7 @@ from django.conf import settings
 
 from apps.media_platform.paths import build_object_key, normalize_object_key
 from apps.media_platform.providers.base import StorageProvider
+from apps.media_platform.providers.config import resolve_bucket_name
 from apps.media_platform.types import UploadSession, UploadedObjectInfo
 
 
@@ -27,8 +28,7 @@ def build_mock_public_url(object_key: str, request=None) -> str:
 
 class MockStorageProvider(StorageProvider):
     def _resolve_bucket_name(self, visibility: str) -> str:
-        bucket_name = settings.GCS_PRIVATE_BUCKET_NAME if visibility == "private" else settings.GCS_BUCKET_NAME
-        return bucket_name or "replace-with-cloud-bucket"
+        return resolve_bucket_name(visibility)
 
     def _get_upload_path(self, object_key: str) -> Path:
         return Path(settings.MEDIA_ROOT) / "mock-uploads" / Path(normalize_object_key(object_key))
