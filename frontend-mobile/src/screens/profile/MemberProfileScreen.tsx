@@ -372,6 +372,13 @@ export function MemberProfileScreen() {
                 onPress: () => navigation.navigate("NotificationSettings"),
               },
               {
+                key: "company-alerts",
+                label: "Company Alerts",
+                icon: "campaign",
+                description: "Review the companies you follow for new product launch notifications.",
+                onPress: () => navigation.navigate("CompanyNotificationManagement"),
+              },
+              {
                 key: "help",
                 label: "Help & Support",
                 icon: "help",
@@ -475,6 +482,13 @@ export function MemberProfileScreen() {
                 onPress: () => navigation.navigate("NotificationSettings"),
               },
               {
+                key: "company-alerts",
+                label: "Company Alerts",
+                icon: "campaign",
+                description: "Manage which companies can notify you about new product launches.",
+                onPress: () => navigation.navigate("CompanyNotificationManagement"),
+              },
+              {
                 key: "help",
                 label: "Help & Support",
                 icon: "help",
@@ -532,6 +546,13 @@ export function MemberProfileScreen() {
                 icon: "notifications-active",
                 description: "Manage rate, news, ad, and meeting alerts.",
                 onPress: () => navigation.navigate("NotificationSettings"),
+              },
+              {
+                key: "company-alerts",
+                label: "Company Alerts",
+                icon: "campaign",
+                description: "Manage the company subscriptions tied to your product alerts.",
+                onPress: () => navigation.navigate("CompanyNotificationManagement"),
               },
               {
                 key: "help",

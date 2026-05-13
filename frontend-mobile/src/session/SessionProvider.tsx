@@ -4,8 +4,11 @@ import { API_BASE_URL, configureApiClient, getJson, patchJson, postJson } from "
 import { readStoredGuestSession, readStoredTokens, writeStoredGuestSession, writeStoredTokens } from "../storage/sessionStorage";
 import {
   AuthTokens,
+  GoogleLoginBlockedResponse,
+  GoogleLoginResponse,
   GuestAccessPayload,
   GuestSession,
+  LoginSuccessResponse,
   MeResponse,
   SessionInfo,
   SessionStatus,
@@ -21,6 +24,7 @@ type SessionContextValue = {
   sessionInfo: SessionInfo | null;
   error: string | null;
   signInMember: (credentials: { username: string; password: string }) => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<GoogleLoginBlockedResponse | null>;
   continueAsGuest: (payload: GuestAccessPayload) => Promise<void>;
   refreshCurrentUser: () => Promise<void>;
   updateCurrentUser: (payload: UpdateMemberUserPayload) => Promise<void>;
@@ -141,17 +145,47 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
   async function signInMember(credentials: { username: string; password: string }) {
     setError(null);
-    const nextTokens = await postJson<AuthTokens>("/auth/login/", credentials);
+    const loginResponse = await postJson<LoginSuccessResponse>("/auth/login/", credentials);
+    const nextTokens: AuthTokens = {
+      access: loginResponse.access,
+      refresh: loginResponse.refresh,
+    };
     tokensRef.current = nextTokens;
     setTokens(nextTokens);
     await writeStoredTokens(nextTokens);
     await writeStoredGuestSession(null);
 
     try {
-      const nextMe = await getJson<MeResponse>("/me/", true);
-      setMe(nextMe);
+      setMe(loginResponse.me);
       setGuestSession(null);
       setStatus("authenticated");
+    } catch (nextError) {
+      await clearSession();
+      throw nextError;
+    }
+  }
+
+  async function signInWithGoogle(idToken: string) {
+    setError(null);
+    const response = await postJson<GoogleLoginResponse>("/auth/google-login/", { id_token: idToken });
+    if (response.status !== "success") {
+      return response;
+    }
+
+    const nextTokens: AuthTokens = {
+      access: response.access,
+      refresh: response.refresh,
+    };
+    tokensRef.current = nextTokens;
+    setTokens(nextTokens);
+    await writeStoredTokens(nextTokens);
+    await writeStoredGuestSession(null);
+
+    try {
+      setMe(response.me);
+      setGuestSession(null);
+      setStatus("authenticated");
+      return null;
     } catch (nextError) {
       await clearSession();
       throw nextError;
@@ -184,6 +218,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         sessionInfo,
         error,
         signInMember,
+        signInWithGoogle,
         continueAsGuest,
         refreshCurrentUser,
         updateCurrentUser,

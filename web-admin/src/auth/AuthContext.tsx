@@ -1,6 +1,16 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import { ApiClientConfig, configureApiClient, fetchSessionInfo, loginWithPassword, refreshAccessToken, SessionInfo, Tokens } from "../lib/api";
+import {
+  ApiClientConfig,
+  configureApiClient,
+  fetchSessionInfo,
+  GoogleLoginBlockedResponse,
+  loginWithGoogle,
+  loginWithPassword,
+  refreshAccessToken,
+  SessionInfo,
+  Tokens,
+} from "../lib/api";
 
 type SessionStorageMode = "local" | "session";
 type AuthStatus = "booting" | "signedOut" | "signedIn";
@@ -9,6 +19,7 @@ type AuthContextValue = {
   status: AuthStatus;
   session: SessionInfo | null;
   login: (input: { username: string; password: string; rememberMe: boolean }) => Promise<void>;
+  loginWithGoogle: (input: { idToken: string; rememberMe: boolean }) => Promise<GoogleLoginBlockedResponse | null>;
   logout: () => void;
 };
 
@@ -159,12 +170,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     async ({ username, password, rememberMe }: { username: string; password: string; rememberMe: boolean }) => {
       const nextMode: SessionStorageMode = rememberMe ? "local" : "session";
       setStorageMode(nextMode);
-      const nextTokens = await loginWithPassword({ username, password });
+      const response = await loginWithPassword({ username, password });
+      const nextTokens = { access: response.access, refresh: response.refresh };
       persistTokens(nextTokens, nextMode);
       setTokens(nextTokens);
 
       try {
-        const nextSession = await fetchSessionInfo(nextTokens);
+        const nextSession = response.me;
         if (!canAccessConsole(nextSession)) {
           throw new Error("This account does not have admin console access.");
         }
@@ -181,14 +193,47 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [logout],
   );
 
+  const handleGoogleLogin = useCallback(
+    async ({ idToken, rememberMe }: { idToken: string; rememberMe: boolean }) => {
+      const nextMode: SessionStorageMode = rememberMe ? "local" : "session";
+      setStorageMode(nextMode);
+      const response = await loginWithGoogle(idToken);
+      if (response.status !== "success") {
+        return response;
+      }
+
+      const nextTokens = { access: response.access, refresh: response.refresh };
+      persistTokens(nextTokens, nextMode);
+      setTokens(nextTokens);
+
+      try {
+        const nextSession = response.me;
+        if (!canAccessConsole(nextSession)) {
+          throw new Error("This account does not have admin console access.");
+        }
+        setSession(nextSession);
+        setStatus("signedIn");
+        return null;
+      } catch (error) {
+        logout();
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error("Unable to start an admin session.");
+      }
+    },
+    [logout],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
       session,
       login,
+      loginWithGoogle: handleGoogleLogin,
       logout,
     }),
-    [login, logout, session, status],
+    [handleGoogleLogin, login, logout, session, status],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminShell } from "./components/AdminShell";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { ApprovalDashboardPage } from "./pages/ApprovalDashboardPage";
+import { AccessActivationPage } from "./pages/AccessActivationPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminNewsCreatePage } from "./pages/AdminNewsCreatePage";
 import { AdvertisementUploadPage } from "./pages/AdvertisementUploadPage";
@@ -13,6 +14,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { MarketScreenPage } from "./pages/MarketScreenPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { RateManagementPage } from "./pages/RateManagementPage";
+import { RequestAdminAccessPage } from "./pages/RequestAdminAccessPage";
 import { TierManagementPage } from "./pages/TierManagementPage";
 import { TaxonomyManagementPage } from "./pages/TaxonomyManagementPage";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
@@ -40,6 +42,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={status === "signedIn" ? <Navigate to={defaultAdminPath} replace /> : <LoginPage />} />
+      <Route path="/request-access" element={<RequestAdminAccessPage />} />
+      <Route path="/activate/:token" element={<AccessActivationPage />} />
       <Route
         path="/admin"
         element={

@@ -7,6 +7,7 @@ from apps.media_platform.service import resolve_media_asset_url
 from .models import (
     Company,
     CompanyTierChangeRequest,
+    CompanyNotificationSubscription,
     CompanyTier,
     CompanyVerification,
     Enquiry,
@@ -347,6 +348,9 @@ class CompanySerializer(serializers.ModelSerializer):
     products = ProductSerializer(many=True, read_only=True)
     hero_image_url = serializers.SerializerMethodField()
     logo_image_url = serializers.SerializerMethodField()
+    is_notification_enabled = serializers.SerializerMethodField()
+    state_ref = serializers.SerializerMethodField()
+    association_ref = serializers.SerializerMethodField()
     tier = serializers.CharField(source="tier_ref.name", read_only=True)
     tier_id = serializers.IntegerField(source="tier_ref.id", read_only=True)
     tier_visibility_type = serializers.CharField(source="tier_ref.visibility_type", read_only=True)
@@ -364,6 +368,8 @@ class CompanySerializer(serializers.ModelSerializer):
             "max_products",
             "city",
             "state",
+            "state_ref",
+            "association_ref",
             "about",
             "daily_capacity",
             "specialization",
@@ -371,6 +377,7 @@ class CompanySerializer(serializers.ModelSerializer):
             "products",
             "hero_image_url",
             "logo_image_url",
+            "is_notification_enabled",
             "admin_priority",
             "is_active",
             "is_approved",
@@ -381,6 +388,27 @@ class CompanySerializer(serializers.ModelSerializer):
 
     def get_logo_image_url(self, obj: Company) -> str | None:
         return get_company_image_url(obj, is_logo=True)
+
+    def get_is_notification_enabled(self, obj: Company) -> bool:
+        subscribed_company_ids = self.context.get("subscribed_company_ids")
+        if subscribed_company_ids is not None:
+            return obj.id in subscribed_company_ids
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False) or getattr(user, "role", None) == "guest":
+            return False
+        return CompanyNotificationSubscription.objects.filter(user=user, company=obj).exists()
+
+    def get_state_ref(self, obj: Company) -> dict[str, object] | None:
+        if obj.state_ref_id is None:
+            return None
+        return {"id": obj.state_ref_id, "name": obj.state_ref.name}
+
+    def get_association_ref(self, obj: Company) -> dict[str, object] | None:
+        if obj.association_ref_id is None:
+            return None
+        return {"id": obj.association_ref_id, "name": obj.association_ref.name}
 
 
 class CompanyManagementTierSerializer(serializers.ModelSerializer):

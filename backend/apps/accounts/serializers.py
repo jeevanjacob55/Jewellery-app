@@ -1,5 +1,8 @@
 from rest_framework import serializers
 
+from apps.media_platform.service import resolve_media_asset_url
+from apps.directory.models import CompanyImage, CompanyNotificationSubscription
+
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 from .models import AdminScopeAssignment, MemberAccessRequest, MemberProfile, NotificationPreference, User, UserNotification, UserRole
@@ -92,6 +95,33 @@ class UserNotificationSerializer(serializers.ModelSerializer):
 class UserNotificationFeedSerializer(serializers.Serializer):
     results = UserNotificationSerializer(many=True)
     unread_count = serializers.IntegerField()
+
+
+class CompanyNotificationSubscriptionSerializer(serializers.ModelSerializer):
+    company_id = serializers.IntegerField(source="company.id", read_only=True)
+    name = serializers.CharField(source="company.name", read_only=True)
+    city = serializers.CharField(source="company.city", read_only=True)
+    state = serializers.CharField(source="company.state", read_only=True)
+    logo_image_url = serializers.SerializerMethodField()
+    subscribed_at = serializers.DateTimeField(source="created_at", read_only=True)
+
+    class Meta:
+        model = CompanyNotificationSubscription
+        fields = ["company_id", "name", "city", "state", "logo_image_url", "subscribed_at"]
+
+    def get_logo_image_url(self, obj: CompanyNotificationSubscription) -> str | None:
+        company = obj.company
+        prefetched_images = getattr(company, "images", None)
+        if prefetched_images is not None:
+            for image in prefetched_images.all():
+                if image.is_logo:
+                    return resolve_media_asset_url(image.asset, request=self.context.get("request"))
+            return None
+
+        logo = CompanyImage.objects.select_related("asset").filter(company=company, is_logo=True).first()
+        if logo is None:
+            return None
+        return resolve_media_asset_url(logo.asset, request=self.context.get("request"))
 
 
 class UpdateMemberProfileSerializer(serializers.ModelSerializer):
@@ -232,6 +262,10 @@ class GuestAccessSerializer(serializers.Serializer):
         if unit and unit.district_operational_unit != district_operational_unit:
             raise serializers.ValidationError({"unit_id": "Selected unit does not belong to the selected district operational unit."})
         return attrs
+
+
+class GoogleLoginSerializer(serializers.Serializer):
+    id_token = serializers.CharField()
 
 
 class MemberAccessRequestCreateSerializer(serializers.ModelSerializer):

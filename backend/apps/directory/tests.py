@@ -15,6 +15,7 @@ from apps.regions.models import Association, DistrictOperationalUnit, RegionStat
 from .models import (
     Company,
     CompanyImage,
+    CompanyNotificationSubscription,
     CompanyTierChangeRequest,
     CompanyTier,
     CompanyVerification,
@@ -355,6 +356,37 @@ class DirectoryApiTests(APITestCase):
         self.assertEqual(response.data["city"], "Thrissur")
         self.assertEqual(len(response.data["products"]), 2)
         self.assertEqual({product["category_name"] for product in response.data["products"]}, {"Rings", "Chains"})
+        self.assertFalse(response.data["is_notification_enabled"])
+
+    def test_company_detail_marks_notification_enabled_for_subscribed_user(self):
+        CompanyNotificationSubscription.objects.create(user=self.user, company=self.company)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(reverse("company_detail", args=[self.company.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["is_notification_enabled"])
+
+    def test_company_notification_subscription_toggle_requires_authentication(self):
+        response = self.client.post(reverse("company_notification_subscription_toggle", args=[self.company.id]), {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_company_notification_subscription_toggle_creates_and_removes_current_user_subscription(self):
+        self.client.force_authenticate(user=self.user)
+
+        create_response = self.client.post(reverse("company_notification_subscription_toggle", args=[self.company.id]), {}, format="json")
+
+        self.assertEqual(create_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(create_response.data["is_notification_enabled"])
+        self.assertTrue(CompanyNotificationSubscription.objects.filter(user=self.user, company=self.company).exists())
+        self.assertFalse(CompanyNotificationSubscription.objects.filter(user=self.company_admin, company=self.company).exists())
+
+        remove_response = self.client.post(reverse("company_notification_subscription_toggle", args=[self.company.id]), {}, format="json")
+
+        self.assertEqual(remove_response.status_code, status.HTTP_200_OK)
+        self.assertFalse(remove_response.data["is_notification_enabled"])
+        self.assertFalse(CompanyNotificationSubscription.objects.filter(user=self.user, company=self.company).exists())
 
     def test_company_admin_can_get_company_management_detail(self):
         self.client.force_authenticate(user=self.company_admin)
@@ -1636,6 +1668,8 @@ class DirectoryApiTests(APITestCase):
         self.product.save(update_fields=["is_active"])
         self.chain_product.is_active = False
         self.chain_product.save(update_fields=["is_active"])
+        CompanyNotificationSubscription.objects.create(user=self.user, company=self.company)
+        CompanyNotificationSubscription.objects.create(user=self.association_admin, company=self.company)
         self.client.force_authenticate(user=self.company_admin)
         first_asset = self._create_media_asset(object_key="products/new/notified-product-1.jpg", public_url="https://example.com/notified-product-1.jpg")
         second_asset = self._create_media_asset(object_key="products/new/notified-product-2.jpg", public_url="https://example.com/notified-product-2.jpg")
@@ -1668,6 +1702,64 @@ class DirectoryApiTests(APITestCase):
             ).values_list("user_id", flat=True)
         )
         self.assertEqual(recipient_ids, {self.user.id, self.association_admin.id})
+
+    def test_creating_product_skips_subscribed_users_outside_product_visibility(self):
+        self.company.tier_ref = self.pro_tier
+        self.company.save(update_fields=["tier_ref"])
+        self.product.is_active = False
+        self.product.save(update_fields=["is_active"])
+        self.chain_product.is_active = False
+        self.chain_product.save(update_fields=["is_active"])
+        outsider = get_user_model().objects.create_user(username="outsider_member", password="DemoPass123!")
+        MemberProfile.objects.create(
+            user=outsider,
+            company_name="Outsider Jewels",
+            state=self.tamil_nadu,
+            association=self.tnja,
+            district_operational_unit=self.chennai_district,
+            unit=self.t_nagar,
+        )
+        NotificationPreference.objects.create(
+            user=outsider,
+            rate_alerts=True,
+            news_alerts=True,
+            ad_alerts=False,
+            meeting_alerts=True,
+            product_alerts=True,
+        )
+        CompanyNotificationSubscription.objects.create(user=outsider, company=self.company)
+        self.client.force_authenticate(user=self.company_admin)
+        first_asset = self._create_media_asset(object_key="products/new/visibility-check-1.jpg", public_url="https://example.com/visibility-check-1.jpg")
+        second_asset = self._create_media_asset(object_key="products/new/visibility-check-2.jpg", public_url="https://example.com/visibility-check-2.jpg")
+
+        response = self.client.post(
+            reverse("company_product_create", args=[self.company.id]),
+            {
+                "category": self.chain_category.id,
+                "subcategory": self.chain_subcategory.id,
+                "name": "Kerala Members Chain",
+                "weight_grams": "18.50",
+                "purity": "22K",
+                "description": "Visible only to Kerala association members.",
+                "is_active": True,
+                "image_asset_ids": [first_asset.id, second_asset.id],
+                "attribute_values": {"length": "20 inch"},
+                "include_targets": [
+                    {"target_type": ProductVisibilityTarget.TargetType.ASSOCIATION, "target_id": self.kgsma.id},
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        created_product = Product.objects.get(name="Kerala Members Chain")
+        recipient_ids = set(
+            UserNotification.objects.filter(
+                notification__source_object_type="product",
+                notification__source_object_id=created_product.id,
+            ).values_list("user_id", flat=True)
+        )
+        self.assertNotIn(outsider.id, recipient_ids)
 
     def test_company_admin_can_create_product_with_granular_visibility_targets(self):
         self.client.force_authenticate(user=self.company_admin)

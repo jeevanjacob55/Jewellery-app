@@ -1,5 +1,13 @@
 from django.urls import path
 
+from apps.accounts.access_views import (
+    AssociationAdminAccessRequestApproveView,
+    AssociationAdminAccessRequestListView,
+    AssociationAdminAccessRequestRejectView,
+    CompanyAdminAccessRequestApproveView,
+    CompanyAdminAccessRequestListView,
+    CompanyAdminAccessRequestRejectView,
+)
 from apps.directory.views import (
     AdminCompanyTierAssignmentConfirmView,
     AdminCompanyTierAssignmentView,
@@ -43,6 +51,32 @@ urlpatterns = [
     path("", AdminOverviewView.as_view(), name="admin_overview"),
     path("company-profiles/", AdminCompanyProfilesView.as_view(), name="admin_company_profiles"),
     path("hierarchy/", HierarchyManagementView.as_view(), name="admin_hierarchy"),
+    path("access/company-admin-requests/", CompanyAdminAccessRequestListView.as_view(), name="admin_company_admin_access_request_list"),
+    path(
+        "access/company-admin-requests/<int:request_id>/approve/",
+        CompanyAdminAccessRequestApproveView.as_view(),
+        name="admin_company_admin_access_request_approve",
+    ),
+    path(
+        "access/company-admin-requests/<int:request_id>/reject/",
+        CompanyAdminAccessRequestRejectView.as_view(),
+        name="admin_company_admin_access_request_reject",
+    ),
+    path(
+        "access/association-admin-requests/",
+        AssociationAdminAccessRequestListView.as_view(),
+        name="admin_association_admin_access_request_list",
+    ),
+    path(
+        "access/association-admin-requests/<int:request_id>/approve/",
+        AssociationAdminAccessRequestApproveView.as_view(),
+        name="admin_association_admin_access_request_approve",
+    ),
+    path(
+        "access/association-admin-requests/<int:request_id>/reject/",
+        AssociationAdminAccessRequestRejectView.as_view(),
+        name="admin_association_admin_access_request_reject",
+    ),
     path("directory/taxonomy/", AdminProductTaxonomyView.as_view(), name="admin_directory_taxonomy"),
     path("directory/taxonomy/categories/", AdminProductCategoryListCreateView.as_view(), name="admin_directory_taxonomy_category_list_create"),
     path(

@@ -18,6 +18,7 @@ import { NewsAlertsScreen } from "../screens/news/NewsAlertsScreen";
 import { NewsDetailScreen } from "../screens/news/NewsDetailScreen";
 import { ManageNewsScreen, ManageUsersScreen, MarketInsightsScreen, PendingApprovalsScreen } from "../screens/profile/AdminToolsScreens";
 import { CompanyPlanScreen } from "../screens/profile/CompanyPlanScreen";
+import { CompanyNotificationManagementScreen } from "../screens/profile/CompanyNotificationManagementScreen";
 import { CompanyProductsScreen } from "../screens/profile/CompanyProductsScreen";
 import { EditProfileScreen } from "../screens/profile/EditProfileScreen";
 import { HelpSupportScreen } from "../screens/profile/HelpSupportScreen";
@@ -74,6 +75,11 @@ export function RootNavigator() {
           <Stack.Screen name="NewsDetail" component={NewsDetailScreen} options={{ title: "News" }} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: "Notification Settings" }} />
+          <Stack.Screen
+            name="CompanyNotificationManagement"
+            component={CompanyNotificationManagementScreen}
+            options={{ headerShown: false }}
+          />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Edit Profile" }} />
           <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ title: "Help & Support" }} />
           <Stack.Screen name="CompanyPlan" component={CompanyPlanScreen} options={{ title: "Company Plan" }} />

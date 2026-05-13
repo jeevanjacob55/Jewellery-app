@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import MemberProfile, UserRole
+from apps.directory.access import get_company_association_ids, get_company_state_ids, get_company_unit_ids, get_user_company_ids
 from apps.directory.models import Company
 from apps.media_platform.models import MediaAsset
 from apps.regions.models import Association, RegionState, Unit
@@ -112,42 +113,20 @@ def validate_target_payload(target_type: str, target_id: int | None) -> None:
     if not model_class.objects.filter(pk=target_id).exists():
         raise NewsValidationError(f"Selected {target_type} target does not exist.")
 
-
-def _company_member_profiles(company_id: int):
-    company = Company.objects.filter(pk=company_id).first()
-    if company is None:
-        return MemberProfile.objects.none()
-    return MemberProfile.objects.filter(company_name=company.name).select_related(
-        "state",
-        "association",
-        "district_operational_unit",
-        "unit",
-    )
-
-
 def _company_association_ids(company_id: int) -> set[int]:
-    return set(_company_member_profiles(company_id).exclude(association=None).values_list("association_id", flat=True))
+    return get_company_association_ids(company_id)
 
 
 def _company_unit_ids(company_id: int) -> set[int]:
-    return set(_company_member_profiles(company_id).exclude(unit=None).values_list("unit_id", flat=True))
+    return get_company_unit_ids(company_id)
 
 
 def _company_state_ids(company_id: int) -> set[int]:
-    return set(_company_member_profiles(company_id).exclude(state=None).values_list("state_id", flat=True))
+    return get_company_state_ids(company_id)
 
 
 def _user_company_ids(user) -> set[int]:
-    company_ids = set(
-        user.scoped_roles.filter(
-            role=UserRole.Role.COMPANY_ADMIN,
-            scope_type=UserRole.ScopeType.COMPANY,
-        ).values_list("scope_id", flat=True)
-    )
-    member_profile = getattr(user, "member_profile", None)
-    if member_profile and member_profile.company_name:
-        company_ids.update(Company.objects.filter(name=member_profile.company_name).values_list("id", flat=True))
-    return company_ids
+    return get_user_company_ids(user)
 
 
 def is_target_within_publisher_scope(*, publisher_type: str, publisher_id: int | None, target_type: str, target_id: int | None) -> bool:
@@ -184,10 +163,12 @@ def is_target_within_publisher_scope(*, publisher_type: str, publisher_id: int |
         if target_type == NewsTarget.TargetType.COMPANY:
             return target_id == publisher_id
         if target_type == NewsTarget.TargetType.USER:
-            member_profile = MemberProfile.objects.filter(user_id=target_id).first()
-            if not member_profile or not member_profile.company_name:
+            from django.contrib.auth import get_user_model
+
+            target_user = get_user_model().objects.filter(pk=target_id).first()
+            if target_user is None:
                 return False
-            return Company.objects.filter(pk=publisher_id, name=member_profile.company_name).exists()
+            return publisher_id in _user_company_ids(target_user)
         return False
 
     return False
@@ -211,9 +192,6 @@ def _required_approver_for_news(news: News) -> tuple[str, str, int | None]:
         return (UserRole.Role.ASSOCIATION_ADMIN, UserRole.ScopeType.ASSOCIATION, association_id)
 
     if news.publisher_type == News.PublisherType.COMPANY:
-        creator_profile = getattr(news.created_by, "member_profile", None)
-        if creator_profile and creator_profile.association_id:
-            return (UserRole.Role.ASSOCIATION_ADMIN, UserRole.ScopeType.ASSOCIATION, creator_profile.association_id)
         company_association_ids = list(_company_association_ids(news.publisher_id or 0))
         if len(company_association_ids) == 1:
             return (UserRole.Role.ASSOCIATION_ADMIN, UserRole.ScopeType.ASSOCIATION, company_association_ids[0])
@@ -368,10 +346,12 @@ def _meeting_target_within_organizer_scope(*, organizer_type: str, organizer_id:
         if target_type == MeetingTarget.TargetType.COMPANY:
             return target_id == organizer_id
         if target_type == MeetingTarget.TargetType.USER:
-            member_profile = MemberProfile.objects.filter(user_id=target_id).first()
-            if not member_profile or not member_profile.company_name:
+            from django.contrib.auth import get_user_model
+
+            target_user = get_user_model().objects.filter(pk=target_id).first()
+            if target_user is None:
                 return False
-            return Company.objects.filter(pk=organizer_id, name=member_profile.company_name).exists()
+            return organizer_id in _user_company_ids(target_user)
         return False
 
     return False
@@ -506,17 +486,19 @@ def is_meeting_target_within_user_scope(user, *, target_type: str, target_id: in
         return False
 
     if target_type == MeetingTarget.TargetType.USER:
+        from django.contrib.auth import get_user_model
+
+        target_user = get_user_model().objects.filter(pk=target_id).first()
         member_profile = MemberProfile.objects.filter(user_id=target_id).first()
         if member_profile is None:
             return False
-        if member_profile.company_name:
-            company_ids = set(Company.objects.filter(name=member_profile.company_name).values_list("id", flat=True))
-            if company_ids and user.scoped_roles.filter(
+        company_ids = get_user_company_ids(target_user) if target_user is not None else set()
+        if company_ids and user.scoped_roles.filter(
                 role=UserRole.Role.COMPANY_ADMIN,
                 scope_type=UserRole.ScopeType.COMPANY,
                 scope_id__in=company_ids,
             ).exists():
-                return True
+            return True
         if member_profile.unit_id and user.has_scoped_role(
             UserRole.Role.UNIT_ADMIN,
             scope_type=UserRole.ScopeType.UNIT,

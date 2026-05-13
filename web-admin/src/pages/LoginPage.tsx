@@ -1,23 +1,133 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: {
+            client_id: string;
+            callback: (response: { credential?: string }) => void;
+          }) => void;
+          renderButton: (element: HTMLElement, options: Record<string, string>) => void;
+        };
+      };
+    };
+  }
+}
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, status } = useAuth();
+  const { login, loginWithGoogle, status } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
   const redirectTarget = useMemo(() => {
     const state = location.state as { from?: string } | null;
     return state?.from && state.from.startsWith("/admin") ? state.from : "/admin/overview";
   }, [location.state]);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !googleButtonRef.current) {
+      return;
+    }
+
+    let cancelled = false;
+    const scriptId = "google-identity-services";
+
+    const handleCredentialResponse = async (response: { credential?: string }) => {
+      if (!response.credential) {
+        setError("Google sign-in did not return a credential.");
+        return;
+      }
+
+      setError(null);
+      setIsGoogleLoading(true);
+      try {
+        const result = await loginWithGoogle({ idToken: response.credential, rememberMe });
+        if (result === null) {
+          navigate(redirectTarget, { replace: true });
+          return;
+        }
+        if (result.status === "access_required") {
+          setError(`${result.message} Use Request Admin Access to start onboarding.`);
+          return;
+        }
+        setError(result.message);
+      } catch (nextError) {
+        if (nextError instanceof Error) {
+          setError(nextError.message);
+        } else {
+          setError("Unable to sign in with Google right now.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsGoogleLoading(false);
+        }
+      }
+    };
+
+    const renderButton = () => {
+      if (cancelled || !window.google || !googleButtonRef.current) {
+        return;
+      }
+      googleButtonRef.current.innerHTML = "";
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse,
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        shape: "rectangular",
+        text: "continue_with",
+        width: "360",
+      });
+      setGoogleReady(true);
+    };
+
+    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (existingScript) {
+      if (window.google) {
+        renderButton();
+      } else {
+        existingScript.addEventListener("load", renderButton, { once: true });
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = renderButton;
+    script.onerror = () => {
+      if (!cancelled) {
+        setError("Unable to load Google sign-in right now.");
+      }
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loginWithGoogle, navigate, redirectTarget, rememberMe]);
 
   if (status === "signedIn") {
     return <Navigate to={redirectTarget} replace />;
@@ -87,7 +197,7 @@ export function LoginPage() {
         <div className="login-page__form-wrap">
           <div className="login-page__intro">
             <h2 className="login-page__form-title">Portal Login</h2>
-            <p className="login-page__form-copy">Enter your admin username and password to access the administrative dashboard.</p>
+            <p className="login-page__form-copy">Use your approved credentials or a linked Google account to access the administrative dashboard.</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>
@@ -147,10 +257,40 @@ export function LoginPage() {
             </button>
           </form>
 
+          <div className="login-form__divider" aria-hidden="true">
+            <span />
+            <strong>OR</strong>
+            <span />
+          </div>
+
+          <div className="login-form__google-block">
+            {GOOGLE_CLIENT_ID ? (
+              <>
+                <div className="login-form__google-button" ref={googleButtonRef} />
+                <p className="login-form__google-copy">
+                  Google verifies identity only. Access still depends on an approved account already in the system.
+                </p>
+              </>
+            ) : (
+              <div className="login-form__google-disabled">
+                <strong>Google sign-in is not configured yet.</strong>
+                <p>Add `VITE_GOOGLE_CLIENT_ID` to enable post-approval Google login.</p>
+              </div>
+            )}
+            {isGoogleLoading ? <p className="login-form__google-status">Verifying Google account...</p> : null}
+            {GOOGLE_CLIENT_ID && !googleReady && !isGoogleLoading ? (
+              <p className="login-form__google-status">Preparing Google sign-in...</p>
+            ) : null}
+          </div>
+
           <div className="login-page__support">
             <p>
               New administrator?{" "}
-              <button className="login-form__text-action login-form__text-action--inline" type="button">
+              <button
+                className="login-form__text-action login-form__text-action--inline"
+                type="button"
+                onClick={() => navigate("/request-access")}
+              >
                 Request Admin Access
               </button>
             </p>

@@ -5,12 +5,41 @@ export interface AuthTokens {
   refresh: string;
 }
 
+export interface LoginSuccessResponse extends AuthTokens {
+  status: "success";
+  me: MeResponse;
+}
+
+export type GoogleLoginBlockedStatus =
+  | "access_required"
+  | "pending_approval"
+  | "rejected"
+  | "inactive"
+  | "account_conflict";
+
+export interface GoogleLoginBlockedResponse {
+  status: GoogleLoginBlockedStatus;
+  message: string;
+  email?: string;
+}
+
+export type GoogleLoginResponse = LoginSuccessResponse | GoogleLoginBlockedResponse;
+
 export interface NotificationPreferences {
   rate_alerts: boolean;
   news_alerts: boolean;
   ad_alerts: boolean;
   meeting_alerts: boolean;
   product_alerts: boolean;
+}
+
+export interface CompanyNotificationSubscription {
+  company_id: number;
+  name: string;
+  city: string;
+  state: string;
+  logo_image_url: string | null;
+  subscribed_at: string;
 }
 
 export type NotificationFeedType = "all" | "product" | "news" | "meeting" | "rate";
@@ -371,6 +400,8 @@ export interface Company {
   max_products?: number;
   city: string;
   state: string;
+  state_ref?: HierarchyReference | null;
+  association_ref?: HierarchyReference | null;
   about: string;
   daily_capacity: string;
   specialization: string;
@@ -378,6 +409,7 @@ export interface Company {
   products: Product[];
   hero_image_url: string | null;
   logo_image_url: string | null;
+  is_notification_enabled?: boolean;
   admin_priority?: number;
   is_active?: boolean;
   is_approved?: boolean;

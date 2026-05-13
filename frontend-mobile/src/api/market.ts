@@ -1,6 +1,7 @@
 import { getJson, patchJson, postJson } from "./client";
 import {
   Company,
+  CompanyNotificationSubscription,
   CompanyManagementDetail,
   CompanyManagementProduct,
   CompanyOption,
@@ -43,6 +44,18 @@ export function getMarketFeed() {
 
 export function getCompanies() {
   return getJson<Company[]>("/directory/companies/", true);
+}
+
+export function getCompanyNotificationSubscriptions() {
+  return getJson<CompanyNotificationSubscription[]>("/me/company-notifications/", true);
+}
+
+export function toggleCompanyNotificationSubscription(companyId: number) {
+  return postJson<{ company_id: number; is_notification_enabled: boolean }>(
+    `/directory/companies/${companyId}/notification-subscription/`,
+    {},
+    true,
+  );
 }
 
 export function getCompanyManagementDetail(companyId: number) {

@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from apps.accounts.notification_services import notify_association_rate_update
 from apps.accounts.models import UserRole
 from apps.admin_ops.permissions import HasAdminAccess
+from apps.directory.access import get_linked_company_context
 from apps.media_platform.models import MediaAsset
 from apps.media_platform.service import build_media_asset_response, create_upload_session, finalize_media_asset, resolve_media_asset_url
 from apps.regions.models import Association, RegionState
@@ -209,6 +210,12 @@ def build_state_rates_payload() -> dict:
 def _resolve_active_association(request) -> Association | None:
     user = getattr(request, "user", None)
     if user and getattr(user, "is_authenticated", False):
+        linked_company = get_linked_company_context(user).company
+        if linked_company is not None:
+            if linked_company.association_ref_id:
+                return linked_company.association_ref
+            if linked_company.company_type == linked_company.CompanyType.INDEPENDENT:
+                return None
         try:
             member_profile = user.member_profile
         except ObjectDoesNotExist:
@@ -498,6 +505,8 @@ def _subcategory_metric_payload(*, category_slug: str, subcategory_slug: str, cu
 
 def build_dashboard_payload(request) -> dict:
     active_association = _resolve_active_association(request)
+    linked_company = get_linked_company_context(getattr(request, "user", None)).company
+    has_association_context = active_association is not None
     latest_rate = _latest_rate_for_association(active_association)
     if latest_rate is None and active_association is not None:
         latest_rate = AssociationRate.objects.filter(association__isnull=False).select_related("association").order_by("-effective_at", "-id").first()
@@ -506,7 +515,14 @@ def build_dashboard_payload(request) -> dict:
 
     if not latest_rate:
         return {
-            "association": {"id": active_association.id if active_association else None, "name": active_association.name if active_association else "Jewellery Association"},
+            "association": {
+                "id": active_association.id if active_association else None,
+                "name": (
+                    active_association.name
+                    if active_association
+                    else (linked_company.state_ref.name if linked_company and linked_company.state_ref_id else "Jewellery Association")
+                ),
+            },
             "updated_at_label": _format_effective_label(None),
             "headline_rates": {
                 "gold_22k": _build_metric_payload(0.0, None),
@@ -514,10 +530,10 @@ def build_dashboard_payload(request) -> dict:
                 "silver": _build_metric_payload(0.0, None),
             },
             "comparisons": [],
-            "other_associations": _build_other_association_rates(active_association),
+            "other_associations": _build_other_association_rates(active_association) if has_association_context else [],
             "global_trends": STATIC_GLOBAL_TRENDS,
             "quick_actions": QUICK_ACTIONS,
-            "dashboard_welcome_filmstrip": _build_dashboard_welcome_filmstrip_payload(request, active_association),
+            "dashboard_welcome_filmstrip": _build_dashboard_welcome_filmstrip_payload(request, active_association) if has_association_context else None,
         }
 
     return {
@@ -538,10 +554,14 @@ def build_dashboard_payload(request) -> dict:
             }
             for comparison in comparisons
         ],
-        "other_associations": _build_other_association_rates(latest_rate.association if latest_rate.association_id else active_association),
+        "other_associations": (
+            _build_other_association_rates(latest_rate.association if latest_rate.association_id else active_association)
+            if has_association_context
+            else []
+        ),
         "global_trends": STATIC_GLOBAL_TRENDS,
         "quick_actions": QUICK_ACTIONS,
-        "dashboard_welcome_filmstrip": _build_dashboard_welcome_filmstrip_payload(request, active_association),
+        "dashboard_welcome_filmstrip": _build_dashboard_welcome_filmstrip_payload(request, active_association) if has_association_context else None,
     }
 
 

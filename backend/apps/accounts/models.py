@@ -2,8 +2,27 @@ from django.apps import apps as django_apps
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
+import uuid
 
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
+
+
+def _validate_hierarchy_chain(*, state, association, district_operational_unit, unit, field_map: dict[str, str] | None = None):
+    field_map = field_map or {}
+    if unit and district_operational_unit != unit.district_operational_unit:
+        raise ValidationError({field_map.get("unit", "unit"): "Selected unit does not belong to the chosen district operational unit."})
+    if district_operational_unit and association != district_operational_unit.association:
+        raise ValidationError(
+            {
+                field_map.get(
+                    "district_operational_unit",
+                    "district_operational_unit",
+                ): "Selected district operational unit does not belong to the chosen association."
+            }
+        )
+    if association and state != association.state:
+        raise ValidationError({field_map.get("association", "association"): "Selected association does not belong to the chosen state."})
 
 
 class User(AbstractUser):
@@ -17,6 +36,10 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.MEMBER)
     corporate_email = models.EmailField(blank=True)
+    google_sub = models.CharField(max_length=255, blank=True, null=True, unique=True)
+    google_email = models.EmailField(blank=True)
+    google_auth_enabled = models.BooleanField(default=False)
+    last_google_login_at = models.DateTimeField(null=True, blank=True)
     jeweller_id = models.CharField(max_length=64, blank=True)
     is_verified_member = models.BooleanField(default=False)
     onboarding_completed = models.BooleanField(default=False)
@@ -73,12 +96,12 @@ class MemberProfile(models.Model):
         return f"{self.user.username} profile"
 
     def clean(self):
-        if self.unit and self.district_operational_unit != self.unit.district_operational_unit:
-            raise ValidationError({"unit": "Selected unit does not belong to the chosen district operational unit."})
-        if self.district_operational_unit and self.association != self.district_operational_unit.association:
-            raise ValidationError({"district_operational_unit": "Selected district operational unit does not belong to the chosen association."})
-        if self.association and self.state != self.association.state:
-            raise ValidationError({"association": "Selected association does not belong to the chosen state."})
+        _validate_hierarchy_chain(
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district_operational_unit,
+            unit=self.unit,
+        )
 
 
 class NotificationPreference(models.Model):
@@ -170,12 +193,12 @@ class MemberAccessRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
-        if self.unit and self.district_operational_unit != self.unit.district_operational_unit:
-            raise ValidationError({"unit": "Selected unit does not belong to the chosen district operational unit."})
-        if self.district_operational_unit and self.association != self.district_operational_unit.association:
-            raise ValidationError({"district_operational_unit": "Selected district operational unit does not belong to the chosen association."})
-        if self.association and self.state != self.association.state:
-            raise ValidationError({"association": "Selected association does not belong to the chosen state."})
+        _validate_hierarchy_chain(
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district_operational_unit,
+            unit=self.unit,
+        )
 
     def __str__(self) -> str:
         return f"{self.full_name} access request"
@@ -251,6 +274,247 @@ class UserRole(models.Model):
         if self.scope_type == self.ScopeType.PLATFORM:
             return f"{self.user.username} -> {self.role}:platform"
         return f"{self.user.username} -> {self.role}:{self.scope_type}:{self.scope_id}"
+
+
+class CompanyAdminAccessRequest(models.Model):
+    class CompanyType(models.TextChoices):
+        INDEPENDENT = "independent", "Independent"
+        ASSOCIATION_LINKED = "association_linked", "Association Linked"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    class ApprovalOwnerType(models.TextChoices):
+        SUPER_ADMIN = "super_admin", "Super Admin"
+        STATE_ADMIN = "state_admin", "State Admin"
+        ASSOCIATION_ADMIN = "association_admin", "Association Admin"
+
+    requester_name = models.CharField(max_length=150)
+    requester_phone = models.CharField(max_length=20)
+    requester_email = models.EmailField()
+    company_name = models.CharField(max_length=255)
+    business_type = models.CharField(max_length=120)
+    state = models.ForeignKey(RegionState, on_delete=models.CASCADE, related_name="company_admin_access_requests")
+    association = models.ForeignKey(
+        Association,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="company_admin_access_requests",
+    )
+    district_operational_unit = models.ForeignKey(
+        DistrictOperationalUnit,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="company_admin_access_requests",
+    )
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, null=True, blank=True, related_name="company_admin_access_requests")
+    company_type = models.CharField(max_length=30, choices=CompanyType.choices)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    approval_owner_type = models.CharField(max_length=30, choices=ApprovalOwnerType.choices)
+    approval_owner_scope_id = models.PositiveBigIntegerField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_company_admin_access_requests",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rejected_company_admin_access_requests",
+    )
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    resolved_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_company_admin_access_requests",
+    )
+    resolved_company = models.ForeignKey(
+        "directory.Company",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="originating_company_admin_access_requests",
+    )
+    resolved_membership = models.ForeignKey(
+        "directory.CompanyMembership",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="originating_company_admin_access_requests",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def clean(self):
+        _validate_hierarchy_chain(
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district_operational_unit,
+            unit=self.unit,
+        )
+        if self.district_operational_unit and self.association is None:
+            raise ValidationError({"district_operational_unit": "Association is required when selecting a district operational unit."})
+        if self.unit and self.district_operational_unit is None:
+            raise ValidationError({"unit": "District operational unit is required when selecting a unit."})
+        expected_type = self.CompanyType.ASSOCIATION_LINKED if self.association_id else self.CompanyType.INDEPENDENT
+        if self.company_type != expected_type:
+            raise ValidationError({"company_type": "Company type must match the selected hierarchy path."})
+
+    def __str__(self) -> str:
+        return f"{self.company_name} ({self.requester_email})"
+
+
+class AssociationAdminAccessRequest(models.Model):
+    class RequestedRole(models.TextChoices):
+        STATE_ADMIN = "state_admin", "State Admin"
+        ASSOCIATION_ADMIN = "association_admin", "Association Admin"
+        DISTRICT_ADMIN = "district_admin", "District Admin"
+        UNIT_ADMIN = "unit_admin", "Unit Admin"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    class ApprovalOwnerType(models.TextChoices):
+        SUPER_ADMIN = "super_admin", "Super Admin"
+        STATE_ADMIN = "state_admin", "State Admin"
+        ASSOCIATION_ADMIN = "association_admin", "Association Admin"
+        DISTRICT_ADMIN = "district_admin", "District Admin"
+
+    requester_name = models.CharField(max_length=150)
+    requester_phone = models.CharField(max_length=20)
+    requester_email = models.EmailField()
+    state = models.ForeignKey(RegionState, on_delete=models.CASCADE, related_name="association_admin_access_requests")
+    association = models.ForeignKey(
+        Association,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="association_admin_access_requests",
+    )
+    district_operational_unit = models.ForeignKey(
+        DistrictOperationalUnit,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="association_admin_access_requests",
+    )
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, null=True, blank=True, related_name="association_admin_access_requests")
+    requested_role = models.CharField(max_length=30, choices=RequestedRole.choices)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    approval_owner_type = models.CharField(max_length=30, choices=ApprovalOwnerType.choices)
+    approval_owner_scope_id = models.PositiveBigIntegerField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_association_admin_access_requests",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rejected_association_admin_access_requests",
+    )
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    resolved_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_association_admin_access_requests",
+    )
+    resolved_user_role = models.ForeignKey(
+        UserRole,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="originating_association_admin_access_requests",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def clean(self):
+        _validate_hierarchy_chain(
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district_operational_unit,
+            unit=self.unit,
+        )
+        required = {
+            self.RequestedRole.STATE_ADMIN: {"association": False, "district_operational_unit": False, "unit": False},
+            self.RequestedRole.ASSOCIATION_ADMIN: {"association": True, "district_operational_unit": False, "unit": False},
+            self.RequestedRole.DISTRICT_ADMIN: {"association": True, "district_operational_unit": True, "unit": False},
+            self.RequestedRole.UNIT_ADMIN: {"association": True, "district_operational_unit": True, "unit": True},
+        }[self.requested_role]
+        if required["association"] and not self.association_id:
+            raise ValidationError({"association": "Association is required for the selected role."})
+        if not required["association"] and self.association_id:
+            raise ValidationError({"association": "Association must be empty for the selected role."})
+        if required["district_operational_unit"] and not self.district_operational_unit_id:
+            raise ValidationError({"district_operational_unit": "District operational unit is required for the selected role."})
+        if not required["district_operational_unit"] and self.district_operational_unit_id:
+            raise ValidationError({"district_operational_unit": "District operational unit must be empty for the selected role."})
+        if required["unit"] and not self.unit_id:
+            raise ValidationError({"unit": "Unit is required for the selected role."})
+        if not required["unit"] and self.unit_id:
+            raise ValidationError({"unit": "Unit must be empty for the selected role."})
+
+    def __str__(self) -> str:
+        return f"{self.requested_role}:{self.requester_email}"
+
+
+class AccountActivationToken(models.Model):
+    class Purpose(models.TextChoices):
+        ACCESS_APPROVAL = "access_approval", "Access Approval"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="activation_tokens")
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    purpose = models.CharField(max_length=30, choices=Purpose.choices, default=Purpose.ACCESS_APPROVAL)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_activation_tokens",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def is_active(self) -> bool:
+        return self.used_at is None and self.expires_at > timezone.now()
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.token}"
 
 
 class AdminScopeAssignment(models.Model):

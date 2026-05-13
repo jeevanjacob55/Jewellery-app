@@ -355,6 +355,58 @@ a {
   opacity: 0.72;
 }
 
+.login-form__divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 24px;
+  color: #7e7576;
+}
+
+.login-form__divider span {
+  flex: 1;
+  height: 1px;
+  background: #efeded;
+}
+
+.login-form__divider strong {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.login-form__google-block {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.login-form__google-button {
+  min-height: 44px;
+}
+
+.login-form__google-copy,
+.login-form__google-status,
+.login-form__google-disabled p {
+  margin: 0;
+  color: #5f6161;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.login-form__google-disabled {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #efeded;
+  background: #faf8f7;
+}
+
+.login-form__google-disabled strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
 .login-page__support {
   margin-top: 48px;
   padding-top: 40px;
@@ -1693,6 +1745,196 @@ a {
   border-radius: 14px;
   border: 1px dashed #d9cfca;
   background: #fcfbfa;
+}
+
+.request-access-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at top right, rgba(233, 193, 118, 0.22), transparent 28%),
+    linear-gradient(180deg, #fbf9f9 0%, #f2efee 100%);
+}
+
+.request-access-page__card {
+  width: min(100%, 920px);
+  padding: 28px;
+  border-radius: 20px;
+  border: 1px solid #e5e2e1;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 20px 48px rgba(26, 26, 26, 0.08);
+}
+
+.request-access-page__card--narrow {
+  width: min(100%, 620px);
+}
+
+.request-access-page__header {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.request-access-page__eyebrow {
+  margin: 0;
+  color: #775a19;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.request-access-page__title {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 600;
+}
+
+.request-access-page__copy {
+  margin: 0;
+  color: #4c4546;
+  max-width: 64ch;
+}
+
+.request-access-page__tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.request-access-page__tab {
+  border: 1px solid #d6cbcc;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1b1c1c;
+  padding: 10px 16px;
+  font-weight: 700;
+}
+
+.request-access-page__tab--active {
+  border-color: #775a19;
+  background: #fff7e7;
+  color: #5d4201;
+}
+
+.request-access-page__success,
+.request-access-page__empty,
+.request-access-page__summary {
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+
+.request-access-page__success {
+  border: 1px solid rgba(24, 103, 35, 0.18);
+  background: #eef9ef;
+  color: #175924;
+}
+
+.request-access-page__empty,
+.request-access-page__summary {
+  border: 1px solid #efeded;
+  background: #faf8f7;
+}
+
+.request-access-page__empty strong,
+.request-access-page__summary strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.request-access-page__empty p,
+.request-access-page__summary p {
+  margin: 0;
+  color: #5f6161;
+}
+
+.request-access-page__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.request-access-page__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eef9ef;
+  color: #175924;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.request-access-page__status--inactive {
+  background: #fff1ef;
+  color: #93000a;
+}
+
+.request-access-form {
+  display: grid;
+  gap: 20px;
+}
+
+.request-access-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.request-access-form__field {
+  display: grid;
+  gap: 6px;
+}
+
+.request-access-form__field--full {
+  grid-column: 1 / -1;
+}
+
+.request-access-form__field span {
+  color: #4c4546;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.request-access-form__field input,
+.request-access-form__field select,
+.request-access-form__field textarea {
+  width: 100%;
+  border: 1px solid #cfc4c5;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #ffffff;
+  color: #1b1c1c;
+}
+
+.request-access-form__field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.request-access-form__field input:focus,
+.request-access-form__field select:focus,
+.request-access-form__field textarea:focus {
+  outline: none;
+  border-color: #775a19;
+  box-shadow: 0 0 0 1px #775a19;
+}
+
+.request-access-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.request-access-page__footer {
+  margin-top: 20px;
+  text-align: center;
 }
 
 .approvals-empty strong {

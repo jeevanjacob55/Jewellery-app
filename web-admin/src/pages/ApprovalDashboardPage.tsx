@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../auth/AuthContext";
-import { AdvertisementCampaignRecord, approveAdvertisement, fetchPendingAdvertisementApprovals, rejectAdvertisement } from "../lib/api";
+import {
+  AdvertisementCampaignRecord,
+  AssociationAdminAccessRequestRecord,
+  CompanyAdminAccessRequestRecord,
+  AccessRequestMutationResponse,
+  approveAdvertisement,
+  approveAssociationAdminAccessRequest,
+  approveCompanyAdminAccessRequest,
+  fetchPendingAdvertisementApprovals,
+  fetchPendingAssociationAdminAccessRequests,
+  fetchPendingCompanyAdminAccessRequests,
+  rejectAdvertisement,
+  rejectAssociationAdminAccessRequest,
+  rejectCompanyAdminAccessRequest,
+} from "../lib/api";
 
 type ApprovalTab = "all" | "ads" | "users" | "news" | "tiers";
 type ApprovalItemType = Exclude<ApprovalTab, "all">;
@@ -13,6 +27,7 @@ type ApprovalItem = {
   title: string;
   subtitle: string;
   status: "pending";
+  source: "ads" | "company_access" | "association_access" | "skeleton";
 };
 
 const TAB_LABELS: Record<ApprovalTab, string> = {
@@ -25,18 +40,12 @@ const TAB_LABELS: Record<ApprovalTab, string> = {
 
 const SKELETON_ITEMS: ApprovalItem[] = [
   {
-    id: "users-rahul-joseph",
-    type: "users",
-    title: "Rahul Joseph",
-    subtitle: "Member access request for Joseph Bullion Works",
-    status: "pending",
-  },
-  {
     id: "news-association-bulletin",
     type: "news",
     title: "Association-wide Holiday Bulletin",
     subtitle: "News item awaiting approval for KGSMA-wide publishing",
     status: "pending",
+    source: "skeleton",
   },
   {
     id: "tiers-heritage-upgrade",
@@ -44,13 +53,7 @@ const SKELETON_ITEMS: ApprovalItem[] = [
     title: "Heritage Gold House Tier Upgrade",
     subtitle: "Prime Circle to Prime Premier upgrade request",
     status: "pending",
-  },
-  {
-    id: "users-priya-nair",
-    type: "users",
-    title: "Priya Nair",
-    subtitle: "Member access request for Crownline Jewellers",
-    status: "pending",
+    source: "skeleton",
   },
   {
     id: "news-unit-announcement",
@@ -58,6 +61,7 @@ const SKELETON_ITEMS: ApprovalItem[] = [
     title: "Unit Meeting Announcement",
     subtitle: "Branch update submitted for association review",
     status: "pending",
+    source: "skeleton",
   },
   {
     id: "tiers-coastal-upgrade",
@@ -65,6 +69,7 @@ const SKELETON_ITEMS: ApprovalItem[] = [
     title: "Coastal Bullion Works Tier Upgrade",
     subtitle: "Prime Premier to Prime Signature upgrade request",
     status: "pending",
+    source: "skeleton",
   },
 ];
 
@@ -77,6 +82,37 @@ function mapAdvertisementApproval(advertisement: AdvertisementCampaignRecord): A
     title: advertisement.title,
     subtitle: `${companyName} submitted a ${advertisement.placement.replace("_", " ")} campaign for review`,
     status: "pending",
+    source: "ads",
+  };
+}
+
+function mapCompanyAccessRequest(request: CompanyAdminAccessRequestRecord): ApprovalItem {
+  const scopeLabel = request.association?.name ?? request.state.name;
+  return {
+    id: `company-access-${request.id}`,
+    recordId: request.id,
+    type: "users",
+    title: request.requester_name,
+    subtitle: `${request.company_name} requested company admin access in ${scopeLabel}`,
+    status: "pending",
+    source: "company_access",
+  };
+}
+
+function mapAssociationAccessRequest(request: AssociationAdminAccessRequestRecord): ApprovalItem {
+  const scopeLabel =
+    request.unit?.name ??
+    request.district_operational_unit?.name ??
+    request.association?.name ??
+    request.state.name;
+  return {
+    id: `association-access-${request.id}`,
+    recordId: request.id,
+    type: "users",
+    title: request.requester_name,
+    subtitle: `${request.requested_role.replace("_", " ")} request for ${scopeLabel}`,
+    status: "pending",
+    source: "association_access",
   };
 }
 
@@ -85,8 +121,13 @@ export function ApprovalDashboardPage() {
   const [activeTab, setActiveTab] = useState<ApprovalTab>("all");
   const [skeletonItems, setSkeletonItems] = useState<ApprovalItem[]>(SKELETON_ITEMS);
   const [advertisementItems, setAdvertisementItems] = useState<ApprovalItem[]>([]);
+  const [companyAccessItems, setCompanyAccessItems] = useState<ApprovalItem[]>([]);
+  const [associationAccessItems, setAssociationAccessItems] = useState<ApprovalItem[]>([]);
   const [adsLoading, setAdsLoading] = useState(false);
+  const [accessLoading, setAccessLoading] = useState(false);
   const [adsError, setAdsError] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [activationMessage, setActivationMessage] = useState<string | null>(null);
   const [decisioningId, setDecisioningId] = useState<string | null>(null);
 
   const canReviewAdvertisements = Boolean(session?.user.is_admin);
@@ -126,17 +167,60 @@ export function ApprovalDashboardPage() {
     };
   }, [canReviewAdvertisements]);
 
-  const items = useMemo(() => [...advertisementItems, ...skeletonItems], [advertisementItems, skeletonItems]);
+  useEffect(() => {
+    let active = true;
+
+    async function loadAccessRequests() {
+      if (!canReviewAdvertisements) {
+        setCompanyAccessItems([]);
+        setAssociationAccessItems([]);
+        setAccessLoading(false);
+        return;
+      }
+
+      setAccessLoading(true);
+      setAccessError(null);
+      try {
+        const [companyPayload, associationPayload] = await Promise.all([
+          fetchPendingCompanyAdminAccessRequests(),
+          fetchPendingAssociationAdminAccessRequests(),
+        ]);
+        if (active) {
+          setCompanyAccessItems(companyPayload.results.map(mapCompanyAccessRequest));
+          setAssociationAccessItems(associationPayload.results.map(mapAssociationAccessRequest));
+        }
+      } catch (error) {
+        if (active) {
+          setAccessError(error instanceof Error ? error.message : "Unable to load access-request approvals.");
+        }
+      } finally {
+        if (active) {
+          setAccessLoading(false);
+        }
+      }
+    }
+
+    void loadAccessRequests();
+
+    return () => {
+      active = false;
+    };
+  }, [canReviewAdvertisements]);
+
+  const items = useMemo(
+    () => [...advertisementItems, ...companyAccessItems, ...associationAccessItems, ...skeletonItems],
+    [advertisementItems, associationAccessItems, companyAccessItems, skeletonItems],
+  );
 
   const counts = useMemo(
     () => ({
       all: items.length,
       ads: advertisementItems.length,
-      users: items.filter((item) => item.type === "users").length,
+      users: companyAccessItems.length + associationAccessItems.length,
       news: items.filter((item) => item.type === "news").length,
       tiers: items.filter((item) => item.type === "tiers").length,
     }),
-    [advertisementItems.length, items],
+    [advertisementItems.length, associationAccessItems.length, companyAccessItems.length, items],
   );
 
   const visibleItems = useMemo(() => {
@@ -147,22 +231,54 @@ export function ApprovalDashboardPage() {
   }, [activeTab, items]);
 
   async function handleDecision(item: ApprovalItem, decision: "approve" | "reject") {
-    if (item.type !== "ads" || !item.recordId) {
+    if (item.source === "skeleton" || !item.recordId) {
       setSkeletonItems((current) => current.filter((entry) => entry.id !== item.id));
       return;
     }
 
     setDecisioningId(item.id);
     setAdsError(null);
+    setAccessError(null);
+    setActivationMessage(null);
     try {
-      if (decision === "approve") {
-        await approveAdvertisement(item.recordId);
-      } else {
-        await rejectAdvertisement(item.recordId);
+      let activation:
+        | AccessRequestMutationResponse<CompanyAdminAccessRequestRecord>["activation"]
+        | AccessRequestMutationResponse<AssociationAdminAccessRequestRecord>["activation"]
+        | undefined;
+
+      if (item.source === "ads") {
+        if (decision === "approve") {
+          await approveAdvertisement(item.recordId);
+        } else {
+          await rejectAdvertisement(item.recordId);
+        }
+        setAdvertisementItems((current) => current.filter((entry) => entry.id !== item.id));
+      } else if (item.source === "company_access") {
+        const response =
+          decision === "approve"
+            ? await approveCompanyAdminAccessRequest(item.recordId)
+            : await rejectCompanyAdminAccessRequest(item.recordId);
+        activation = response.activation;
+        setCompanyAccessItems((current) => current.filter((entry) => entry.id !== item.id));
+      } else if (item.source === "association_access") {
+        const response =
+          decision === "approve"
+            ? await approveAssociationAdminAccessRequest(item.recordId)
+            : await rejectAssociationAdminAccessRequest(item.recordId);
+        activation = response.activation;
+        setAssociationAccessItems((current) => current.filter((entry) => entry.id !== item.id));
       }
-      setAdvertisementItems((current) => current.filter((entry) => entry.id !== item.id));
+      if (activation?.activation_token) {
+        const appActivationUrl = `${window.location.origin}/activate/${activation.activation_token}`;
+        setActivationMessage(`Approved. Share this activation link with the requester: ${appActivationUrl}`);
+      }
     } catch (error) {
-      setAdsError(error instanceof Error ? error.message : "Unable to update advertisement approval right now.");
+      const message = error instanceof Error ? error.message : "Unable to update this approval right now.";
+      if (item.source === "ads") {
+        setAdsError(message);
+      } else {
+        setAccessError(message);
+      }
     } finally {
       setDecisioningId(null);
     }
@@ -175,8 +291,8 @@ export function ApprovalDashboardPage() {
           <p className="approvals-page__eyebrow">Approval Dashboard</p>
           <h2 className="approvals-page__title">Review pending approval work in one place</h2>
           <p className="approvals-page__copy">
-            Advertisement approvals are now backed by real submitted company campaigns. The other queues stay lightweight in this first
-            phase so we can keep the inbox simple.
+            Company admin requests, association admin requests, and advertisement submissions are now live in this queue. News and tier
+            placeholders remain available so the inbox shape stays stable while those review flows catch up.
           </p>
         </div>
         <div className="approvals-page__hero-stat">
@@ -190,6 +306,24 @@ export function ApprovalDashboardPage() {
           <div>
             <strong>Advertisement approvals unavailable</strong>
             <p>{adsError}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {accessError ? (
+        <div className="ads-feedback ads-feedback--warning">
+          <div>
+            <strong>Access-request approvals unavailable</strong>
+            <p>{accessError}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {activationMessage ? (
+        <div className="ads-feedback ads-feedback--success">
+          <div>
+            <strong>Activation link ready</strong>
+            <p>{activationMessage}</p>
           </div>
         </div>
       ) : null}
@@ -218,14 +352,14 @@ export function ApprovalDashboardPage() {
             <span className="approvals-content__count">{visibleItems.length} item{visibleItems.length === 1 ? "" : "s"}</span>
           </div>
 
-          {adsLoading && activeTab !== "users" && activeTab !== "news" && activeTab !== "tiers" ? (
+          {(adsLoading || accessLoading) && activeTab !== "news" && activeTab !== "tiers" ? (
             <div className="approvals-empty">
-              <strong>Loading advertisement approvals...</strong>
-              <p>Reading the submitted campaign queue.</p>
+              <strong>Loading approval queues...</strong>
+              <p>Reading the current advertisement and access-request inbox.</p>
             </div>
           ) : null}
 
-          {!adsLoading && visibleItems.length ? (
+          {!adsLoading && !accessLoading && visibleItems.length ? (
             <div className="approvals-list">
               {visibleItems.map((item) => (
                 <article key={item.id} className="approvals-item">
@@ -261,7 +395,7 @@ export function ApprovalDashboardPage() {
             </div>
           ) : null}
 
-          {!adsLoading && !visibleItems.length ? (
+          {!adsLoading && !accessLoading && !visibleItems.length ? (
             <div className="approvals-empty">
               <strong>No pending items</strong>
               <p>

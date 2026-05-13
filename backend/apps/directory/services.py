@@ -12,9 +12,18 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from apps.accounts.models import MemberProfile, UserRole
+from apps.accounts.models import UserRole
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
+from .access import (
+    derive_company_queryset_for_scope,
+    get_company_association_ids,
+    get_company_state_ids,
+    get_company_unit_ids,
+    get_linked_company_context,
+    get_manageable_membership_company_queryset,
+    get_user_company_ids,
+)
 from .models import (
     Company,
     CompanyTier,
@@ -52,15 +61,6 @@ ZERO_DECIMAL = Decimal("0")
 HUNDRED_DECIMAL = Decimal("100")
 HERO_CAROUSEL_ITEM_LIMIT = 10
 
-
-def _company_names_for_member_profiles(queryset) -> list[str]:
-    return list(
-        queryset.exclude(company_name="")
-        .values_list("company_name", flat=True)
-        .distinct()
-    )
-
-
 PRODUCT_TARGET_MODEL_BY_TYPE = {
     ProductVisibilityTarget.TargetType.STATE: RegionState,
     ProductVisibilityTarget.TargetType.ASSOCIATION: Association,
@@ -82,7 +82,7 @@ def get_admin_manageable_company_queryset(user):
     if state_role and state_role.scope_id:
         state = RegionState.objects.filter(pk=state_role.scope_id).first()
         if state is not None:
-            return Company.objects.filter(state__iexact=state.name)
+            return derive_company_queryset_for_scope(state=state)
 
     association_role = user.scoped_roles.filter(
         role=UserRole.Role.ASSOCIATION_ADMIN,
@@ -91,10 +91,7 @@ def get_admin_manageable_company_queryset(user):
     if association_role and association_role.scope_id:
         association = Association.objects.filter(pk=association_role.scope_id).first()
         if association is not None:
-            company_names = _company_names_for_member_profiles(
-                MemberProfile.objects.filter(association=association)
-            )
-            return Company.objects.filter(name__in=company_names)
+            return derive_company_queryset_for_scope(association=association)
 
     district_role = user.scoped_roles.filter(
         role=UserRole.Role.DISTRICT_ADMIN,
@@ -103,10 +100,7 @@ def get_admin_manageable_company_queryset(user):
     if district_role and district_role.scope_id:
         district_operational_unit = DistrictOperationalUnit.objects.filter(pk=district_role.scope_id).first()
         if district_operational_unit is not None:
-            company_names = _company_names_for_member_profiles(
-                MemberProfile.objects.filter(district_operational_unit=district_operational_unit)
-            )
-            return Company.objects.filter(name__in=company_names)
+            return derive_company_queryset_for_scope(district_operational_unit=district_operational_unit)
 
     unit_role = user.scoped_roles.filter(
         role=UserRole.Role.UNIT_ADMIN,
@@ -115,8 +109,7 @@ def get_admin_manageable_company_queryset(user):
     if unit_role and unit_role.scope_id:
         unit = Unit.objects.filter(pk=unit_role.scope_id).first()
         if unit is not None:
-            company_names = _company_names_for_member_profiles(MemberProfile.objects.filter(unit=unit))
-            return Company.objects.filter(name__in=company_names)
+            return derive_company_queryset_for_scope(unit=unit)
 
     return Company.objects.none()
 
@@ -127,12 +120,12 @@ def get_manageable_company_queryset(user):
         return admin_queryset
     if not user or not user.is_authenticated:
         return Company.objects.none()
-    company_role = user.scoped_roles.filter(
-        role=UserRole.Role.COMPANY_ADMIN,
-        scope_type=UserRole.ScopeType.COMPANY,
-    ).order_by("id").first()
-    if company_role and company_role.scope_id:
-        return Company.objects.filter(pk=company_role.scope_id)
+    membership_queryset = get_manageable_membership_company_queryset(user)
+    if membership_queryset.exists():
+        return membership_queryset
+    linked_company = get_linked_company_context(user).company
+    if linked_company is not None:
+        return Company.objects.filter(pk=linked_company.id)
     return Company.objects.none()
 
 
@@ -163,45 +156,6 @@ def validate_product_target_payload(target_type: str, target_id: int | None) -> 
         raise TierValidationError(f"Selected {target_type} target does not exist.")
 
 
-def _company_member_profiles(company_id: int):
-    company = Company.objects.filter(pk=company_id).first()
-    if company is None:
-        return MemberProfile.objects.none()
-    return MemberProfile.objects.filter(company_name=company.name).select_related(
-        "state",
-        "association",
-        "district_operational_unit",
-        "unit",
-    )
-
-
-def _company_association_ids(company_id: int) -> set[int]:
-    return set(_company_member_profiles(company_id).exclude(association=None).values_list("association_id", flat=True))
-
-
-def _company_unit_ids(company_id: int) -> set[int]:
-    return set(_company_member_profiles(company_id).exclude(unit=None).values_list("unit_id", flat=True))
-
-
-def _company_state_ids(company_id: int) -> set[int]:
-    return set(_company_member_profiles(company_id).exclude(state=None).values_list("state_id", flat=True))
-
-
-def _user_company_ids(user) -> set[int]:
-    if not user or not user.is_authenticated:
-        return set()
-    company_ids = set(
-        user.scoped_roles.filter(
-            role=UserRole.Role.COMPANY_ADMIN,
-            scope_type=UserRole.ScopeType.COMPANY,
-        ).values_list("scope_id", flat=True)
-    )
-    member_profile = getattr(user, "member_profile", None)
-    if member_profile and member_profile.company_name:
-        company_ids.update(Company.objects.filter(name=member_profile.company_name).values_list("id", flat=True))
-    return company_ids
-
-
 def get_product_visibility_tokens(user) -> set[tuple[str, int | None]]:
     tokens: set[tuple[str, int | None]] = {(ProductVisibilityTarget.TargetType.PLATFORM, None)}
     if not user or not user.is_authenticated:
@@ -218,13 +172,13 @@ def get_product_visibility_tokens(user) -> set[tuple[str, int | None]]:
         if member_profile.unit_id:
             tokens.add((ProductVisibilityTarget.TargetType.UNIT, member_profile.unit_id))
 
-    for company_id in _user_company_ids(user):
+    for company_id in get_user_company_ids(user):
         tokens.add((ProductVisibilityTarget.TargetType.COMPANY, company_id))
-        for association_id in _company_association_ids(company_id):
+        for association_id in get_company_association_ids(company_id):
             tokens.add((ProductVisibilityTarget.TargetType.ASSOCIATION, association_id))
-        for unit_id in _company_unit_ids(company_id):
+        for unit_id in get_company_unit_ids(company_id):
             tokens.add((ProductVisibilityTarget.TargetType.UNIT, unit_id))
-        for state_id in _company_state_ids(company_id):
+        for state_id in get_company_state_ids(company_id):
             tokens.add((ProductVisibilityTarget.TargetType.STATE, state_id))
 
     return tokens

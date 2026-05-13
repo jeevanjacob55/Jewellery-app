@@ -3,6 +3,26 @@ export type Tokens = {
   refresh: string;
 };
 
+export type LoginSuccessResponse = Tokens & {
+  status: "success";
+  me: SessionInfo;
+};
+
+export type GoogleLoginBlockedStatus =
+  | "access_required"
+  | "pending_approval"
+  | "rejected"
+  | "inactive"
+  | "account_conflict";
+
+export type GoogleLoginBlockedResponse = {
+  status: GoogleLoginBlockedStatus;
+  message: string;
+  email?: string;
+};
+
+export type GoogleLoginResponse = LoginSuccessResponse | GoogleLoginBlockedResponse;
+
 export type SessionInfo = {
   user: {
     id: number;
@@ -32,6 +52,91 @@ export type SessionInfo = {
     pending_approvals_count: number;
     unread_notifications_count: number;
   };
+  company_type?: string | null;
+  company_membership_role?: string | null;
+  has_association_context?: boolean;
+  company_source?: string | null;
+};
+
+export type CompanyAccessRequestPayload = {
+  requester_name: string;
+  requester_phone: string;
+  requester_email: string;
+  company_name: string;
+  business_type: string;
+  state_id: number;
+  association_id: number | null;
+  district_operational_unit_id: number | null;
+  unit_id: number | null;
+  notes?: string;
+};
+
+export type AssociationAccessRequestPayload = {
+  requester_name: string;
+  requester_phone: string;
+  requester_email: string;
+  requested_role: "state_admin" | "association_admin" | "district_admin" | "unit_admin";
+  state_id: number;
+  association_id: number | null;
+  district_operational_unit_id: number | null;
+  unit_id: number | null;
+  notes?: string;
+};
+
+export type AdminAccessRequestRecord = {
+  id: number;
+  requester_name: string;
+  requester_phone: string;
+  requester_email: string;
+  status: "pending" | "approved" | "rejected";
+  approval_owner_type: string;
+  approval_owner_scope_id: number | null;
+  approved_by_name?: string | null;
+  approved_at?: string | null;
+  rejected_by_name?: string | null;
+  rejected_at?: string | null;
+  rejection_reason?: string | null;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyAdminAccessRequestRecord = AdminAccessRequestRecord & {
+  company_name: string;
+  business_type: string;
+  company_type: "independent" | "association_linked";
+  state: { id: number; name: string };
+  association: { id: number; name: string } | null;
+  district_operational_unit: { id: number; name: string } | null;
+  unit: { id: number; name: string } | null;
+};
+
+export type AssociationAdminAccessRequestRecord = AdminAccessRequestRecord & {
+  requested_role: "state_admin" | "association_admin" | "district_admin" | "unit_admin";
+  state: { id: number; name: string };
+  association: { id: number; name: string } | null;
+  district_operational_unit: { id: number; name: string } | null;
+  unit: { id: number; name: string } | null;
+};
+
+export type AccessRequestMutationResponse<TRequest> = {
+  message: string;
+  request: TRequest;
+  activation?: {
+    activation_token: string;
+    activation_api_path: string;
+    activation_url: string;
+    expires_at: string;
+  };
+};
+
+export type ActivationTokenStatus = {
+  token: string;
+  email: string;
+  user_name: string;
+  expires_at: string;
+  is_active: boolean;
+  purpose: string;
 };
 
 export type AdminOverviewWorkItem = {
@@ -714,10 +819,28 @@ async function requestJson<T>(path: string, init: RequestInit = {}, retrying = f
 }
 
 export async function loginWithPassword(payload: { username: string; password: string }) {
-  return requestJson<Tokens>("/auth/login/", {
+  const response = await requestJson<LoginSuccessResponse & { me: Partial<SessionInfo> }>("/auth/login/", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  return {
+    ...response,
+    me: normalizeSessionInfo(response.me),
+  } satisfies LoginSuccessResponse;
+}
+
+export async function loginWithGoogle(idToken: string) {
+  const response = await requestJson<(GoogleLoginResponse & { me?: Partial<SessionInfo> })>("/auth/google-login/", {
+    method: "POST",
+    body: JSON.stringify({ id_token: idToken }),
+  });
+  if (response.status !== "success") {
+    return response;
+  }
+  return {
+    ...response,
+    me: normalizeSessionInfo(response.me),
+  } satisfies LoginSuccessResponse;
 }
 
 export async function refreshAccessToken(refresh: string) {
@@ -737,26 +860,25 @@ export async function refreshAccessToken(refresh: string) {
   return { access: payload.access, refresh };
 }
 
-export async function fetchSessionInfo(overrideTokens: Tokens | null = null) {
-  const payload = await requestJson<Partial<SessionInfo>>("/me/", {}, false, overrideTokens);
+function normalizeSessionInfo(payload: Partial<SessionInfo> | undefined): SessionInfo {
   return {
     user: {
-      id: payload.user?.id ?? 0,
-      name: payload.user?.name ?? "Admin User",
-      email: payload.user?.email ?? "",
-      phone: payload.user?.phone ?? null,
-      avatar: payload.user?.avatar ?? null,
-      role: payload.user?.role ?? "",
-      role_display_name: payload.user?.role_display_name ?? "Administrator",
-      is_admin: payload.user?.is_admin ?? false,
-      has_company: payload.user?.has_company ?? false,
-      can_manage_products: payload.user?.can_manage_products ?? false,
+      id: payload?.user?.id ?? 0,
+      name: payload?.user?.name ?? "Admin User",
+      email: payload?.user?.email ?? "",
+      phone: payload?.user?.phone ?? null,
+      avatar: payload?.user?.avatar ?? null,
+      role: payload?.user?.role ?? "",
+      role_display_name: payload?.user?.role_display_name ?? "Administrator",
+      is_admin: payload?.user?.is_admin ?? false,
+      has_company: payload?.user?.has_company ?? false,
+      can_manage_products: payload?.user?.can_manage_products ?? false,
     },
     hierarchy: {
-      association: payload.hierarchy?.association ?? null,
-      state: payload.hierarchy?.state ?? null,
+      association: payload?.hierarchy?.association ?? null,
+      state: payload?.hierarchy?.state ?? null,
     },
-    company: payload.company
+    company: payload?.company
       ? {
           id: payload.company.id ?? 0,
           name: payload.company.name ?? "",
@@ -767,10 +889,19 @@ export async function fetchSessionInfo(overrideTokens: Tokens | null = null) {
         }
       : null,
     counts: {
-      pending_approvals_count: payload.counts?.pending_approvals_count ?? 0,
-      unread_notifications_count: payload.counts?.unread_notifications_count ?? 0,
+      pending_approvals_count: payload?.counts?.pending_approvals_count ?? 0,
+      unread_notifications_count: payload?.counts?.unread_notifications_count ?? 0,
     },
+    company_type: payload?.company_type ?? null,
+    company_membership_role: payload?.company_membership_role ?? null,
+    has_association_context: payload?.has_association_context ?? true,
+    company_source: payload?.company_source ?? null,
   };
+}
+
+export async function fetchSessionInfo(overrideTokens: Tokens | null = null) {
+  const payload = await requestJson<Partial<SessionInfo>>("/me/", {}, false, overrideTokens);
+  return normalizeSessionInfo(payload);
 }
 
 export async function fetchAdminOverview() {
@@ -798,6 +929,79 @@ export async function fetchAdminOverview() {
 
 export async function fetchRegionHierarchy() {
   return requestJson<RegionHierarchyState[]>("/regions/");
+}
+
+export async function submitCompanyAdminAccessRequest(payload: CompanyAccessRequestPayload) {
+  return requestJson<AccessRequestMutationResponse<CompanyAdminAccessRequestRecord>>("/access/company-admin/request/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function submitAssociationAdminAccessRequest(payload: AssociationAccessRequestPayload) {
+  return requestJson<AccessRequestMutationResponse<AssociationAdminAccessRequestRecord>>("/access/association-admin/request/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchPendingCompanyAdminAccessRequests() {
+  return requestJson<{ results: CompanyAdminAccessRequestRecord[] }>("/admin/access/company-admin-requests/");
+}
+
+export async function approveCompanyAdminAccessRequest(requestId: number) {
+  return requestJson<AccessRequestMutationResponse<CompanyAdminAccessRequestRecord>>(
+    `/admin/access/company-admin-requests/${requestId}/approve/`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
+}
+
+export async function rejectCompanyAdminAccessRequest(requestId: number, rejectionReason = "") {
+  return requestJson<AccessRequestMutationResponse<CompanyAdminAccessRequestRecord>>(
+    `/admin/access/company-admin-requests/${requestId}/reject/`,
+    {
+      method: "POST",
+      body: JSON.stringify({ rejection_reason: rejectionReason }),
+    },
+  );
+}
+
+export async function fetchPendingAssociationAdminAccessRequests() {
+  return requestJson<{ results: AssociationAdminAccessRequestRecord[] }>("/admin/access/association-admin-requests/");
+}
+
+export async function approveAssociationAdminAccessRequest(requestId: number) {
+  return requestJson<AccessRequestMutationResponse<AssociationAdminAccessRequestRecord>>(
+    `/admin/access/association-admin-requests/${requestId}/approve/`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
+}
+
+export async function rejectAssociationAdminAccessRequest(requestId: number, rejectionReason = "") {
+  return requestJson<AccessRequestMutationResponse<AssociationAdminAccessRequestRecord>>(
+    `/admin/access/association-admin-requests/${requestId}/reject/`,
+    {
+      method: "POST",
+      body: JSON.stringify({ rejection_reason: rejectionReason }),
+    },
+  );
+}
+
+export async function fetchActivationTokenStatus(token: string) {
+  return requestJson<ActivationTokenStatus>(`/access/activation/${token}/`);
+}
+
+export async function completeActivation(token: string, password: string) {
+  return requestJson<{ message: string; activation: ActivationTokenStatus }>(`/access/activation/${token}/`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
 }
 
 export async function createAdminNews(payload: AdminNewsCreatePayload) {

@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.directory.models import Company, Product
+from apps.directory.models import CompanyNotificationSubscription
 from apps.directory.services import is_product_visible_to_user
 from apps.news.models import Meeting, News
 from apps.news.services import is_meeting_visible_to_user, is_news_visible_to_user
@@ -91,10 +92,15 @@ def notify_new_product(product: Product) -> Notification | None:
     if not product.is_active or not product.company.is_active or not product.company.is_approved:
         return None
 
+    subscribed_user_ids = set(
+        CompanyNotificationSubscription.objects.filter(company=product.company).values_list("user_id", flat=True)
+    )
     recipients = [
         user
         for user in _candidate_users_for_preference("product_alerts")
-        if _notification_preference_enabled(user, "product_alerts") and is_product_visible_to_user(product, user)
+        if user.id in subscribed_user_ids
+        and _notification_preference_enabled(user, "product_alerts")
+        and is_product_visible_to_user(product, user)
     ]
     return _create_notification_with_recipients(
         notification_type=Notification.Type.PRODUCT,

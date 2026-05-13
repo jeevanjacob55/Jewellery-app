@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/media/uploads/", MediaUploadView.as_view(), name="media_upload"),
     path("api/mock-uploads/", MediaUploadView.as_view(), name="mock_upload"),
     path("api/auth/", include("apps.accounts.urls")),
+    path("api/access/", include("apps.accounts.access_urls")),
     path("api/me/", include("apps.accounts.me_urls")),
     path("api/notifications/", include("apps.accounts.notification_urls")),
     path("api/regions/", include("apps.regions.urls")),

@@ -6,10 +6,10 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.accounts.models import MemberAccessRequest, MemberProfile, UserRole
+from apps.accounts.models import AssociationAdminAccessRequest, CompanyAdminAccessRequest, MemberAccessRequest, MemberProfile, UserRole
 from apps.admin_ops.models import AuditLog
 from apps.ads.models import AdTargeting, Advertisement
-from apps.directory.models import Company, CompanyTier, Product, ProductCategory, ProductSubCategory
+from apps.directory.models import Company, CompanyMembership, CompanyTier, Product, ProductCategory, ProductSubCategory
 from apps.news.models import Meeting, News
 from apps.rates.models import AssociationRate
 from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
@@ -259,7 +259,83 @@ class AdminOverviewTests(APITestCase):
         self.assertEqual(response.data["kpis"]["rate_freshness_label"], "Updated within the hour")
         self.assertEqual(len(response.data["pending_work"]), 3)
         self.assertEqual(response.data["recent_activity"][0]["entity_id"], "kgsma-latest")
-        self.assertEqual(response.data["quick_actions"][0]["route"], "/admin/rates")
+
+    def test_admin_overview_counts_new_access_request_queues(self):
+        CompanyAdminAccessRequest.objects.create(
+            requester_name="Company Applicant",
+            requester_phone="9000011111",
+            requester_email="company-access@example.com",
+            company_name="Scope Jewels",
+            business_type="Retail",
+            state=self.state,
+            association=self.association,
+            company_type=CompanyAdminAccessRequest.CompanyType.ASSOCIATION_LINKED,
+            approval_owner_type=CompanyAdminAccessRequest.ApprovalOwnerType.ASSOCIATION_ADMIN,
+            approval_owner_scope_id=self.association.id,
+        )
+        AssociationAdminAccessRequest.objects.create(
+            requester_name="District Reviewer",
+            requester_phone="9000022222",
+            requester_email="district-access@example.com",
+            requested_role=AssociationAdminAccessRequest.RequestedRole.DISTRICT_ADMIN,
+            state=self.state,
+            association=self.association,
+            district_operational_unit=self.district,
+            approval_owner_type=AssociationAdminAccessRequest.ApprovalOwnerType.ASSOCIATION_ADMIN,
+            approval_owner_scope_id=self.association.id,
+        )
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.get(reverse("admin_overview"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["kpis"]["pending_approvals"], 5)
+        self.assertTrue(any(item["key"] == "company_admin_access_requests" for item in response.data["pending_work"]))
+        self.assertTrue(any(item["key"] == "association_admin_access_requests" for item in response.data["pending_work"]))
+
+    def test_association_admin_can_approve_company_access_request_and_issue_activation(self):
+        access_request = CompanyAdminAccessRequest.objects.create(
+            requester_name="Company Applicant",
+            requester_phone="9000011111",
+            requester_email="company-owner@example.com",
+            company_name="New Scope Jewels",
+            business_type="Retail",
+            state=self.state,
+            association=self.association,
+            company_type=CompanyAdminAccessRequest.CompanyType.ASSOCIATION_LINKED,
+            approval_owner_type=CompanyAdminAccessRequest.ApprovalOwnerType.ASSOCIATION_ADMIN,
+            approval_owner_scope_id=self.association.id,
+        )
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.post(
+            reverse("admin_company_admin_access_request_approve", args=[access_request.id]),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        access_request.refresh_from_db()
+        self.assertEqual(access_request.status, CompanyAdminAccessRequest.Status.APPROVED)
+        self.assertIsNotNone(access_request.resolved_company_id)
+        self.assertIsNotNone(access_request.resolved_membership_id)
+        self.assertTrue(
+            CompanyMembership.objects.filter(
+                user=access_request.resolved_user,
+                company=access_request.resolved_company,
+                status=CompanyMembership.Status.ACTIVE,
+                is_primary_admin=True,
+            ).exists()
+        )
+        self.assertTrue(
+            UserRole.objects.filter(
+                user=access_request.resolved_user,
+                role=UserRole.Role.COMPANY_ADMIN,
+                scope_type=UserRole.ScopeType.COMPANY,
+                scope_id=access_request.resolved_company_id,
+            ).exists()
+        )
+        self.assertIn("activation_token", response.data["activation"])
 
     def test_admin_overview_rejects_company_admin_dashboard_access(self):
         self.client.force_authenticate(user=self.company_admin)

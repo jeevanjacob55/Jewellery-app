@@ -8,8 +8,10 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import MemberAccessRequest, UserRole
+from apps.accounts.access_services import get_association_admin_access_requests_for_user, get_company_admin_access_requests_for_user
+from apps.accounts.models import AssociationAdminAccessRequest, CompanyAdminAccessRequest, MemberAccessRequest, UserRole
 from apps.ads.models import Advertisement
+from apps.directory.access import derive_company_queryset_for_scope
 from apps.directory.models import Company, Product
 from apps.directory.services import get_admin_manageable_company_queryset
 from apps.news.models import Meeting, News
@@ -144,19 +146,14 @@ def _scoped_company_queryset(scope: AdminScopeContext):
     if scope.scope_type == UserRole.ScopeType.PLATFORM:
         return queryset
     if scope.scope_type == UserRole.ScopeType.STATE and scope.state is not None:
-        return queryset.filter(state__iexact=scope.state.name)
-
-    company_name_queryset = None
+        return derive_company_queryset_for_scope(state=scope.state)
     if scope.scope_type == UserRole.ScopeType.ASSOCIATION and scope.association is not None:
-        company_name_queryset = scope.association.member_profiles.exclude(company_name="").values_list("company_name", flat=True)
-    elif scope.scope_type == UserRole.ScopeType.DISTRICT_OPERATIONAL_UNIT and scope.district_operational_unit is not None:
-        company_name_queryset = scope.district_operational_unit.member_profiles.exclude(company_name="").values_list("company_name", flat=True)
-    elif scope.scope_type == UserRole.ScopeType.UNIT and scope.unit is not None:
-        company_name_queryset = scope.unit.member_profiles.exclude(company_name="").values_list("company_name", flat=True)
-
-    if company_name_queryset is None:
-        return queryset.none()
-    return queryset.filter(name__in=company_name_queryset).distinct()
+        return derive_company_queryset_for_scope(association=scope.association)
+    if scope.scope_type == UserRole.ScopeType.DISTRICT_OPERATIONAL_UNIT and scope.district_operational_unit is not None:
+        return derive_company_queryset_for_scope(district_operational_unit=scope.district_operational_unit)
+    if scope.scope_type == UserRole.ScopeType.UNIT and scope.unit is not None:
+        return derive_company_queryset_for_scope(unit=scope.unit)
+    return queryset.none()
 
 
 def _scoped_product_queryset(scope: AdminScopeContext):
@@ -333,14 +330,27 @@ def build_admin_overview_payload(user) -> dict:
         company__is_approved=True,
     )
     pending_member_access_requests = _scoped_member_access_request_queryset(scope).filter(status=MemberAccessRequest.Status.PENDING).count()
+    pending_company_admin_requests = get_company_admin_access_requests_for_user(user).filter(
+        status=CompanyAdminAccessRequest.Status.PENDING
+    ).count()
+    pending_association_admin_requests = get_association_admin_access_requests_for_user(user).filter(
+        status=AssociationAdminAccessRequest.Status.PENDING
+    ).count()
     pending_news = _pending_news_count(user)
     submitted_ads = _scoped_advertisement_queryset(scope).filter(status=Advertisement.Status.SUBMITTED).distinct().count()
     latest_rate_timestamp = _latest_rate_timestamp(scope)
 
     pending_work = [
-        {"key": "member_access_requests", "label": "Member access requests", "count": pending_member_access_requests, "route": None},
-        {"key": "pending_news", "label": "News awaiting approval", "count": pending_news, "route": None},
-        {"key": "submitted_ads", "label": "Advertisements awaiting approval", "count": submitted_ads, "route": None},
+        {"key": "member_access_requests", "label": "Member access requests", "count": pending_member_access_requests, "route": "/admin/approvals"},
+        {"key": "company_admin_access_requests", "label": "Company admin access requests", "count": pending_company_admin_requests, "route": "/admin/approvals"},
+        {
+            "key": "association_admin_access_requests",
+            "label": "Association admin access requests",
+            "count": pending_association_admin_requests,
+            "route": "/admin/approvals",
+        },
+        {"key": "pending_news", "label": "News awaiting approval", "count": pending_news, "route": "/admin/approvals"},
+        {"key": "submitted_ads", "label": "Advertisements awaiting approval", "count": submitted_ads, "route": "/admin/approvals"},
     ]
     pending_work = [item for item in pending_work if item["count"] > 0]
 
@@ -383,7 +393,13 @@ def build_admin_overview_payload(user) -> dict:
             "role": _normalize_role_label(scope.role),
         },
         "kpis": {
-            "pending_approvals": pending_member_access_requests + pending_news + submitted_ads,
+            "pending_approvals": (
+                pending_member_access_requests
+                + pending_company_admin_requests
+                + pending_association_admin_requests
+                + pending_news
+                + submitted_ads
+            ),
             "active_companies": active_companies.count(),
             "active_products": active_products.count(),
             "published_news": _scoped_published_news_queryset(scope).count(),

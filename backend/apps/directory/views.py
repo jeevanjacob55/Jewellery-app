@@ -21,6 +21,7 @@ from apps.media_platform.service import build_media_asset_response, create_uploa
 from .models import (
     Company,
     CompanyImage,
+    CompanyNotificationSubscription,
     CompanyTierChangeRequest,
     MarketRow,
     MarketScreenSettings,
@@ -38,6 +39,7 @@ from .models import (
     ProductWishlist,
     ZoneEligibilityRule,
 )
+from .access import get_linked_company_context
 from .serializers import (
     AdminProductAttributeDefinitionSerializer,
     AdminProductCategorySerializer,
@@ -103,7 +105,12 @@ logger = logging.getLogger(__name__)
 
 
 def get_public_company_queryset(user=None, *, include_products: bool = True):
-    queryset = Company.objects.filter(is_active=True, is_approved=True).select_related("verification", "tier_ref").prefetch_related(
+    queryset = Company.objects.filter(is_active=True, is_approved=True).select_related(
+        "verification",
+        "tier_ref",
+        "state_ref",
+        "association_ref",
+    ).prefetch_related(
         Prefetch("images", queryset=CompanyImage.objects.select_related("asset").order_by("is_logo", "id")),
     )
     if not include_products:
@@ -123,6 +130,12 @@ def get_public_company_queryset(user=None, *, include_products: bool = True):
         user,
     )
     return queryset.prefetch_related(Prefetch("products", queryset=active_product_queryset))
+
+
+def get_user_subscribed_company_ids(user) -> set[int]:
+    if not user or not getattr(user, "is_authenticated", False) or getattr(user, "role", None) == user.Role.GUEST:
+        return set()
+    return set(CompanyNotificationSubscription.objects.filter(user=user).values_list("company_id", flat=True))
 
 
 def get_public_product_queryset(user=None):
@@ -186,10 +199,10 @@ def get_tier_request_queryset():
 def get_company_admin_company(user) -> Company | None:
     if not user or not user.is_authenticated:
         return None
-    company_role = user.scoped_roles.filter(role="company_admin", scope_type="company").order_by("id").first()
-    if company_role is None or not company_role.scope_id:
+    linked_company = get_linked_company_context(user).company
+    if linked_company is None:
         return None
-    return get_company_management_queryset().filter(pk=company_role.scope_id).first()
+    return get_company_management_queryset().filter(pk=linked_company.id).first()
 
 
 def require_company_admin_company(user) -> Company:
@@ -354,6 +367,11 @@ class CompanyListView(ListAPIView):
     def get_queryset(self):
         return get_public_company_queryset(self.request.user).order_by("tier_ref__display_priority", "-admin_priority", "name")
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["subscribed_company_ids"] = get_user_subscribed_company_ids(self.request.user)
+        return context
+
 
 class CompanyDetailView(RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
@@ -361,6 +379,22 @@ class CompanyDetailView(RetrieveAPIView):
 
     def get_queryset(self):
         return get_public_company_queryset(self.request.user)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["subscribed_company_ids"] = get_user_subscribed_company_ids(self.request.user)
+        return context
+
+
+class CompanyNotificationSubscriptionToggleView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, company_id: int):
+        company = get_object_or_404(Company.objects.filter(is_active=True, is_approved=True), pk=company_id)
+        subscription, created = CompanyNotificationSubscription.objects.get_or_create(user=request.user, company=company)
+        if not created:
+            subscription.delete()
+        return Response({"company_id": company.id, "is_notification_enabled": created})
 
 
 class MarketFeedView(APIView):

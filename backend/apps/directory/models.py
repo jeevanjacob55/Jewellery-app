@@ -1,7 +1,10 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils.text import slugify
+
+from apps.regions.models import Association, DistrictOperationalUnit, RegionState, Unit
 
 
 class CompanyTier(models.Model):
@@ -35,11 +38,26 @@ class CompanyTier(models.Model):
 
 
 class Company(models.Model):
+    class CompanyType(models.TextChoices):
+        INDEPENDENT = "independent", "Independent"
+        ASSOCIATION_LINKED = "association_linked", "Association Linked"
+
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=100)
     tier_ref = models.ForeignKey(CompanyTier, on_delete=models.PROTECT, related_name="companies")
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
+    state_ref = models.ForeignKey(RegionState, on_delete=models.SET_NULL, null=True, blank=True, related_name="companies")
+    association_ref = models.ForeignKey(Association, on_delete=models.SET_NULL, null=True, blank=True, related_name="companies")
+    district_operational_unit_ref = models.ForeignKey(
+        DistrictOperationalUnit,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="companies",
+    )
+    unit_ref = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name="companies")
+    company_type = models.CharField(max_length=30, choices=CompanyType.choices, blank=True, default="")
     about = models.TextField(blank=True)
     daily_capacity = models.CharField(max_length=100, blank=True)
     specialization = models.CharField(max_length=255, blank=True)
@@ -55,6 +73,60 @@ class Company(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args, **kwargs):
+        if self.state_ref_id:
+            self.state = self.state_ref.name
+        super().save(*args, **kwargs)
+
+
+class CompanyMembership(models.Model):
+    class Role(models.TextChoices):
+        PRIMARY_ADMIN = "primary_admin", "Primary Admin"
+        ADMIN = "admin", "Admin"
+        MANAGER = "manager", "Manager"
+        STAFF = "staff", "Staff"
+        VIEWER = "viewer", "Viewer"
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        PENDING = "pending", "Pending"
+        SUSPENDED = "suspended", "Suspended"
+        REMOVED = "removed", "Removed"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="company_memberships")
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="memberships")
+    role = models.CharField(max_length=30, choices=Role.choices, default=Role.ADMIN)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    is_primary_admin = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_company_memberships",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["company_id", "created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "company"], name="uniq_company_membership_user_company"),
+            models.UniqueConstraint(
+                fields=["company"],
+                condition=Q(is_primary_admin=True, status="active"),
+                name="uniq_active_primary_company_admin",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.company_id}:{self.role}:{self.status}"
+
+    def clean(self):
+        if self.is_primary_admin and self.role != self.Role.PRIMARY_ADMIN:
+            raise ValidationError({"role": "Primary admin memberships must use the primary_admin role."})
 
 
 class CompanyTierChangeRequest(models.Model):
@@ -412,6 +484,21 @@ class ProductWishlist(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.product_id}"
+
+
+class CompanyNotificationSubscription(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="company_notification_subscriptions")
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="notification_subscriptions")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "company"], name="uniq_company_notification_subscription"),
+        ]
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.company_id}"
 
 
 class MediaAsset(models.Model):

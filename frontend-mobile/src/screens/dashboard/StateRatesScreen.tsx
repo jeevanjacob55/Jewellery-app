@@ -107,7 +107,7 @@ export function StateRatesScreen() {
     <AppScreen safeAreaEdges={["top", "bottom"]} backgroundColor={colors.background}>
       <PriceScreenHeader
         title="Other States"
-        onBack={() => navigation.goBack()}
+         onBack={() => navigation.goBack()}
         onNotifications={() => navigation.navigate("Notifications")}
       />
 

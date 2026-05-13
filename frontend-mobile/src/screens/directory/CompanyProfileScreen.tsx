@@ -1,21 +1,26 @@
 import { useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
 import { getJson } from "../../api/client";
+import { toggleCompanyNotificationSubscription } from "../../api/market";
 import { ScreenState } from "../../components/ScreenState";
 import { SectionHeading } from "../../components/SectionHeading";
 import { SurfaceCard } from "../../components/SurfaceCard";
+import { useSession } from "../../session/SessionProvider";
 import { colors, radii, spacing } from "../../theme/tokens";
 import { Company } from "../../types/api";
 
 export function CompanyProfileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { status } = useSession();
   const companyId = route.params?.companyId;
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subscriptionSubmitting, setSubscriptionSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -28,7 +33,7 @@ export function CompanyProfileScreen() {
       }
 
       try {
-        const nextCompany = await getJson<Company>(`/directory/companies/${companyId}/`);
+        const nextCompany = await getJson<Company>(`/directory/companies/${companyId}/`, status === "authenticated");
         if (active) {
           setCompany(nextCompany);
         }
@@ -43,12 +48,36 @@ export function CompanyProfileScreen() {
       }
     }
 
-    loadCompany();
+    void loadCompany();
 
     return () => {
       active = false;
     };
-  }, [companyId]);
+  }, [companyId, status]);
+
+  async function handleToggleSubscription() {
+    if (!company) {
+      return;
+    }
+    if (status !== "authenticated") {
+      Alert.alert("Sign in required", "Sign in as a member to follow companies for new product launch alerts.");
+      return;
+    }
+
+    const previousValue = Boolean(company.is_notification_enabled);
+    setSubscriptionSubmitting(true);
+    setCompany((current) => (current ? { ...current, is_notification_enabled: !previousValue } : current));
+
+    try {
+      const response = await toggleCompanyNotificationSubscription(company.id);
+      setCompany((current) => (current ? { ...current, is_notification_enabled: response.is_notification_enabled } : current));
+    } catch (nextError) {
+      setCompany((current) => (current ? { ...current, is_notification_enabled: previousValue } : current));
+      Alert.alert("Update failed", nextError instanceof Error ? nextError.message : "Unable to update this company subscription right now.");
+    } finally {
+      setSubscriptionSubmitting(false);
+    }
+  }
 
   if (loading) {
     return <ScreenState title="Loading company profile" detail="Pulling verification and product details." loading />;
@@ -81,6 +110,24 @@ export function CompanyProfileScreen() {
               {company.city}, {company.state}
             </Text>
           </View>
+          <Pressable
+            style={[
+              styles.subscriptionButton,
+              company.is_notification_enabled ? styles.subscriptionButtonActive : null,
+              subscriptionSubmitting ? styles.subscriptionButtonDisabled : null,
+            ]}
+            onPress={() => void handleToggleSubscription()}
+            disabled={subscriptionSubmitting}
+          >
+            <MaterialIcons
+              name={company.is_notification_enabled ? "notifications-active" : "notifications-none"}
+              size={18}
+              color={company.is_notification_enabled ? colors.surface : colors.text}
+            />
+            <Text style={[styles.subscriptionButtonText, company.is_notification_enabled ? styles.subscriptionButtonTextActive : null]}>
+              {subscriptionSubmitting ? "Saving..." : company.is_notification_enabled ? "Following" : "Follow alerts"}
+            </Text>
+          </Pressable>
         </View>
 
         <Text style={styles.meta}>Tier: {company.tier}</Text>
@@ -88,6 +135,9 @@ export function CompanyProfileScreen() {
         <Text style={styles.meta}>Daily capacity: {company.daily_capacity || "Not shared yet"}</Text>
         <Text style={styles.meta}>Specialization: {company.specialization || "Not shared yet"}</Text>
         <Text style={styles.about}>{company.about || "Company overview will appear here once published."}</Text>
+        <Text style={styles.subscriptionHint}>
+          Follow this company to receive new product launch notifications when your global product alerts are enabled.
+        </Text>
       </SurfaceCard>
 
       <SurfaceCard>
@@ -167,6 +217,31 @@ const styles = StyleSheet.create({
   companyHeaderCopy: {
     flex: 1,
   },
+  subscriptionButton: {
+    minHeight: 38,
+    paddingHorizontal: spacing.md,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  subscriptionButtonActive: {
+    backgroundColor: colors.text,
+    borderColor: colors.text,
+  },
+  subscriptionButtonDisabled: {
+    opacity: 0.7,
+  },
+  subscriptionButtonText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  subscriptionButtonTextActive: {
+    color: colors.surface,
+  },
   companyName: {
     color: colors.text,
     fontWeight: "800",
@@ -175,6 +250,11 @@ const styles = StyleSheet.create({
   },
   meta: { color: colors.mutedText, marginBottom: spacing.xs },
   about: { color: colors.text, marginTop: spacing.sm, lineHeight: 22 },
+  subscriptionHint: {
+    color: colors.mutedText,
+    marginTop: spacing.md,
+    lineHeight: 20,
+  },
   verification: { marginTop: spacing.sm, color: colors.text, fontWeight: "700" },
   productRow: {
     paddingVertical: spacing.sm,

@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User, UserRole
 from apps.admin_ops.views import _resolve_admin_scope, _scoped_advertisement_queryset
+from apps.directory.access import get_linked_company_context
 from apps.directory.models import Company
 from apps.media_platform.models import MediaAsset
 from apps.media_platform.service import build_media_asset_response, create_upload_session, finalize_media_asset
@@ -40,13 +41,10 @@ def get_advertisement_queryset():
 
 
 def _get_company_admin_company(user: User) -> Company | None:
-    company_role = user.scoped_roles.filter(
-        role=UserRole.Role.COMPANY_ADMIN,
-        scope_type=UserRole.ScopeType.COMPANY,
-    ).order_by("id").first()
-    if company_role is None or not company_role.scope_id:
+    linked_company = get_linked_company_context(user).company
+    if linked_company is None:
         return None
-    return Company.objects.select_related("tier_ref").filter(pk=company_role.scope_id).first()
+    return Company.objects.select_related("tier_ref").filter(pk=linked_company.id).first()
 
 
 def _require_company_advertiser(user: User, *, require_active_approved: bool) -> Company:

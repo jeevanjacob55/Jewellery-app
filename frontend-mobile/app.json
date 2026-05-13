@@ -2,6 +2,7 @@
   "expo": {
     "name": "Jewellery Association",
     "slug": "jewellery-association",
+    "scheme": "jewelleryassociation",
     "version": "1.0.0",
     "orientation": "portrait",
     "platforms": [

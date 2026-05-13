@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
 import { getJson } from "../../api/client";
 import { ScreenState } from "../../components/ScreenState";
@@ -9,6 +11,7 @@ import { colors, radii, spacing } from "../../theme/tokens";
 import { NotificationPreferences } from "../../types/api";
 
 export function NotificationSettingsScreen() {
+  const navigation = useNavigation<any>();
   const { updateNotificationPreferences } = useSession();
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,6 +107,14 @@ export function NotificationSettingsScreen() {
           onValueChange={(value) => setPreferences((current) => (current ? { ...current, product_alerts: value } : current))}
         />
 
+        <Pressable style={styles.linkCard} onPress={() => navigation.navigate("CompanyNotificationManagement")}>
+          <View style={styles.linkCopy}>
+            <Text style={styles.linkTitle}>Manage company subscriptions</Text>
+            <Text style={styles.linkHint}>Choose the specific companies that can send you product launch alerts.</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={22} color={colors.text} />
+        </Pressable>
+
         {message ? <Text style={styles.statusMessage}>{message}</Text> : null}
 
         <Pressable style={[styles.primaryButton, saving && styles.disabledButton]} onPress={handleSave} disabled={saving}>
@@ -181,6 +192,29 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     marginTop: spacing.md,
     fontWeight: "600",
+  },
+  linkCard: {
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  linkCopy: {
+    flex: 1,
+  },
+  linkTitle: {
+    color: colors.text,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  linkHint: {
+    color: colors.mutedText,
+    fontSize: 13,
+    lineHeight: 18,
   },
   primaryButton: {
     backgroundColor: colors.text,
