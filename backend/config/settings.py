@@ -14,6 +14,8 @@ env = environ.Env(
     MEDIA_SIGNED_URL_TTL=(int, 900),
     MEDIA_STORAGE_PROVIDER=(str, "mock"),
     GCS_SERVICE_ACCOUNT_JSON=(str, ""),
+    CSRF_TRUSTED_ORIGINS=(str, ""),
+    RENDER_EXTERNAL_HOSTNAME=(str, ""),
     COMPANY_PLAN_UPGRADE_URL=(str, ""),
     DIRECTORY_MARKET_ZONE_FEED_ENABLED=(bool, False),
     DIRECTORY_MARKET_MIXED_FEED_ENABLED=(bool, False),
@@ -30,6 +32,9 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("SECRET_KEY", default="django-insecure-change-me")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = [host.strip() for host in env("ALLOWED_HOSTS", default="127.0.0.1,localhost").split(",") if host.strip()]
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="").strip()
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -147,6 +152,12 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     origin.strip() for origin in env("CORS_ALLOWED_ORIGINS", default="").split(",") if origin.strip()
 ]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in env("CSRF_TRUSTED_ORIGINS", default="").split(",") if origin.strip()
+]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 
 GCS_BUCKET_NAME = env("GCS_BUCKET_NAME", default="")
 GCS_PRIVATE_BUCKET_NAME = env("GCS_PRIVATE_BUCKET_NAME", default="")
